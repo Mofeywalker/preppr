@@ -155,189 +155,224 @@ export function RecipeForm({
 
   return (
     <form onSubmit={submit} className="space-y-6">
-      <div className="space-y-1.5">
-        <Label htmlFor="title">{t("title")}</Label>
-        <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} />
-      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Basic Details & Nutrition */}
+        <div className="lg:col-span-6 space-y-6">
+          <div className="rounded-2xl border border-border bg-muted/10 p-5 space-y-4">
+            <h2 className="text-base font-semibold tracking-tight">{t("title")} &amp; Info</h2>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="description">{t("description")}</Label>
-        <Textarea
-          id="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="language">{t("language")}</Label>
-          <Select
-            id="language"
-            value={language}
-            onChange={(e) => setLanguage(e.target.value as Locale)}
-          >
-            <option value="de">Deutsch</option>
-            <option value="en">English</option>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="servings">{t("servings")}</Label>
-          <Input
-            id="servings"
-            type="number"
-            min={1}
-            value={servings}
-            onChange={(e) => setServings(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="prep">{t("prepTime")}</Label>
-          <Input
-            id="prep"
-            type="number"
-            min={0}
-            value={prepTime}
-            onChange={(e) => setPrepTime(e.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="cook">{t("cookTime")}</Label>
-          <Input
-            id="cook"
-            type="number"
-            min={0}
-            value={cookTime}
-            onChange={(e) => setCookTime(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="imageUrl">{t("imageUrl")}</Label>
-        <Input
-          id="imageUrl"
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          placeholder="https://…"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label>{t("ingredients")}</Label>
-        <div className="space-y-2">
-          {ings.map((ing, i) => (
-            <div key={i} className="flex gap-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="title">{t("title")}</Label>
               <Input
-                className="flex-1"
-                placeholder={t("ingredientName")}
-                value={ing.name}
-                onChange={(e) =>
-                  setIngs((l) =>
-                    l.map((x, idx) => (idx === i ? { ...x, name: e.target.value } : x)),
-                  )
-                }
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="bg-background"
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="description">{t("description")}</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="bg-background min-h-24"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="language">{t("language")}</Label>
+                <Select
+                  id="language"
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value as Locale)}
+                  className="bg-background"
+                >
+                  <option value="de">Deutsch</option>
+                  <option value="en">English</option>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="servings">{t("servings")}</Label>
+                <Input
+                  id="servings"
+                  type="number"
+                  min={1}
+                  value={servings}
+                  onChange={(e) => setServings(e.target.value)}
+                  className="bg-background"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="prep">{t("prepTime")}</Label>
+                <Input
+                  id="prep"
+                  type="number"
+                  min={0}
+                  value={prepTime}
+                  onChange={(e) => setPrepTime(e.target.value)}
+                  className="bg-background"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="cook">{t("cookTime")}</Label>
+                <Input
+                  id="cook"
+                  type="number"
+                  min={0}
+                  value={cookTime}
+                  onChange={(e) => setCookTime(e.target.value)}
+                  className="bg-background"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="imageUrl">{t("imageUrl")}</Label>
               <Input
-                className="w-20"
-                type="number"
-                placeholder={t("quantity")}
-                value={ing.quantity}
-                onChange={(e) =>
-                  setIngs((l) =>
-                    l.map((x, idx) =>
-                      idx === i ? { ...x, quantity: e.target.value } : x,
-                    ),
-                  )
-                }
+                id="imageUrl"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://…"
+                className="bg-background"
               />
-              <Input
-                className="w-20"
-                placeholder={t("unit")}
-                value={ing.unit}
-                onChange={(e) =>
-                  setIngs((l) =>
-                    l.map((x, idx) => (idx === i ? { ...x, unit: e.target.value } : x)),
-                  )
-                }
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setIngs((l) => l.filter((_, idx) => idx !== i))}
-              >
-                ×
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-muted/10 p-5 space-y-4">
+            <h2 className="text-base font-semibold tracking-tight">{t("nutrition")}</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <NumField label={t("calories")} value={calories} onChange={setCalories} />
+              <NumField label={t("protein")} value={protein} onChange={setProtein} />
+              <NumField label={t("carbs")} value={carbs} onChange={setCarbs} />
+              <NumField label={t("fat")} value={fat} onChange={setFat} />
+              <NumField label={t("fiber")} value={fiber} onChange={setFiber} />
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Ingredients & Steps */}
+        <div className="lg:col-span-6 space-y-6">
+          <div className="rounded-2xl border border-border bg-muted/10 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold tracking-tight text-foreground">
+                {t("ingredients")}
+              </Label>
+              <Button type="button" variant="outline" size="sm" onClick={addIng}>
+                + {t("addIngredient")}
               </Button>
             </div>
-          ))}
-        </div>
-        <Button type="button" variant="outline" size="sm" onClick={addIng}>
-          + {t("addIngredient")}
-        </Button>
-      </div>
+            <div className="space-y-2">
+              {ings.map((ing, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input
+                    className="flex-1 bg-background"
+                    placeholder={t("ingredientName")}
+                    value={ing.name}
+                    onChange={(e) =>
+                      setIngs((l) =>
+                        l.map((x, idx) => (idx === i ? { ...x, name: e.target.value } : x)),
+                      )
+                    }
+                  />
+                  <Input
+                    className="w-20 bg-background"
+                    type="number"
+                    placeholder={t("quantity")}
+                    value={ing.quantity}
+                    onChange={(e) =>
+                      setIngs((l) =>
+                        l.map((x, idx) =>
+                          idx === i ? { ...x, quantity: e.target.value } : x,
+                        ),
+                      )
+                    }
+                  />
+                  <Input
+                    className="w-20 bg-background"
+                    placeholder={t("unit")}
+                    value={ing.unit}
+                    onChange={(e) =>
+                      setIngs((l) =>
+                        l.map((x, idx) => (idx === i ? { ...x, unit: e.target.value } : x)),
+                      )
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIngs((l) => l.filter((_, idx) => idx !== i))}
+                    className="shrink-0 text-foreground/60 hover:text-red-600"
+                  >
+                    ×
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
 
-      <div className="space-y-2">
-        <Label>{t("steps")}</Label>
-        <div className="space-y-2">
-          {stepList.map((s, i) => (
-            <div key={i} className="flex gap-2">
-              <Input
-                className="flex-1"
-                placeholder={`${t("stepText")} ${i + 1}`}
-                value={s}
-                onChange={(e) =>
-                  setStepList((l) =>
-                    l.map((x, idx) => (idx === i ? e.target.value : x)),
-                  )
-                }
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setStepList((l) => l.filter((_, idx) => idx !== i))}
-              >
-                ×
+          <div className="rounded-2xl border border-border bg-muted/10 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold tracking-tight text-foreground">
+                {t("steps")}
+              </Label>
+              <Button type="button" variant="outline" size="sm" onClick={addStep}>
+                + {t("addStep")}
               </Button>
             </div>
-          ))}
+            <div className="space-y-2">
+              {stepList.map((s, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground/80">
+                    {i + 1}
+                  </span>
+                  <Input
+                    className="flex-1 bg-background"
+                    placeholder={`${t("stepText")} ${i + 1}`}
+                    value={s}
+                    onChange={(e) =>
+                      setStepList((l) =>
+                        l.map((x, idx) => (idx === i ? e.target.value : x)),
+                      )
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setStepList((l) => l.filter((_, idx) => idx !== i))}
+                    className="shrink-0 text-foreground/60 hover:text-red-600"
+                  >
+                    ×
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+
+          <div className="flex gap-3 pt-2">
+            <Button type="submit" disabled={pending} className="flex-1 h-11 font-medium">
+              {pending ? <Spinner /> : t("save")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.back()}
+              disabled={pending}
+              className="h-11"
+            >
+              {t("cancel")}
+            </Button>
+          </div>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={addStep}>
-          + {t("addStep")}
-        </Button>
-      </div>
-
-      <details className="space-y-2">
-        <summary className="cursor-pointer text-sm font-medium text-foreground/80">
-          {t("nutrition")}
-        </summary>
-        <div className="grid grid-cols-3 gap-2 pt-1">
-          <NumField label={t("calories")} value={calories} onChange={setCalories} />
-          <NumField label={t("protein")} value={protein} onChange={setProtein} />
-          <NumField label={t("carbs")} value={carbs} onChange={setCarbs} />
-          <NumField label={t("fat")} value={fat} onChange={setFat} />
-          <NumField label={t("fiber")} value={fiber} onChange={setFiber} />
-        </div>
-      </details>
-
-      {error && <p className="text-sm text-red-600">{error}</p>}
-
-      <div className="flex gap-2">
-        <Button type="submit" disabled={pending} className="flex-1">
-          {pending ? <Spinner /> : t("save")}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => router.back()}
-          disabled={pending}
-        >
-          {t("cancel")}
-        </Button>
       </div>
     </form>
   );

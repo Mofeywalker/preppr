@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { getRecipe } from "@/lib/recipes";
 import { RecipeForm, recipeFormInitialFromFull } from "@/components/recipe-form";
 import type { Locale } from "@/i18n/routing";
@@ -13,8 +14,13 @@ export default async function EditRecipePage({
   const { id, locale } = await params;
   const recipe = await getRecipe(id);
   if (!recipe) notFound();
+  const t = await getTranslations("RecipeDetail");
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-6">
+      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+        {t("edit")}: {recipe.title}
+      </h1>
       <RecipeForm
         mode="edit"
         recipeId={id}

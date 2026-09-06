@@ -55,137 +55,180 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
   };
 
   return (
-    <div className="space-y-4">
-      <Link href="/" className="text-sm text-foreground/60">
-        ← {t("back")}
-      </Link>
-
-      {imageUrl && !imgError ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={imageUrl}
-          alt={recipe.title}
-          onError={() => setImgError(true)}
-          className="aspect-video w-full rounded-xl object-cover"
-        />
-      ) : (
-        <div className="flex aspect-video w-full items-center justify-center rounded-xl bg-muted">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onGenerate}
-            disabled={genLoading}
-          >
-            {genLoading ? <Spinner /> : t("generateImage")}
-          </Button>
-        </div>
-      )}
-      {genError && <p className="text-xs text-red-600">{genError}</p>}
-
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{recipe.title}</h1>
-        {recipe.description && (
-          <p className="mt-1 text-sm text-foreground/70">{recipe.description}</p>
-        )}
-      </div>
-
-      <div className="flex flex-wrap gap-2 text-sm">
-        <span className="rounded-lg bg-muted px-2.5 py-1">
-          {t("prepTime")}: {recipe.prepTimeMin ?? "–"} {tForm("minutes")}
-        </span>
-        <span className="rounded-lg bg-muted px-2.5 py-1">
-          {t("cookTime")}: {recipe.cookTimeMin ?? "–"} {tForm("minutes")}
-        </span>
-        {recipe.sourceUrl && (
-          <a
-            href={recipe.sourceUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-lg bg-muted px-2.5 py-1 underline"
-          >
-            {t("source")}
-          </a>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2">
-        <label className="text-sm font-medium" htmlFor="servings">
-          {t("servings")}
-        </label>
-        <Input
-          id="servings"
-          type="number"
-          min={1}
-          inputMode="numeric"
-          value={servings}
-          onChange={(e) => {
-            const n = Number(e.target.value);
-            if (n > 0) setServings(n);
-          }}
-          className="h-9 w-24"
-        />
-      </div>
-
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">{t("ingredients")}</h2>
-        <ul className="space-y-1.5">
-          {recipe.ingredients.map((ing) => (
-            <li
-              key={ing.id}
-              className="flex items-baseline justify-between gap-3 border-b border-border/60 pb-1.5 text-sm"
-            >
-              <span>{ing.name}</span>
-              <span className="shrink-0 text-foreground/70">
-                {ing.quantity == null
-                  ? ""
-                  : fmt(ing.quantity * scale)}{" "}
-                {ing.unit ?? ""}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">{t("steps")}</h2>
-        <ol className="space-y-3">
-          {recipe.steps.map((s, i) => (
-            <li key={s.id} className="flex gap-3 text-sm">
-              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-xs text-background">
-                {i + 1}
-              </span>
-              <span className="pt-0.5">{s.text}</span>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">{t("nutrition")}</h2>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <NutRow label={t("calories")} value={recipe.calories} unit="kcal" />
-          <NutRow label={t("protein")} value={recipe.proteinG} unit="g" />
-          <NutRow label={t("carbs")} value={recipe.carbsG} unit="g" />
-          <NutRow label={t("fat")} value={recipe.fatG} unit="g" />
-          <NutRow label={t("fiber")} value={recipe.fiberG} unit="g" />
-        </div>
-      </section>
-
-      <div className="flex gap-2 pt-2">
-        <Link href={`/recipes/${recipe.id}/edit`} className="flex-1">
-          <Button variant="outline" className="w-full">
-            {t("edit")}
-          </Button>
-        </Link>
-        <Button
-          variant="destructive"
-          onClick={onDelete}
-          disabled={pending}
-          className="flex-1"
+    <div className="space-y-6">
+      {/* Top navigation & desktop action buttons */}
+      <div className="flex items-center justify-between border-b border-border/60 pb-4">
+        <Link
+          href="/"
+          className="text-sm font-medium text-foreground/60 hover:text-foreground transition flex items-center gap-1"
         >
-          {pending ? <Spinner /> : t("delete")}
-        </Button>
+          ← {t("back")}
+        </Link>
+        <div className="flex items-center gap-2">
+          <Link href={`/recipes/${recipe.id}/edit`}>
+            <Button variant="outline" size="sm">
+              {t("edit")}
+            </Button>
+          </Link>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={onDelete}
+            disabled={pending}
+          >
+            {pending ? <Spinner /> : t("delete")}
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Media, Servings scaler, Nutrition, Source (sticky on desktop) */}
+        <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-20">
+          <div className="overflow-hidden rounded-2xl border border-border bg-muted">
+            {imageUrl && !imgError ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={imageUrl}
+                alt={recipe.title}
+                onError={() => setImgError(true)}
+                className="aspect-video w-full object-cover"
+              />
+            ) : (
+              <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 p-6 text-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onGenerate}
+                  disabled={genLoading}
+                >
+                  {genLoading ? <Spinner /> : t("generateImage")}
+                </Button>
+              </div>
+            )}
+          </div>
+          {genError && <p className="text-xs text-red-600">{genError}</p>}
+
+          {/* Servings Adjuster */}
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 p-3.5">
+            <div>
+              <label className="text-sm font-medium block" htmlFor="servings">
+                {t("servings")}
+              </label>
+              <span className="text-xs text-foreground/60">
+                {servings !== recipe.servings
+                  ? `Scaled from ${recipe.servings}`
+                  : `Default: ${recipe.servings}`}
+              </span>
+            </div>
+            <Input
+              id="servings"
+              type="number"
+              min={1}
+              inputMode="numeric"
+              value={servings}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                if (n > 0) setServings(n);
+              }}
+              className="h-9 w-24 text-center font-medium bg-background"
+            />
+          </div>
+
+          {/* Nutrition */}
+          <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground/70">
+              {t("nutrition")}
+            </h2>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <NutRow label={t("calories")} value={recipe.calories} unit="kcal" />
+              <NutRow label={t("protein")} value={recipe.proteinG} unit="g" />
+              <NutRow label={t("carbs")} value={recipe.carbsG} unit="g" />
+              <NutRow label={t("fat")} value={recipe.fatG} unit="g" />
+              <NutRow label={t("fiber")} value={recipe.fiberG} unit="g" />
+            </div>
+          </section>
+
+          {recipe.sourceUrl && (
+            <div className="rounded-xl border border-border bg-muted/10 p-3.5 text-xs text-foreground/70">
+              <span className="font-semibold text-foreground/80">{t("source")}: </span>
+              <a
+                href={recipe.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-foreground break-all"
+              >
+                {recipe.sourceUrl}
+              </a>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: Title, Metadata, Ingredients, Steps */}
+        <div className="lg:col-span-7 space-y-8">
+          <div>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">
+              {recipe.title}
+            </h1>
+            {recipe.description && (
+              <p className="mt-2 text-base text-foreground/70 leading-relaxed">
+                {recipe.description}
+              </p>
+            )}
+
+            <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium">
+              <span className="rounded-lg bg-muted px-3 py-1.5 text-foreground/80">
+                {t("prepTime")}: {recipe.prepTimeMin ?? "–"} {tForm("minutes")}
+              </span>
+              <span className="rounded-lg bg-muted px-3 py-1.5 text-foreground/80">
+                {t("cookTime")}: {recipe.cookTimeMin ?? "–"} {tForm("minutes")}
+              </span>
+              {(recipe.prepTimeMin != null || recipe.cookTimeMin != null) && (
+                <span className="rounded-lg bg-muted px-3 py-1.5 text-foreground/80">
+                  Total: {(recipe.prepTimeMin ?? 0) + (recipe.cookTimeMin ?? 0)}{" "}
+                  {tForm("minutes")}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Ingredients */}
+          <section className="space-y-3">
+            <h2 className="text-xl font-bold tracking-tight">{t("ingredients")}</h2>
+            <div className="rounded-xl border border-border divide-y divide-border overflow-hidden">
+              {recipe.ingredients.map((ing) => (
+                <div
+                  key={ing.id}
+                  className="flex items-baseline justify-between gap-4 px-4 py-2.5 text-sm hover:bg-muted/20 transition"
+                >
+                  <span className="text-foreground font-medium">{ing.name}</span>
+                  <span className="shrink-0 text-foreground/70 font-mono text-xs sm:text-sm">
+                    {ing.quantity == null ? "" : fmt(ing.quantity * scale)}{" "}
+                    {ing.unit ?? ""}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Steps */}
+          <section className="space-y-4">
+            <h2 className="text-xl font-bold tracking-tight">{t("steps")}</h2>
+            <ol className="space-y-3">
+              {recipe.steps.map((s, i) => (
+                <li
+                  key={s.id}
+                  className="flex gap-4 rounded-xl border border-border/60 bg-muted/10 p-3.5 text-sm sm:text-base leading-relaxed"
+                >
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background">
+                    {i + 1}
+                  </span>
+                  <span className="pt-0.5 text-foreground/90">{s.text}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        </div>
       </div>
     </div>
   );

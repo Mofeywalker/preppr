@@ -6,7 +6,7 @@ import { getMessages } from "next-intl/server";
 import { Geist, Geist_Mono } from "next/font/google";
 import type { Metadata } from "next";
 import { routing, type Locale } from "@/i18n/routing";
-import { LocaleSwitcher } from "@/components/locale-switcher";
+import { Navbar } from "@/components/navbar";
 import { TabBar } from "@/components/tab-bar";
 import "../globals.css";
 
@@ -48,11 +48,8 @@ export default async function LocaleLayout({
     >
       <body className="min-h-full bg-background text-foreground">
         <NextIntlClientProvider messages={messages}>
-          <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur">
-            <span className="text-base font-semibold tracking-tight">preppr</span>
-            <LocaleSwitcher locale={locale as Locale} />
-          </header>
-          <main className="mx-auto w-full max-w-md px-4 pb-24 pt-4">
+          <Navbar locale={locale as Locale} />
+          <main className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 pt-6 pb-24 md:pb-12">
             {children}
           </main>
           <TabBar />

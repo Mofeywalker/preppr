@@ -72,10 +72,10 @@ export function ImportClient({ locale }: { locale: Locale }) {
       steps: result.recipe.steps,
     };
     return (
-      <div className="space-y-3">
-        <div className="rounded-lg bg-muted px-3 py-2 text-sm">
-          <p className="font-medium">{t("review")}</p>
-          <p className="text-foreground/60">{t("reviewHint")}</p>
+      <div className="space-y-6">
+        <div className="rounded-2xl border border-border bg-muted/40 p-4 text-sm">
+          <p className="font-semibold text-foreground">{t("review")}</p>
+          <p className="text-foreground/70 text-xs sm:text-sm mt-0.5">{t("reviewHint")}</p>
         </div>
         <RecipeForm
           mode="create"
@@ -89,10 +89,16 @@ export function ImportClient({ locale }: { locale: Locale }) {
   }
 
   return (
-    <div className="space-y-3">
-      <h1 className="text-xl font-semibold tracking-tight">{t("title")}</h1>
-      <form onSubmit={onExtract} className="space-y-3">
-        <div className="space-y-1.5">
+    <div className="mx-auto max-w-xl py-4 sm:py-10 space-y-6">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("title")}</h1>
+        <p className="mt-1 text-sm text-foreground/60">
+          Paste a YouTube video link to automatically extract ingredients, steps, and nutrition info.
+        </p>
+      </div>
+
+      <form onSubmit={onExtract} className="space-y-4 rounded-2xl border border-border bg-muted/10 p-6">
+        <div className="space-y-2">
           <Label htmlFor="yt-url">{t("urlLabel")}</Label>
           <Input
             id="yt-url"
@@ -101,13 +107,14 @@ export function ImportClient({ locale }: { locale: Locale }) {
             placeholder={t("urlPlaceholder")}
             inputMode="url"
             autoCapitalize="off"
+            className="h-11 bg-background"
           />
         </div>
-        <Button type="submit" className="w-full" disabled={pending}>
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <Button type="submit" className="w-full h-11 font-medium" disabled={pending}>
           {pending ? <Spinner /> : t("extract")}
         </Button>
       </form>
-      {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   );
 }
