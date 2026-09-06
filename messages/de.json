@@ -1,0 +1,88 @@
+{
+  "Nav": {
+    "recipes": "Rezepte",
+    "import": "Import",
+    "new": "Neu"
+  },
+  "Locale": {
+    "en": "English",
+    "de": "Deutsch"
+  },
+  "Recipes": {
+    "title": "Rezepte",
+    "empty": "Noch keine Rezepte.",
+    "addFirst": "Erstes Rezept hinzufügen",
+    "search": "Suche",
+    "servings": "Portionen",
+    "minutes": "Min",
+    "view": "Anzeigen"
+  },
+  "RecipeDetail": {
+    "ingredients": "Zutaten",
+    "steps": "Schritte",
+    "nutrition": "Nährwerte (pro Portion)",
+    "calories": "Kalorien",
+    "protein": "Protein",
+    "carbs": "Kohlenhydrate",
+    "fat": "Fett",
+    "fiber": "Ballaststoffe",
+    "servings": "Portionen",
+    "prepTime": "Vorbereitung",
+    "cookTime": "Kochzeit",
+    "source": "Quelle",
+    "back": "Zurück",
+    "edit": "Bearbeiten",
+    "delete": "Löschen",
+    "deleteConfirm": "Dieses Rezept löschen?",
+    "notFound": "Rezept nicht gefunden.",
+    "nutritionUnknown": "unbekannt",
+    "generateImage": "Bild generieren"
+  },
+  "RecipeForm": {
+    "title": "Titel",
+    "description": "Beschreibung",
+    "language": "Sprache",
+    "servings": "Portionen",
+    "prepTime": "Vorbereitung (Min)",
+    "cookTime": "Kochzeit (Min)",
+    "ingredients": "Zutaten",
+    "ingredientName": "Name",
+    "quantity": "Menge",
+    "unit": "Einheit",
+    "addIngredient": "Zutat hinzufügen",
+    "steps": "Schritte",
+    "stepText": "Schritt",
+    "addStep": "Schritt hinzufügen",
+    "nutrition": "Nährwerte (pro Portion)",
+    "calories": "Kalorien",
+    "protein": "Protein (g)",
+    "carbs": "Kohlenhydrate (g)",
+    "fat": "Fett (g)",
+    "fiber": "Ballaststoffe (g)",
+    "save": "Speichern",
+    "saving": "Speichern…",
+    "cancel": "Abbrechen",
+    "imageUrl": "Bild-URL"
+  },
+  "Import": {
+    "title": "Aus YouTube importieren",
+    "urlLabel": "YouTube-Link",
+    "urlPlaceholder": "https://youtube.com/watch?v=…",
+    "extract": "Rezept extrahieren",
+    "extracting": "Extrahieren…",
+    "review": "Prüfen & bearbeiten",
+    "reviewHint": "Prüfe das extrahierte Rezept und speichere es.",
+    "error": "Etwas ist schiefgelaufen.",
+    "errorNoTranscript": "Für dieses Video konnte keine Transkription oder Audiospur gefunden werden.",
+    "errorInvalidUrl": "Bitte einen gültigen YouTube-Link eingeben.",
+    "errorAiConfig": "KI ist nicht konfiguriert. Setze GEMINI_API_KEY.",
+    "source": "Importiert von"
+  },
+  "New": {
+    "title": "Neues Rezept"
+  },
+  "Errors": {
+    "titleRequired": "Titel ist erforderlich.",
+    "generic": "Etwas ist schiefgelaufen."
+  }
+}

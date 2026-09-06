@@ -1,0 +1,88 @@
+{
+  "Nav": {
+    "recipes": "Recipes",
+    "import": "Import",
+    "new": "New"
+  },
+  "Locale": {
+    "en": "English",
+    "de": "Deutsch"
+  },
+  "Recipes": {
+    "title": "Recipes",
+    "empty": "No recipes yet.",
+    "addFirst": "Add your first recipe",
+    "search": "Search",
+    "servings": "servings",
+    "minutes": "min",
+    "view": "View"
+  },
+  "RecipeDetail": {
+    "ingredients": "Ingredients",
+    "steps": "Steps",
+    "nutrition": "Nutrition (per serving)",
+    "calories": "Calories",
+    "protein": "Protein",
+    "carbs": "Carbs",
+    "fat": "Fat",
+    "fiber": "Fiber",
+    "servings": "Servings",
+    "prepTime": "Prep",
+    "cookTime": "Cook",
+    "source": "Source",
+    "back": "Back",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this recipe?",
+    "notFound": "Recipe not found.",
+    "nutritionUnknown": "unknown",
+    "generateImage": "Generate image"
+  },
+  "RecipeForm": {
+    "title": "Title",
+    "description": "Description",
+    "language": "Language",
+    "servings": "Servings",
+    "prepTime": "Prep time (min)",
+    "cookTime": "Cook time (min)",
+    "ingredients": "Ingredients",
+    "ingredientName": "Name",
+    "quantity": "Amount",
+    "unit": "Unit",
+    "addIngredient": "Add ingredient",
+    "steps": "Steps",
+    "stepText": "Step",
+    "addStep": "Add step",
+    "nutrition": "Nutrition (per serving)",
+    "calories": "Calories",
+    "protein": "Protein (g)",
+    "carbs": "Carbs (g)",
+    "fat": "Fat (g)",
+    "fiber": "Fiber (g)",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "imageUrl": "Image URL"
+  },
+  "Import": {
+    "title": "Import from YouTube",
+    "urlLabel": "YouTube URL",
+    "urlPlaceholder": "https://youtube.com/watch?v=…",
+    "extract": "Extract recipe",
+    "extracting": "Extracting…",
+    "review": "Review & edit",
+    "reviewHint": "Check the extracted recipe, then save it.",
+    "error": "Something went wrong.",
+    "errorNoTranscript": "Could not get a transcript or audio for this video.",
+    "errorInvalidUrl": "Please enter a valid YouTube URL.",
+    "errorAiConfig": "AI is not configured. Set GEMINI_API_KEY.",
+    "source": "Imported from"
+  },
+  "New": {
+    "title": "New recipe"
+  },
+  "Errors": {
+    "titleRequired": "Title is required.",
+    "generic": "Something went wrong."
+  }
+}

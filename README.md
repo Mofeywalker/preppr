@@ -1,36 +1,110 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# preppr
 
-## Getting Started
+A mobile-first recipe & meal-prep app. Add recipes manually or import them from
+YouTube (videos + Shorts) with AI. German + English UI.
 
-First, run the development server:
+- **Next.js 16** (App Router) + TypeScript + Tailwind v4
+- **SQLite** via Drizzle ORM + better-sqlite3 (single file, no external DB)
+- **next-intl** for the `de`/`en` UI, locale-prefixed routing
+- **Vercel AI SDK** + **Google Gemini** for recipe extraction, nutrition
+  estimates, and image generation
+- **yt-dlp** for video metadata + audio fallback when no transcript exists
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Features
+
+- **Manual recipes** — title, description, ingredients, steps, servings, times
+- **YouTube import** — paste a URL; the transcript (or audio, if no captions) is
+  sent to Gemini, which returns a structured recipe + nutrition in one pass
+- **Servings scaler** — change servings on the detail page; ingredient
+  quantities rescale live
+- **Nutrition** — per-serving calories / protein / carbs / fat / fiber
+- **Images** — YouTube thumbnail by default; optional Imagen generation
+- **DE + EN** — switch locale from the header
+
+## Getting started (local)
+
+Requires Node 20+ and `yt-dlp` + `ffmpeg` on your PATH (for YouTube import):
+
+```sh
+brew install yt-dlp ffmpeg        # macOS
+npm install
+cp .env.example .env               # then put your key in .env
+npm run dev                       # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Configure the Gemini integration
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Open **Google AI Studio** → https://aistudio.google.com/apikey
+2. Sign in with a Google account → **Create API key** (starts with `AIza…`)
+3. Put it in `.env`:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   ```env
+   GEMINI_API_KEY=AIza...
+   ```
 
-## Learn More
+That single key powers:
+- `gemini-2.5-flash` — recipe + nutrition extraction from transcript or audio
+- `gemini-2.5-flash-image` — the "Generate image" button on the detail page
 
-To learn more about Next.js, take a look at the following resources:
+Without a key the rest of the app works; the import + image-gen routes return a
+503 ("AI not configured"). A free-tier key is enough for local use.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+> **Note:** the SDK in use is `@ai-sdk/google` (the Vercel AI SDK's Google
+> provider), **not** `@google/generative-ai` or `@google/genai`. Swapping to
+> another provider later (OpenAI, Anthropic, …) is a one-line model change in
+> `src/lib/ai.ts` plus installing that provider package — the Zod schema and
+> call sites stay the same.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Environment variables
 
-## Deploy on Vercel
+| Variable         | Required | Default      | Purpose                                  |
+| ---------------- | -------- | ------------ | ---------------------------------------- |
+| `GEMINI_API_KEY` | for AI   | —            | Google Gemini API key                    |
+| `DATABASE_PATH`  | no       | `./dev.db`   | SQLite file path (use the volume in Docker) |
+| `YT_DLP_PATH`    | no       | `yt-dlp`     | Override the yt-dlp binary path          |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Run with Docker
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```sh
+cp .env.example .env           # add GEMINI_API_KEY
+docker compose up --build     # http://localhost:3000
+```
+
+The SQLite file lives in the `./data` volume (`/data/dev.db` in the container).
+The image bundles `ffmpeg` and `yt-dlp` for the YouTube import.
+
+## Database
+
+Schema lives in `src/db/schema.ts`; migrations are generated with Drizzle Kit:
+
+```sh
+npm run db:generate           # create a new migration after schema changes
+```
+
+Migrations run automatically on app boot (`src/db/client.ts`), so no manual
+`migrate` step is needed.
+
+## Scripts
+
+| Script              | What it does                          |
+| ------------------- | -------------------------------------- |
+| `npm run dev`       | dev server                             |
+| `npm run build`     | production build                       |
+| `npm run start`     | run the production build               |
+| `npm run typecheck` | `tsc --noEmit`                          |
+| `npm run lint`      | eslint                                 |
+| `npm run db:generate` | regenerate Drizzle migrations        |
+
+## Project layout
+
+```
+src/
+  app/[locale]/        i18n-prefixed pages (list, detail, new, edit, import)
+  app/api/             recipes CRUD + import + image route handlers
+  components/          UI primitives, tab bar, locale switcher, recipe form
+  db/                  Drizzle schema + lazy SQLite client
+  i18n/                routing, navigation, request config (next-intl)
+  lib/                 recipes data access, ai.ts (Gemini), youtube.ts (yt-dlp)
+messages/              de.json, en.json
+drizzle/               generated SQL migrations
+```

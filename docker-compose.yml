@@ -1,0 +1,12 @@
+services:
+  preppr:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/data
+    env_file:
+      - .env
+    environment:
+      - DATABASE_PATH=/data/dev.db
+    restart: unless-stopped
