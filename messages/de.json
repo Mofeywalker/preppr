@@ -16,7 +16,9 @@
     "servings": "Portionen",
     "minutes": "Min",
     "view": "Anzeigen",
-    "count": "{count, plural, =1 {1 Rezept} other {# Rezepte}}"
+    "count": "{count, plural, =1 {1 Rezept} other {# Rezepte}}",
+    "noResults": "Keine Rezepte gefunden für „{query}“.",
+    "clearSearch": "Suche zurücksetzen"
   },
   "RecipeDetail": {
     "ingredients": "Zutaten",

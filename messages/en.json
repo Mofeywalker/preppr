@@ -16,7 +16,9 @@
     "servings": "servings",
     "minutes": "min",
     "view": "View",
-    "count": "{count, plural, =1 {1 recipe} other {# recipes}}"
+    "count": "{count, plural, =1 {1 recipe} other {# recipes}}",
+    "noResults": "No recipes found matching \"{query}\".",
+    "clearSearch": "Clear search"
   },
   "RecipeDetail": {
     "ingredients": "Ingredients",
