@@ -38,8 +38,32 @@ function toIngFields(
   }));
 }
 
+export function recipeFormInitialFromFull(r: FullRecipe): RecipeFormInitial {
+  return {
+    title: r.title,
+    description: r.description,
+    language: r.language as Locale,
+    servings: r.servings,
+    prepTimeMin: r.prepTimeMin,
+    cookTimeMin: r.cookTimeMin,
+    imageUrl: r.imageUrl,
+    calories: r.calories,
+    proteinG: r.proteinG,
+    carbsG: r.carbsG,
+    fatG: r.fatG,
+    fiberG: r.fiberG,
+    ingredients: r.ingredients.map((i) => ({
+      name: i.name,
+      quantity: i.quantity,
+      unit: i.unit,
+    })),
+    steps: r.steps.map((s) => s.text),
+  };
+}
+
 export function RecipeForm({
   initial,
+  recipe,
   locale,
   sourceType,
   sourceUrl,
@@ -47,44 +71,46 @@ export function RecipeForm({
   recipeId,
 }: {
   initial?: RecipeFormInitial;
+  recipe?: FullRecipe;
   locale: Locale;
   sourceType: "manual" | "youtube";
   sourceUrl?: string | null;
   mode: "create" | "edit";
   recipeId?: string;
 }) {
+  const init = recipe ? recipeFormInitialFromFull(recipe) : initial;
   const t = useTranslations("RecipeForm");
   const tErr = useTranslations("Errors");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  const [title, setTitle] = useState(initial?.title ?? "");
-  const [description, setDescription] = useState(initial?.description ?? "");
-  const [language, setLanguage] = useState<Locale>(initial?.language ?? locale);
-  const [servings, setServings] = useState(String(initial?.servings ?? 4));
+  const [title, setTitle] = useState(init?.title ?? "");
+  const [description, setDescription] = useState(init?.description ?? "");
+  const [language, setLanguage] = useState<Locale>(init?.language ?? locale);
+  const [servings, setServings] = useState(String(init?.servings ?? 4));
   const [prepTime, setPrepTime] = useState(
-    initial?.prepTimeMin == null ? "" : String(initial.prepTimeMin),
+    init?.prepTimeMin == null ? "" : String(init.prepTimeMin),
   );
   const [cookTime, setCookTime] = useState(
-    initial?.cookTimeMin == null ? "" : String(initial.cookTimeMin),
+    init?.cookTimeMin == null ? "" : String(init.cookTimeMin),
   );
-  const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
-  const [ings, setIngs] = useState<IngField[]>(toIngFields(initial?.ingredients));
-  const [stepList, setStepList] = useState<string[]>(initial?.steps ?? [""]);
+  const [imageUrl, setImageUrl] = useState(init?.imageUrl ?? "");
+  const [ings, setIngs] = useState<IngField[]>(toIngFields(init?.ingredients));
+  const [stepList, setStepList] = useState<string[]>(init?.steps ?? [""]);
   const [calories, setCalories] = useState(
-    initial?.calories == null ? "" : String(initial.calories),
+    init?.calories == null ? "" : String(init.calories),
   );
   const [protein, setProtein] = useState(
-    initial?.proteinG == null ? "" : String(initial.proteinG),
+    init?.proteinG == null ? "" : String(init.proteinG),
   );
   const [carbs, setCarbs] = useState(
-    initial?.carbsG == null ? "" : String(initial.carbsG),
+    init?.carbsG == null ? "" : String(init.carbsG),
   );
   const [fat, setFat] = useState(
-    initial?.fatG == null ? "" : String(initial.fatG),
+    init?.fatG == null ? "" : String(init.fatG),
   );
   const [fiber, setFiber] = useState(
-    initial?.fiberG == null ? "" : String(initial.fiberG),
+    init?.fiberG == null ? "" : String(init.fiberG),
   );
   const [error, setError] = useState<string | null>(null);
 
@@ -397,27 +423,4 @@ function NumField({
       />
     </div>
   );
-}
-
-export function recipeFormInitialFromFull(r: FullRecipe): RecipeFormInitial {
-  return {
-    title: r.title,
-    description: r.description,
-    language: r.language as Locale,
-    servings: r.servings,
-    prepTimeMin: r.prepTimeMin,
-    cookTimeMin: r.cookTimeMin,
-    imageUrl: r.imageUrl,
-    calories: r.calories,
-    proteinG: r.proteinG,
-    carbsG: r.carbsG,
-    fatG: r.fatG,
-    fiberG: r.fiberG,
-    ingredients: r.ingredients.map((i) => ({
-      name: i.name,
-      quantity: i.quantity,
-      unit: i.unit,
-    })),
-    steps: r.steps.map((s) => s.text),
-  };
 }

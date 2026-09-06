@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getRecipe } from "@/lib/recipes";
-import { RecipeForm, recipeFormInitialFromFull } from "@/components/recipe-form";
+import { RecipeForm } from "@/components/recipe-form";
 import type { Locale } from "@/i18n/routing";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +27,7 @@ export default async function EditRecipePage({
         sourceType={recipe.sourceType}
         sourceUrl={recipe.sourceUrl}
         locale={locale}
-        initial={recipeFormInitialFromFull(recipe)}
+        recipe={recipe}
       />
     </div>
   );
