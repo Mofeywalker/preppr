@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.64",
+    "@emnapi/core": "^1.11.3",
+    "@emnapi/runtime": "^1.11.3",
     "ai": "^7.0.93",
     "better-sqlite3": "^13.0.3",
     "clsx": "^2.1.1",
