@@ -185,7 +185,7 @@ export function RecipeForm({
         {/* Left Column: Basic Details & Nutrition */}
         <div className="lg:col-span-6 space-y-6">
           <div className="rounded-2xl border border-border bg-muted/10 p-5 space-y-4">
-            <h2 className="text-base font-semibold tracking-tight">{t("title")} &amp; Info</h2>
+            <h2 className="text-base font-semibold tracking-tight">{t("generalInfo")}</h2>
 
             <div className="space-y-1.5">
               <Label htmlFor="title">{t("title")}</Label>

@@ -24,7 +24,7 @@ export function RecipeListClient({ recipes }: { recipes: Recipe[] }) {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("title")}</h1>
           <p className="mt-0.5 text-xs sm:text-sm text-foreground/60">
-            {recipes.length} {recipes.length === 1 ? "recipe" : "recipes"}
+            {t("count", { count: recipes.length })}
           </p>
         </div>
 
