@@ -4,7 +4,7 @@ import { asc, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export type RecipeInput = {
-  sourceType: "manual" | "youtube";
+  sourceType: "manual" | "youtube" | "tandoor";
   sourceUrl?: string | null;
   language: "de" | "en";
   title: string;
@@ -172,3 +172,62 @@ export async function updateImage(id: string, imageUrl: string): Promise<void> {
     .where(eq(schema.recipes.id, id))
     .run();
 }
+
+export async function createRecipesBatch(inputs: RecipeInput[]): Promise<string[]> {
+  const ids: string[] = [];
+  const now = Math.floor(Date.now() / 1000);
+
+  db.transaction((tx) => {
+    for (const input of inputs) {
+      const id = randomUUID();
+      ids.push(id);
+
+      tx.insert(schema.recipes).values({
+        id,
+        sourceType: input.sourceType,
+        sourceUrl: input.sourceUrl ?? null,
+        language: input.language,
+        title: input.title,
+        description: input.description ?? null,
+        servings: input.servings,
+        prepTimeMin: input.prepTimeMin ?? null,
+        cookTimeMin: input.cookTimeMin ?? null,
+        imageUrl: input.imageUrl ?? null,
+        calories: input.calories ?? null,
+        proteinG: input.proteinG ?? null,
+        carbsG: input.carbsG ?? null,
+        fatG: input.fatG ?? null,
+        fiberG: input.fiberG ?? null,
+        createdAt: now,
+        updatedAt: now,
+      }).run();
+
+      input.ingredients.forEach((ing, i) => {
+        tx.insert(schema.ingredients)
+          .values({
+            id: randomUUID(),
+            recipeId: id,
+            name: ing.name,
+            quantity: ing.quantity ?? null,
+            unit: ing.unit ?? null,
+            order: i,
+          })
+          .run();
+      });
+
+      input.steps.forEach((text, i) => {
+        tx.insert(schema.steps)
+          .values({
+            id: randomUUID(),
+            recipeId: id,
+            order: i,
+            text,
+          })
+          .run();
+      });
+    }
+  });
+
+  return ids;
+}
+

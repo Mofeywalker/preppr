@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { Input } from "@/components/ui/inputs";
 import { Button } from "@/components/ui/button";
 import type { Recipe } from "@/lib/recipes";
 import Fuse from "fuse.js";
@@ -82,54 +81,52 @@ export function RecipeListClient({
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="relative w-full sm:w-72 shrink-0">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-foreground/40">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                className="size-4"
-                aria-hidden="true"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9Z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <Input
+          <label className="flex h-10 w-full sm:w-72 shrink-0 items-center gap-2 rounded-lg border border-input bg-background px-3 transition focus-within:border-foreground focus-within:ring-2 focus-within:ring-foreground/10 cursor-text">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="size-4 shrink-0 text-foreground/40 pointer-events-none"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9Z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <input
               ref={inputRef}
               type="text"
               autoComplete="off"
               placeholder={t("search")}
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              className="h-10 bg-background pl-9 pr-9"
+              className="w-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-foreground/50 disabled:opacity-50"
             />
             {q && (
               <button
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   setQ("");
                   inputRef.current?.focus();
                 }}
-                className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-foreground/40 hover:text-foreground transition cursor-pointer"
+                className="shrink-0 p-0.5 rounded-full text-foreground/40 hover:text-foreground hover:bg-muted transition cursor-pointer"
                 aria-label={t("clearSearch")}
               >
-                <span className="flex size-5 items-center justify-center rounded-full hover:bg-muted transition">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    className="size-3.5"
-                  >
-                    <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
-                  </svg>
-                </span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="size-3.5"
+                >
+                  <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                </svg>
               </button>
             )}
-          </div>
+          </label>
           <Link href="/recipes/new" className="hidden sm:inline-flex">
             <Button size="sm" className="h-10 font-medium">
               + {tNav("new")}
@@ -152,12 +149,21 @@ export function RecipeListClient({
               {t("clearSearch")}
             </button>
           ) : (
-            <Link
-              href="/recipes/new"
-              className="mt-3 inline-block font-medium text-foreground underline hover:opacity-80"
-            >
-              {t("addFirst")}
-            </Link>
+            <div className="mt-3 flex items-center justify-center gap-3">
+              <Link
+                href="/recipes/new"
+                className="font-medium text-foreground underline hover:opacity-80"
+              >
+                {t("addFirst")}
+              </Link>
+              <span className="text-foreground/30">•</span>
+              <Link
+                href="/import"
+                className="font-medium text-foreground/70 underline hover:text-foreground"
+              >
+                {tNav("import")}
+              </Link>
+            </div>
           )}
         </div>
       ) : (

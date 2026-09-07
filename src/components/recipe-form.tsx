@@ -73,7 +73,7 @@ export function RecipeForm({
   initial?: RecipeFormInitial;
   recipe?: FullRecipe;
   locale: Locale;
-  sourceType: "manual" | "youtube";
+  sourceType: "manual" | "youtube" | "tandoor";
   sourceUrl?: string | null;
   mode: "create" | "edit";
   recipeId?: string;

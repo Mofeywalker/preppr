@@ -1,10 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import {
-  listRecipes,
-  createRecipe,
-  type RecipeInput,
-} from "@/lib/recipes";
+import { createRecipesBatch, type RecipeInput } from "@/lib/recipes";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +10,7 @@ const ingredientSchema = z.object({
   unit: z.string().nullable().optional(),
 });
 
-const inputSchema: z.ZodType<RecipeInput> = z.object({
+const recipeInputSchema: z.ZodType<RecipeInput> = z.object({
   sourceType: z.enum(["manual", "youtube", "tandoor"]),
   sourceUrl: z.string().nullable().optional(),
   language: z.enum(["de", "en"]),
@@ -33,20 +29,28 @@ const inputSchema: z.ZodType<RecipeInput> = z.object({
   steps: z.array(z.string().min(1)).min(1),
 });
 
-export async function GET() {
-  const recipes = await listRecipes();
-  return Response.json(recipes);
-}
+const batchSchema = z.object({
+  recipes: z.array(recipeInputSchema).min(1),
+});
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const parsed = inputSchema.safeParse(body);
-  if (!parsed.success) {
+  try {
+    const body = await req.json();
+    const parsed = batchSchema.safeParse(body);
+    if (!parsed.success) {
+      return Response.json(
+        { error: "invalid", issues: parsed.error.issues },
+        { status: 400 },
+      );
+    }
+
+    const ids = await createRecipesBatch(parsed.data.recipes);
+    return Response.json({ success: true, count: ids.length, ids }, { status: 201 });
+  } catch (err) {
+    console.error("Batch creation failed:", err);
     return Response.json(
-      { error: "invalid", issues: parsed.error.issues },
-      { status: 400 },
+      { error: "server-error", detail: (err as Error).message },
+      { status: 500 },
     );
   }
-  const id = await createRecipe(parsed.data);
-  return Response.json({ id }, { status: 201 });
 }

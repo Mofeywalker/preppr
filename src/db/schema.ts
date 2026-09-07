@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 
 export const recipes = sqliteTable("recipes", {
   id: text("id").primaryKey(),
-  sourceType: text("source_type", { enum: ["manual", "youtube"] }).notNull(),
+  sourceType: text("source_type", { enum: ["manual", "youtube", "tandoor"] }).notNull(),
   sourceUrl: text("source_url"),
   language: text("language", { enum: ["de", "en"] }).notNull(),
   title: text("title").notNull(),
