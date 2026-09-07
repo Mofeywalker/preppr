@@ -1,12 +1,9 @@
 import { NextRequest } from "next/server";
-import { writeFile, mkdir } from "node:fs/promises";
-import { join } from "node:path";
 import { getRecipe, updateImage } from "@/lib/recipes";
 import { generateRecipeImage } from "@/lib/ai";
+import { saveUploadedImage } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
-
-const UPLOAD_DIR = join(process.cwd(), "public", "uploads");
 
 export async function POST(
   req: NextRequest,
@@ -24,12 +21,10 @@ export async function POST(
     if (!(file instanceof File)) {
       return Response.json({ error: "no file" }, { status: 400 });
     }
-    await mkdir(UPLOAD_DIR, { recursive: true });
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const name = `${id}.${ext}`;
     const bytes = Buffer.from(await file.arrayBuffer());
-    await writeFile(join(UPLOAD_DIR, name), bytes);
-    const url = `/uploads/${name}`;
+    const url = await saveUploadedImage(bytes, file.name, name);
     await updateImage(id, url);
     return Response.json({ url });
   }
@@ -44,10 +39,12 @@ export async function POST(
         recipe.title,
         recipe.description,
       );
-      await mkdir(UPLOAD_DIR, { recursive: true });
       const name = `${id}.png`;
-      await writeFile(join(UPLOAD_DIR, name), Buffer.from(base64, "base64"));
-      const url = `/uploads/${name}`;
+      const url = await saveUploadedImage(
+        Buffer.from(base64, "base64"),
+        "generated.png",
+        name,
+      );
       await updateImage(id, url);
       return Response.json({ url });
     } catch (err) {

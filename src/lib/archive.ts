@@ -1,12 +1,11 @@
 import JSZip from "jszip";
-import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
-import { join, extname } from "node:path";
-import { randomUUID } from "node:crypto";
+import { basename, extname } from "node:path";
 import type { FullRecipe, RecipeInput } from "@/lib/recipes";
 import { parseTandoorZip, tandoorToRecipeInput, type TandoorRecipe } from "@/lib/tandoor";
+import { saveUploadedImage, findUploadedImage } from "@/lib/storage";
 import type { Locale } from "@/i18n/routing";
 
-const UPLOAD_DIR = join(process.cwd(), "public", "uploads");
+export { saveUploadedImage, saveUploadedImage as saveRecipeImage };
 
 export interface PrepprExportRecipe {
   id?: string;
@@ -36,18 +35,6 @@ export interface PrepprExportManifest {
   recipes: PrepprExportRecipe[];
 }
 
-export async function saveRecipeImage(
-  buffer: Buffer,
-  originalFilename: string = "image.jpg",
-): Promise<string> {
-  await mkdir(UPLOAD_DIR, { recursive: true });
-  const extMatch = originalFilename.match(/\.([a-zA-Z0-9]+)$/);
-  const ext = extMatch ? extMatch[1].toLowerCase() : "jpg";
-  const filename = `${randomUUID()}.${ext}`;
-  await writeFile(join(UPLOAD_DIR, filename), buffer);
-  return `/uploads/${filename}`;
-}
-
 /**
  * Creates a downloadable ZIP archive containing recipes and their photos.
  */
@@ -63,18 +50,16 @@ export async function exportRecipesToZip(recipes: FullRecipe[]): Promise<Buffer>
     if (recipe.imageUrl) {
       const url = recipe.imageUrl.trim();
       if (url.startsWith("/uploads/") || !url.startsWith("http")) {
-        // Local uploaded image
-        const relativePath = url.startsWith("/") ? url.slice(1) : url;
-        const localPath = join(process.cwd(), "public", relativePath);
-        try {
-          await stat(localPath);
-          const buffer = await readFile(localPath);
-          const ext = extname(localPath) || ".jpg";
+        // Local uploaded image (check in storage directories)
+        const cleanFilename = url.replace(/^\/uploads\//, "");
+        const found = await findUploadedImage(cleanFilename);
+        if (found) {
+          const ext = extname(found.path) || ".jpg";
           const zipImageName = `${recipe.id}${ext}`;
-          imagesFolder?.file(zipImageName, buffer);
+          imagesFolder?.file(zipImageName, found.buffer);
           imageFile = `images/${zipImageName}`;
-        } catch {
-          console.warn(`Local image file not found for recipe ${recipe.id}: ${localPath}`);
+        } else {
+          console.warn(`Local image file not found for recipe ${recipe.id}: ${url}`);
         }
       } else if (url.startsWith("http://") || url.startsWith("https://")) {
         // External image: fetch and embed into archive
@@ -244,6 +229,10 @@ export async function parsePrepprZip(
     throw new Error("No recipes.json found in Preppr ZIP archive");
   }
 
+  const manifestDir = manifestPath.includes("/")
+    ? manifestPath.slice(0, manifestPath.lastIndexOf("/") + 1)
+    : "";
+
   const jsonStr = await zip.files[manifestPath].async("string");
   const manifestData = JSON.parse(jsonStr);
 
@@ -260,29 +249,71 @@ export async function parsePrepprZip(
 
     // Look for image file inside the ZIP archive
     let imageEntryName: string | null = null;
-    if (rawItem.imageFile && zip.files[rawItem.imageFile] && !zip.files[rawItem.imageFile].dir) {
-      imageEntryName = rawItem.imageFile;
-    } else if (rawItem.id) {
-      // Fallback: search images folder for matching recipe id
-      const candidate = Object.keys(zip.files).find(
-        (name) =>
-          !zip.files[name].dir &&
-          !name.startsWith("__MACOSX/") &&
-          (name === `images/${rawItem.id}.jpg` ||
-            name === `images/${rawItem.id}.png` ||
-            name === `images/${rawItem.id}.webp` ||
-            name.startsWith(`images/${rawItem.id}.`)),
-      );
-      if (candidate) imageEntryName = candidate;
+
+    // 1. Direct or manifest-relative imageFile path
+    if (rawItem.imageFile) {
+      const cleanImgFile = rawItem.imageFile.replace(/\\/g, "/").replace(/^\/+/, "");
+      const candidates = [
+        cleanImgFile,
+        manifestDir + cleanImgFile,
+        rawItem.imageFile,
+      ];
+      imageEntryName = candidates.find((c) => zip.files[c] && !zip.files[c].dir) || null;
+
+      if (!imageEntryName) {
+        // Check if any file in the zip ends with cleanImgFile
+        imageEntryName =
+          Object.keys(zip.files).find(
+            (k) => !zip.files[k].dir && !k.startsWith("__MACOSX/") && k.endsWith(cleanImgFile),
+          ) || null;
+      }
+    }
+
+    // 2. Search by recipe id
+    if (!imageEntryName && rawItem.id) {
+      imageEntryName =
+        Object.keys(zip.files).find((name) => {
+          if (zip.files[name].dir || name.startsWith("__MACOSX/")) return false;
+          const base = basename(name, extname(name));
+          return base === rawItem.id;
+        }) || null;
+    }
+
+    // 3. Search by filename in imageUrl if local file path
+    if (!imageEntryName && rawItem.imageUrl && !rawItem.imageUrl.startsWith("http")) {
+      const urlBase = basename(rawItem.imageUrl);
+      if (urlBase && urlBase !== "." && !urlBase.includes("..")) {
+        imageEntryName =
+          Object.keys(zip.files).find((name) => {
+            if (zip.files[name].dir || name.startsWith("__MACOSX/")) return false;
+            return basename(name) === urlBase;
+          }) || null;
+      }
+    }
+
+    // 4. Fallback: if single recipe in archive, search anywhere in zip
+    if (!imageEntryName && rawList.length === 1) {
+      const imageExts = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+      imageEntryName =
+        Object.keys(zip.files).find((name) => {
+          if (zip.files[name].dir || name.startsWith("__MACOSX/")) return false;
+          return imageExts.some((ext) => name.toLowerCase().endsWith(ext));
+        }) || null;
     }
 
     if (imageEntryName && zip.files[imageEntryName]) {
       try {
         const imgBuffer = await zip.files[imageEntryName].async("nodebuffer");
-        const uploadedUrl = await saveRecipeImage(imgBuffer, imageEntryName);
+        const uploadedUrl = await saveUploadedImage(imgBuffer, imageEntryName);
         recipe.imageUrl = uploadedUrl;
       } catch (err) {
         console.warn(`Failed to extract recipe image "${imageEntryName}":`, err);
+      }
+    } else if (recipe.imageUrl && recipe.imageUrl.startsWith("/uploads/")) {
+      // Check if local image already exists on this server, otherwise clear stale link
+      const existing = await findUploadedImage(recipe.imageUrl);
+      if (!existing) {
+        recipe.imageUrl = null;
       }
     }
 
@@ -344,7 +375,7 @@ export async function parseRecipeUpload(
     for (const item of extractedTandoor) {
       if (item.imageBuffer && item.imageExt) {
         try {
-          const imageUrl = await saveRecipeImage(item.imageBuffer, `image.${item.imageExt}`);
+          const imageUrl = await saveUploadedImage(item.imageBuffer, `image.${item.imageExt}`);
           item.recipe.imageUrl = imageUrl;
         } catch (err) {
           console.warn("Failed to save extracted Tandoor image:", err);

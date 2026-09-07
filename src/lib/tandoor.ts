@@ -1,9 +1,9 @@
 import JSZip from "jszip";
-import { writeFile, mkdir } from "node:fs/promises";
-import { join } from "node:path";
-import { randomUUID } from "node:crypto";
+import { saveUploadedImage } from "@/lib/storage";
 import type { RecipeInput } from "@/lib/recipes";
 import type { Locale } from "@/i18n/routing";
+
+export { saveUploadedImage };
 
 export interface TandoorIngredient {
   food?: { name?: string | null; plural_name?: string | null } | string | null;
@@ -12,7 +12,7 @@ export interface TandoorIngredient {
   note?: string | null;
   is_header?: boolean | null;
   no_amount?: boolean | null;
-  name?: string | null; // fallback if simplified
+  name?: string | null;
 }
 
 export interface TandoorStep {
@@ -54,8 +54,6 @@ export interface ExtractedTandoorItem {
   imageBuffer?: Buffer;
   imageExt?: string;
 }
-
-const UPLOAD_DIR = join(process.cwd(), "public", "uploads");
 
 export function parseNumber(val: unknown): number | null {
   if (val == null) return null;
@@ -189,6 +187,12 @@ export function tandoorToRecipeInput(
     steps.push(description || title);
   }
 
+  const resolvedImageUrl =
+    options?.imageUrl ??
+    (typeof raw.image === "string" && (raw.image.startsWith("http://") || raw.image.startsWith("https://"))
+      ? raw.image
+      : null);
+
   return {
     sourceType: "tandoor",
     sourceUrl: options?.sourceUrl ?? raw.source_url ?? null,
@@ -198,7 +202,7 @@ export function tandoorToRecipeInput(
     servings,
     prepTimeMin: prepTimeMin != null && prepTimeMin > 0 ? Math.round(prepTimeMin) : null,
     cookTimeMin: cookTimeMin != null && cookTimeMin > 0 ? Math.round(cookTimeMin) : null,
-    imageUrl: options?.imageUrl ?? (typeof raw.image === "string" ? raw.image : null),
+    imageUrl: resolvedImageUrl,
     calories: nutrition.calories,
     proteinG: nutrition.proteinG,
     carbsG: nutrition.carbsG,
@@ -207,15 +211,6 @@ export function tandoorToRecipeInput(
     ingredients: allIngredients,
     steps,
   };
-}
-
-export async function saveUploadedImage(buffer: Buffer, originalFilename: string = "image.jpg"): Promise<string> {
-  await mkdir(UPLOAD_DIR, { recursive: true });
-  const extMatch = originalFilename.match(/\.([a-zA-Z0-9]+)$/);
-  const ext = extMatch ? extMatch[1].toLowerCase() : "jpg";
-  const filename = `${randomUUID()}.${ext}`;
-  await writeFile(join(UPLOAD_DIR, filename), buffer);
-  return `/uploads/${filename}`;
 }
 
 /**
@@ -243,8 +238,13 @@ export async function parseTandoorZip(
 
   // Find all recipe.json files in this zip
   const recipeJsonEntries = Object.keys(zip.files).filter(
-    (name) => !zip.files[name].dir && name.toLowerCase().endsWith("recipe.json"),
+    (name) =>
+      !zip.files[name].dir &&
+      !name.startsWith("__MACOSX/") &&
+      (name.toLowerCase() === "recipe.json" || name.toLowerCase().endsWith("/recipe.json")),
   );
+
+  const imageExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
 
   for (const recipeJsonPath of recipeJsonEntries) {
     try {
@@ -256,29 +256,72 @@ export async function parseTandoorZip(
         ? recipeJsonPath.slice(0, recipeJsonPath.lastIndexOf("/") + 1)
         : "";
 
-      // Look for an image in the same directory
-      const imageExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
-      const candidateImages = Object.keys(zip.files).filter((name) => {
-        if (zip.files[name].dir) return false;
-        if (dirPath && !name.startsWith(dirPath)) return false;
-        if (!dirPath && name.includes("/")) return false;
-        const lower = name.toLowerCase();
-        return imageExtensions.some((ext) => lower.endsWith(ext));
-      });
-
       let imageBuffer: Buffer | undefined;
       let imageExt: string | undefined;
 
-      if (candidateImages.length > 0) {
-        // Prioritize image.*, full.* or first candidate
-        const preferred =
-          candidateImages.find((img) => /image\.[a-z0-9]+$/i.test(img)) ||
-          candidateImages.find((img) => /full\.[a-z0-9]+$/i.test(img)) ||
-          candidateImages[0];
+      // 1. Look for explicit image path from rawRecipe.image
+      if (
+        typeof rawRecipe.image === "string" &&
+        rawRecipe.image.trim() &&
+        !rawRecipe.image.startsWith("http://") &&
+        !rawRecipe.image.startsWith("https://")
+      ) {
+        const cleanImg = rawRecipe.image.replace(/^\/+/, "").replace(/\\/g, "/");
+        const candidates = [
+          cleanImg,
+          dirPath + cleanImg,
+          dirPath ? cleanImg.replace(/^.*\//, dirPath) : cleanImg,
+        ];
+        const matchKey =
+          candidates.find((k) => zip.files[k] && !zip.files[k].dir) ||
+          Object.keys(zip.files).find(
+            (k) =>
+              !zip.files[k].dir &&
+              !k.startsWith("__MACOSX/") &&
+              (k.endsWith("/" + cleanImg) || k === cleanImg),
+          );
 
-        imageBuffer = await zip.files[preferred].async("nodebuffer");
-        const extMatch = preferred.match(/\.([a-zA-Z0-9]+)$/);
-        imageExt = extMatch ? extMatch[1].toLowerCase() : "jpg";
+        if (matchKey) {
+          imageBuffer = await zip.files[matchKey].async("nodebuffer");
+          const extMatch = matchKey.match(/\.([a-zA-Z0-9]+)$/);
+          imageExt = extMatch ? extMatch[1].toLowerCase() : "jpg";
+        }
+      }
+
+      // 2. Look for image in same directory as recipe.json
+      if (!imageBuffer) {
+        const candidateImages = Object.keys(zip.files).filter((name) => {
+          if (zip.files[name].dir || name.startsWith("__MACOSX/")) return false;
+          if (dirPath && !name.startsWith(dirPath)) return false;
+          const lower = name.toLowerCase();
+          return imageExtensions.some((ext) => lower.endsWith(ext));
+        });
+
+        if (candidateImages.length > 0) {
+          const preferred =
+            candidateImages.find((img) => /full\.[a-z0-9]+$/i.test(img)) ||
+            candidateImages.find((img) => /image\.[a-z0-9]+$/i.test(img)) ||
+            candidateImages[0];
+
+          imageBuffer = await zip.files[preferred].async("nodebuffer");
+          const extMatch = preferred.match(/\.([a-zA-Z0-9]+)$/);
+          imageExt = extMatch ? extMatch[1].toLowerCase() : "jpg";
+        }
+      }
+
+      // 3. Fallback: if single recipe in archive or inner zip, search anywhere in zip
+      if (!imageBuffer && recipeJsonEntries.length === 1) {
+        const anyImage = Object.keys(zip.files).find((name) => {
+          if (zip.files[name].dir || name.startsWith("__MACOSX/")) return false;
+          const lower = name.toLowerCase();
+          return imageExtensions.some((ext) => lower.endsWith(ext));
+        });
+
+        if (anyImage) {
+          imageBuffer = await zip.files[anyImage].async("nodebuffer");
+          const extMatch = anyImage.match(/\.([a-zA-Z0-9]+)$/);
+          imageExt = extMatch ? extMatch[1].toLowerCase() : "jpg";
+        }
       }
 
       const recipe = tandoorToRecipeInput(rawRecipe, locale);

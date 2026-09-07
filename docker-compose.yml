@@ -9,4 +9,5 @@ services:
       - .env
     environment:
       - DATABASE_PATH=/data/dev.db
+      - UPLOAD_DIR=/data/uploads
     restart: unless-stopped

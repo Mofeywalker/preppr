@@ -8,6 +8,7 @@ import {
   downloadAudio,
 } from "@/lib/youtube";
 import { extractFromTranscript, extractFromAudio, type ExtractedRecipe } from "@/lib/ai";
+import { saveUploadedImage } from "@/lib/storage";
 import type { Locale } from "@/i18n/routing";
 
 export const dynamic = "force-dynamic";
@@ -65,9 +66,24 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  let thumbnail =
+    meta.thumbnail || (videoId ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg` : null);
+
+  if (thumbnail) {
+    try {
+      const res = await fetch(thumbnail, { signal: AbortSignal.timeout(5000) });
+      if (res.ok) {
+        const buf = Buffer.from(await res.arrayBuffer());
+        thumbnail = await saveUploadedImage(buf, `${videoId}.jpg`);
+      }
+    } catch {
+      // Keep external URL fallback
+    }
+  }
+
   return Response.json({
     recipe,
-    thumbnail: meta.thumbnail,
+    thumbnail,
     sourceUrl: url,
   });
 }

@@ -36,7 +36,7 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/package-lock.json ./
 COPY --from=builder /app/node_modules ./node_modules
 
-RUN mkdir -p /data
+RUN mkdir -p /data/uploads
 VOLUME /data
 
 EXPOSE 3000

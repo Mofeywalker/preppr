@@ -61,6 +61,7 @@ Without a key the rest of the app works; the import + image-gen routes return a
 | ---------------- | -------- | ------------ | ---------------------------------------- |
 | `GEMINI_API_KEY` | for AI   | —            | Google Gemini API key                    |
 | `DATABASE_PATH`  | no       | `./dev.db`   | SQLite file path (use the volume in Docker) |
+| `UPLOAD_DIR`     | no       | `/data/uploads` in Docker or `./public/uploads` | Path to store uploaded/imported images |
 | `YT_DLP_PATH`    | no       | `yt-dlp`     | Override the yt-dlp binary path          |
 
 ## Run with Docker
