@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get("file");
-    const locale = (formData.get("locale") as Locale) || "en";
+    const locale = (formData.get("locale") as Locale) || "de";
 
     if (!(file instanceof File)) {
       return Response.json({ error: "no-file" }, { status: 400 });
@@ -41,4 +41,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

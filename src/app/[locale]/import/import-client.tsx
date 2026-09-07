@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 
 type SingleImport = {
   recipe: RecipeInput;
-  sourceType: "youtube" | "tandoor";
+  sourceType: "manual" | "youtube" | "tandoor";
   sourceUrl?: string | null;
 };
 
@@ -23,7 +23,7 @@ export function ImportClient({ locale }: { locale: Locale }) {
   const [pending, startTransition] = useTransition();
 
   // Tab & mode state
-  const [activeTab, setActiveTab] = useState<"youtube" | "tandoor">("youtube");
+  const [activeTab, setActiveTab] = useState<"preppr" | "youtube" | "tandoor">("preppr");
   const [tandoorMode, setTandoorMode] = useState<"file" | "server">("file");
 
   // YouTube state
@@ -33,9 +33,10 @@ export function ImportClient({ locale }: { locale: Locale }) {
   const [serverUrl, setServerUrl] = useState("");
   const [apiToken, setApiToken] = useState("");
 
-  // Tandoor File drag state
+  // File drag state
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const prepprFileInputRef = useRef<HTMLInputElement>(null);
 
   // Common error / result state
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +48,7 @@ export function ImportClient({ locale }: { locale: Locale }) {
   const [batchSuccessCount, setBatchSuccessCount] = useState<number | null>(null);
 
   // Reset form when changing tabs
-  const switchTab = (tab: "youtube" | "tandoor") => {
+  const switchTab = (tab: "preppr" | "youtube" | "tandoor") => {
     setActiveTab(tab);
     setError(null);
     setSingleResult(null);
@@ -123,13 +124,19 @@ export function ImportClient({ locale }: { locale: Locale }) {
 
     startTransition(async () => {
       try {
-        const res = await fetch("/api/import/tandoor/file", {
+        const res = await fetch("/api/import/file", {
           method: "POST",
           body: formData,
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({ error: "generic" }));
-          setError(data.error === "no-recipes-found" ? t("errorNoRecipes") : t("errorTandoorFile"));
+          setError(
+            data.error === "no-recipes-found"
+              ? t("errorNoRecipes")
+              : activeTab === "preppr"
+                ? t("errorPrepprFile")
+                : t("errorTandoorFile"),
+          );
           return;
         }
 
@@ -137,7 +144,7 @@ export function ImportClient({ locale }: { locale: Locale }) {
         if (data.type === "single") {
           setSingleResult({
             recipe: data.recipe,
-            sourceType: "tandoor",
+            sourceType: data.recipe.sourceType || "manual",
             sourceUrl: data.recipe.sourceUrl,
           });
         } else if (data.type === "batch") {
@@ -146,7 +153,7 @@ export function ImportClient({ locale }: { locale: Locale }) {
           setSelectedIndices(new Set(list.map((_, i) => i)));
         }
       } catch {
-        setError(t("errorTandoorFile"));
+        setError(activeTab === "preppr" ? t("errorPrepprFile") : t("errorTandoorFile"));
       }
     });
   };
@@ -275,7 +282,7 @@ export function ImportClient({ locale }: { locale: Locale }) {
             size="sm"
             onClick={() => setSingleResult(null)}
           >
-            ← {t("tab" + (singleResult.sourceType === "youtube" ? "Youtube" : "Tandoor"))}
+            ← {singleResult.sourceType === "youtube" ? t("tabYoutube") : singleResult.sourceType === "tandoor" ? t("tabTandoor") : t("tabPreppr")}
           </Button>
         </div>
         <div className="rounded-2xl border border-border bg-muted/40 p-4 text-sm">
@@ -302,6 +309,18 @@ export function ImportClient({ locale }: { locale: Locale }) {
 
       {/* Top Source Switcher Tabs */}
       <div className="flex rounded-xl border border-border bg-muted/30 p-1">
+        <button
+          type="button"
+          onClick={() => switchTab("preppr")}
+          className={cn(
+            "flex-1 rounded-lg py-2 text-sm font-medium transition cursor-pointer text-center",
+            activeTab === "preppr"
+              ? "bg-background text-foreground shadow-sm font-semibold"
+              : "text-foreground/60 hover:text-foreground",
+          )}
+        >
+          {t("tabPreppr")}
+        </button>
         <button
           type="button"
           onClick={() => switchTab("youtube")}
@@ -452,6 +471,140 @@ export function ImportClient({ locale }: { locale: Locale }) {
             >
               {t("title")}
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Preppr Form */}
+      {activeTab === "preppr" && !batchRecipes && batchSuccessCount === null && (
+        <div className="space-y-6">
+          {/* Export Section */}
+          <div className="rounded-2xl border border-border bg-muted/10 p-6 space-y-4">
+            <div className="space-y-1">
+              <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-5 text-foreground/70"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                {t("exportSectionTitle")}
+              </h2>
+              <p className="text-xs sm:text-sm text-foreground/60">{t("exportSectionDescription")}</p>
+            </div>
+            <div>
+              <a href="/api/export" download className="inline-block">
+                <Button type="button" className="h-11 font-medium gap-2">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="size-4"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  {t("exportAllBtn")}
+                </Button>
+              </a>
+            </div>
+          </div>
+
+          {/* Import Section */}
+          <div className="rounded-2xl border border-border bg-muted/10 p-6 space-y-4">
+            <div className="space-y-1">
+              <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-5 text-foreground/70"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                {t("importSectionTitle")}
+              </h2>
+              <p className="text-xs sm:text-sm text-foreground/60">{t("importSectionDescription")}</p>
+            </div>
+
+            <div className="pt-2">
+              <input
+                ref={prepprFileInputRef}
+                type="file"
+                accept=".zip,.json,application/zip,application/json"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleFileUpload(f);
+                }}
+              />
+
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  const f = e.dataTransfer.files?.[0];
+                  if (f) handleFileUpload(f);
+                }}
+                onClick={() => prepprFileInputRef.current?.click()}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition",
+                  isDragging
+                    ? "border-foreground bg-muted/30 scale-[1.01]"
+                    : "border-border hover:border-foreground/40 bg-background/50",
+                )}
+              >
+                <div className="flex size-12 items-center justify-center rounded-full bg-muted text-foreground/60">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                    className="size-6"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-semibold text-sm text-foreground">
+                    {pending ? t("uploading") : t("prepprFileDropzone")}
+                  </p>
+                  <p className="text-xs text-foreground/50 mt-1">{t("prepprFileHint")}</p>
+                </div>
+                {pending && <Spinner />}
+              </div>
+            </div>
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
           </div>
         </div>
       )}

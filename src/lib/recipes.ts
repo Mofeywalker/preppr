@@ -1,5 +1,5 @@
 import { db, schema } from "@/db/client";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { asc, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
@@ -57,6 +57,57 @@ export async function getRecipe(id: string): Promise<FullRecipe | null> {
   ]);
 
   return { ...recipe, ingredients: ingredientRows, steps: stepRows };
+}
+
+export async function getFullRecipes(ids?: string[]): Promise<FullRecipe[]> {
+  const recipeRows =
+    ids && ids.length > 0
+      ? await db
+          .select()
+          .from(schema.recipes)
+          .where(inArray(schema.recipes.id, ids))
+          .orderBy(desc(schema.recipes.createdAt))
+      : await db
+          .select()
+          .from(schema.recipes)
+          .orderBy(desc(schema.recipes.createdAt));
+
+  if (recipeRows.length === 0) return [];
+
+  const foundIds = recipeRows.map((r) => r.id);
+
+  const [allIngredients, allSteps] = await Promise.all([
+    db
+      .select()
+      .from(schema.ingredients)
+      .where(inArray(schema.ingredients.recipeId, foundIds))
+      .orderBy(asc(schema.ingredients.order)),
+    db
+      .select()
+      .from(schema.steps)
+      .where(inArray(schema.steps.recipeId, foundIds))
+      .orderBy(asc(schema.steps.order)),
+  ]);
+
+  const ingredientsByRecipe = new Map<string, schema.Ingredient[]>();
+  for (const ing of allIngredients) {
+    const list = ingredientsByRecipe.get(ing.recipeId) || [];
+    list.push(ing);
+    ingredientsByRecipe.set(ing.recipeId, list);
+  }
+
+  const stepsByRecipe = new Map<string, schema.Step[]>();
+  for (const step of allSteps) {
+    const list = stepsByRecipe.get(step.recipeId) || [];
+    list.push(step);
+    stepsByRecipe.set(step.recipeId, list);
+  }
+
+  return recipeRows.map((r) => ({
+    ...r,
+    ingredients: ingredientsByRecipe.get(r.id) || [],
+    steps: stepsByRecipe.get(r.id) || [],
+  }));
 }
 
 export async function createRecipe(input: RecipeInput): Promise<string> {
