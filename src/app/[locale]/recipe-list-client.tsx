@@ -4,71 +4,138 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
-import type { Recipe } from "@/lib/recipes";
+import { cn } from "@/lib/utils";
+import type { RecipeWithTags } from "@/lib/recipes";
 import Fuse from "fuse.js";
 
 export function RecipeListClient({
   recipes,
   initialQuery = "",
+  initialTags = [],
 }: {
-  recipes: Recipe[];
+  recipes: RecipeWithTags[];
   initialQuery?: string;
+  initialTags?: string[];
 }) {
   const t = useTranslations("Recipes");
   const tNav = useTranslations("Nav");
 
   const [q, setQ] = useState(initialQuery);
+  const [selectedTags, setSelectedTags] = useState<string[]>(initialTags);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Extract all unique tags with count
+  const allTagsWithCount = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of recipes) {
+      if (r.tags) {
+        for (const tag of r.tags) {
+          counts.set(tag, (counts.get(tag) || 0) + 1);
+        }
+      }
+    }
+    return Array.from(counts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [recipes]);
 
   // Sync to URL via window.history.replaceState without triggering Next.js server transitions/flicker
   useEffect(() => {
     const timer = setTimeout(() => {
       const trimmed = q.trim();
       const url = new URL(window.location.href);
-      const currentParam = url.searchParams.get("q") ?? "";
-      if (trimmed !== currentParam) {
+      const currentQ = url.searchParams.get("q") ?? "";
+      const currentTags = url.searchParams.get("tags") ?? "";
+      const newTags = selectedTags.join(",");
+
+      let changed = false;
+      if (trimmed !== currentQ) {
         if (trimmed) {
           url.searchParams.set("q", trimmed);
         } else {
           url.searchParams.delete("q");
         }
+        changed = true;
+      }
+      if (newTags !== currentTags) {
+        if (newTags) {
+          url.searchParams.set("tags", newTags);
+        } else {
+          url.searchParams.delete("tags");
+        }
+        changed = true;
+      }
+
+      if (changed) {
         window.history.replaceState(null, "", url.toString());
       }
     }, 150);
 
     return () => clearTimeout(timer);
-  }, [q]);
+  }, [q, selectedTags]);
 
   // Handle browser Back / Forward navigation
   useEffect(() => {
     const onPopState = () => {
-      const param = new URLSearchParams(window.location.search).get("q") ?? "";
-      setQ(param);
+      const params = new URLSearchParams(window.location.search);
+      setQ(params.get("q") ?? "");
+      const tagsParam = params.get("tags");
+      setSelectedTags(
+        tagsParam
+          ? tagsParam
+              .split(",")
+              .map((t) => t.trim())
+              .filter(Boolean)
+          : [],
+      );
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  // Setup Fuse.js for fuzzy matching across title and description
-  const fuse = useMemo(
-    () =>
-      new Fuse(recipes, {
+  const toggleTag = (tagName: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tagName)
+        ? prev.filter((t) => t !== tagName)
+        : [...prev, tagName],
+    );
+  };
+
+  const clearAllFilters = () => {
+    setQ("");
+    setSelectedTags([]);
+  };
+
+  const filtered = useMemo(() => {
+    let result = recipes;
+
+    // Filter by selected tags (AND conjunction: must match all selected tags)
+    if (selectedTags.length > 0) {
+      result = result.filter((r) =>
+        selectedTags.every((st) =>
+          r.tags?.some((rt) => rt.toLowerCase() === st.toLowerCase()),
+        ),
+      );
+    }
+
+    // Filter by text search
+    const trimmed = q.trim();
+    if (trimmed) {
+      const fuse = new Fuse(result, {
         keys: [
           { name: "title", weight: 0.7 },
           { name: "description", weight: 0.3 },
+          { name: "tags", weight: 0.4 },
         ],
         threshold: 0.35,
         ignoreLocation: true,
         minMatchCharLength: 1,
-      }),
-    [recipes],
-  );
+      });
+      return fuse.search(trimmed).map((res) => res.item);
+    }
 
-  const filtered = useMemo(() => {
-    const trimmed = q.trim();
-    if (!trimmed) return recipes;
-    return fuse.search(trimmed).map((res) => res.item);
-  }, [q, recipes, fuse]);
+    return result;
+  }, [q, recipes, selectedTags]);
 
   return (
     <div className="space-y-6">
@@ -156,18 +223,75 @@ export function RecipeListClient({
         </div>
       </div>
 
+      {/* Tag Filter Bar */}
+      {allTagsWithCount.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
+          <button
+            type="button"
+            onClick={() => setSelectedTags([])}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition shrink-0 cursor-pointer",
+              selectedTags.length === 0
+                ? "bg-foreground text-background shadow-xs"
+                : "bg-muted text-foreground/70 hover:bg-muted/80 hover:text-foreground",
+            )}
+          >
+            {t("allTags")}
+          </button>
+          {allTagsWithCount.map(({ name, count }) => {
+            const isSelected = selectedTags.includes(name);
+            return (
+              <button
+                key={name}
+                type="button"
+                onClick={() => toggleTag(name)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition shrink-0 cursor-pointer",
+                  isSelected
+                    ? "bg-foreground text-background shadow-xs"
+                    : "bg-muted text-foreground/70 hover:bg-muted/80 hover:text-foreground",
+                )}
+              >
+                <span>{name}</span>
+                <span
+                  className={cn(
+                    "text-[10px] rounded-full px-1.5 py-0.5 leading-none",
+                    isSelected
+                      ? "bg-background/20 text-background"
+                      : "bg-foreground/10 text-foreground/60",
+                  )}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+          {selectedTags.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSelectedTags([])}
+              className="text-xs text-foreground/60 hover:text-foreground underline ml-1 cursor-pointer"
+            >
+              {t("clearFilters")}
+            </button>
+          )}
+        </div>
+      )}
+
       {filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center text-sm text-foreground/60">
           <p className="font-medium text-foreground/80">
-            {q.trim() ? t("noResults", { query: q.trim() }) : t("empty")}
+            {q.trim() || selectedTags.length > 0
+              ? t("noFilteredResults")
+              : t("empty")}
           </p>
-          {q.trim() ? (
+          {q.trim() || selectedTags.length > 0 ? (
             <button
               type="button"
-              onClick={() => setQ("")}
+              onClick={clearAllFilters}
               className="mt-3 inline-block font-medium text-foreground underline hover:opacity-80 cursor-pointer"
             >
-              {t("clearSearch")}
+              {t("clearFilters")}
             </button>
           ) : (
             <div className="mt-3 flex items-center justify-center gap-3">
@@ -219,6 +343,33 @@ export function RecipeListClient({
                       {r.description}
                     </p>
                   )}
+                  {r.tags && r.tags.length > 0 && (
+                    <div className="mt-2.5 flex flex-wrap gap-1">
+                      {r.tags.slice(0, 3).map((tag) => (
+                        <span
+                          key={tag}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleTag(tag);
+                          }}
+                          className={cn(
+                            "rounded-md px-1.5 py-0.5 text-[10px] font-medium transition cursor-pointer",
+                            selectedTags.includes(tag)
+                              ? "bg-foreground text-background"
+                              : "bg-muted text-foreground/70 hover:bg-foreground/10 hover:text-foreground",
+                          )}
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                      {r.tags.length > 3 && (
+                        <span className="rounded-md px-1 py-0.5 text-[10px] font-medium text-foreground/40">
+                          +{r.tags.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center justify-between border-t border-border/60 pt-3 text-xs text-foreground/50">
                   <span>
@@ -238,4 +389,5 @@ export function RecipeListClient({
     </div>
   );
 }
+
 

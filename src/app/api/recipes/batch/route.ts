@@ -27,6 +27,7 @@ const recipeInputSchema: z.ZodType<RecipeInput> = z.object({
   fiberG: z.number().nullable().optional(),
   ingredients: z.array(ingredientSchema).min(1),
   steps: z.array(z.string().min(1)).min(1),
+  tags: z.array(z.string()).optional(),
 });
 
 const batchSchema = z.object({

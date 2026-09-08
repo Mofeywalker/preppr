@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getRecipe } from "@/lib/recipes";
+import { getRecipe, listAllTags } from "@/lib/recipes";
 import { RecipeForm } from "@/components/recipe-form";
 import type { Locale } from "@/i18n/routing";
 
@@ -12,9 +12,12 @@ export default async function EditRecipePage({
   params: Promise<{ locale: Locale; id: string }>;
 }) {
   const { id, locale } = await params;
-  const recipe = await getRecipe(id);
+  const [recipe, availableTags, t] = await Promise.all([
+    getRecipe(id),
+    listAllTags(),
+    getTranslations("RecipeDetail"),
+  ]);
   if (!recipe) notFound();
-  const t = await getTranslations("RecipeDetail");
 
   return (
     <div className="space-y-6">
@@ -28,6 +31,7 @@ export default async function EditRecipePage({
         sourceUrl={recipe.sourceUrl}
         locale={locale}
         recipe={recipe}
+        availableTags={availableTags}
       />
     </div>
   );

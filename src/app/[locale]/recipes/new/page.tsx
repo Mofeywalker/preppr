@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { RecipeForm } from "@/components/recipe-form";
+import { listAllTags } from "@/lib/recipes";
 import type { Locale } from "@/i18n/routing";
 
 export default async function NewRecipePage({
@@ -8,11 +9,19 @@ export default async function NewRecipePage({
   params: Promise<{ locale: Locale }>;
 }) {
   const { locale } = await params;
-  const t = await getTranslations("New");
+  const [t, availableTags] = await Promise.all([
+    getTranslations("New"),
+    listAllTags(),
+  ]);
   return (
     <div className="space-y-6">
       <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("title")}</h1>
-      <RecipeForm mode="create" sourceType="manual" locale={locale} />
+      <RecipeForm
+        mode="create"
+        sourceType="manual"
+        locale={locale}
+        availableTags={availableTags}
+      />
     </div>
   );
 }

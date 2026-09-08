@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, primaryKey } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const recipes = sqliteTable("recipes", {
@@ -44,3 +44,27 @@ export const steps = sqliteTable("steps", {
 export type Recipe = typeof recipes.$inferSelect;
 export type Ingredient = typeof ingredients.$inferSelect;
 export type Step = typeof steps.$inferSelect;
+
+export const tags = sqliteTable("tags", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  createdAt: integer("created_at").notNull().default(sql`(unixepoch())`),
+});
+
+export const recipeTags = sqliteTable(
+  "recipe_tags",
+  {
+    recipeId: text("recipe_id")
+      .notNull()
+      .references(() => recipes.id, { onDelete: "cascade" }),
+    tagId: text("tag_id")
+      .notNull()
+      .references(() => tags.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.recipeId, t.tagId] }),
+  ],
+);
+
+export type Tag = typeof tags.$inferSelect;
+export type RecipeTag = typeof recipeTags.$inferSelect;

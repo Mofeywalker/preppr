@@ -8,10 +8,22 @@ export default async function HomePage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; tags?: string }>;
 }) {
   await params;
-  const { q } = await searchParams;
+  const { q, tags } = await searchParams;
   const recipes = await listRecipes();
-  return <RecipeListClient recipes={recipes} initialQuery={q ?? ""} />;
+  const initialTags = tags
+    ? tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean)
+    : [];
+  return (
+    <RecipeListClient
+      recipes={recipes}
+      initialQuery={q ?? ""}
+      initialTags={initialTags}
+    />
+  );
 }

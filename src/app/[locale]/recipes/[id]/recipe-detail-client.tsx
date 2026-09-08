@@ -209,6 +209,20 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                 </span>
               )}
             </div>
+
+            {recipe.tags && recipe.tags.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {recipe.tags.map((tag) => (
+                  <Link
+                    key={tag}
+                    href={`/?tags=${encodeURIComponent(tag)}`}
+                    className="inline-flex items-center rounded-full bg-foreground/5 hover:bg-foreground/10 text-foreground px-2.5 py-0.5 text-xs font-medium transition cursor-pointer"
+                  >
+                    #{tag}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Ingredients */}

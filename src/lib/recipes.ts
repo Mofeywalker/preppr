@@ -1,6 +1,5 @@
 import { db, schema } from "@/db/client";
-import { eq, inArray } from "drizzle-orm";
-import { asc, desc } from "drizzle-orm";
+import { eq, inArray, asc, desc, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export type RecipeInput = {
@@ -20,19 +19,46 @@ export type RecipeInput = {
   fiberG?: number | null;
   ingredients: { name: string; quantity?: number | null; unit?: string | null }[];
   steps: string[];
+  tags?: string[];
 };
 
 export type Recipe = schema.Recipe;
+export type RecipeWithTags = schema.Recipe & {
+  tags: string[];
+};
 export type FullRecipe = schema.Recipe & {
   ingredients: schema.Ingredient[];
   steps: schema.Step[];
+  tags: string[];
 };
 
-export async function listRecipes(): Promise<schema.Recipe[]> {
-  return db
-    .select()
-    .from(schema.recipes)
-    .orderBy(desc(schema.recipes.createdAt));
+export async function listRecipes(): Promise<RecipeWithTags[]> {
+  const [recipeRows, tagLinks] = await Promise.all([
+    db
+      .select()
+      .from(schema.recipes)
+      .orderBy(desc(schema.recipes.createdAt)),
+    db
+      .select({
+        recipeId: schema.recipeTags.recipeId,
+        tagName: schema.tags.name,
+      })
+      .from(schema.recipeTags)
+      .innerJoin(schema.tags, eq(schema.recipeTags.tagId, schema.tags.id))
+      .orderBy(asc(schema.tags.name)),
+  ]);
+
+  const tagsByRecipe = new Map<string, string[]>();
+  for (const link of tagLinks) {
+    const list = tagsByRecipe.get(link.recipeId) || [];
+    list.push(link.tagName);
+    tagsByRecipe.set(link.recipeId, list);
+  }
+
+  return recipeRows.map((r) => ({
+    ...r,
+    tags: tagsByRecipe.get(r.id) || [],
+  }));
 }
 
 export async function getRecipe(id: string): Promise<FullRecipe | null> {
@@ -43,7 +69,7 @@ export async function getRecipe(id: string): Promise<FullRecipe | null> {
     .get();
   if (!recipe) return null;
 
-  const [ingredientRows, stepRows] = await Promise.all([
+  const [ingredientRows, stepRows, tagRows] = await Promise.all([
     db
       .select()
       .from(schema.ingredients)
@@ -54,9 +80,20 @@ export async function getRecipe(id: string): Promise<FullRecipe | null> {
       .from(schema.steps)
       .where(eq(schema.steps.recipeId, id))
       .orderBy(asc(schema.steps.order)),
+    db
+      .select({ name: schema.tags.name })
+      .from(schema.recipeTags)
+      .innerJoin(schema.tags, eq(schema.recipeTags.tagId, schema.tags.id))
+      .where(eq(schema.recipeTags.recipeId, id))
+      .orderBy(asc(schema.tags.name)),
   ]);
 
-  return { ...recipe, ingredients: ingredientRows, steps: stepRows };
+  return {
+    ...recipe,
+    ingredients: ingredientRows,
+    steps: stepRows,
+    tags: tagRows.map((t) => t.name),
+  };
 }
 
 export async function getFullRecipes(ids?: string[]): Promise<FullRecipe[]> {
@@ -76,7 +113,7 @@ export async function getFullRecipes(ids?: string[]): Promise<FullRecipe[]> {
 
   const foundIds = recipeRows.map((r) => r.id);
 
-  const [allIngredients, allSteps] = await Promise.all([
+  const [allIngredients, allSteps, allTagLinks] = await Promise.all([
     db
       .select()
       .from(schema.ingredients)
@@ -87,6 +124,15 @@ export async function getFullRecipes(ids?: string[]): Promise<FullRecipe[]> {
       .from(schema.steps)
       .where(inArray(schema.steps.recipeId, foundIds))
       .orderBy(asc(schema.steps.order)),
+    db
+      .select({
+        recipeId: schema.recipeTags.recipeId,
+        name: schema.tags.name,
+      })
+      .from(schema.recipeTags)
+      .innerJoin(schema.tags, eq(schema.recipeTags.tagId, schema.tags.id))
+      .where(inArray(schema.recipeTags.recipeId, foundIds))
+      .orderBy(asc(schema.tags.name)),
   ]);
 
   const ingredientsByRecipe = new Map<string, schema.Ingredient[]>();
@@ -103,11 +149,65 @@ export async function getFullRecipes(ids?: string[]): Promise<FullRecipe[]> {
     stepsByRecipe.set(step.recipeId, list);
   }
 
+  const tagsByRecipe = new Map<string, string[]>();
+  for (const link of allTagLinks) {
+    const list = tagsByRecipe.get(link.recipeId) || [];
+    list.push(link.name);
+    tagsByRecipe.set(link.recipeId, list);
+  }
+
   return recipeRows.map((r) => ({
     ...r,
     ingredients: ingredientsByRecipe.get(r.id) || [],
     steps: stepsByRecipe.get(r.id) || [],
+    tags: tagsByRecipe.get(r.id) || [],
   }));
+}
+
+function syncRecipeTags(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  recipeId: string,
+  rawTags?: string[],
+) {
+  if (!rawTags || rawTags.length === 0) return;
+  const seen = new Set<string>();
+  const cleanTags: string[] = [];
+  for (const t of rawTags) {
+    const trimmed = t.trim();
+    if (!trimmed) continue;
+    const lower = trimmed.toLowerCase();
+    if (!seen.has(lower)) {
+      seen.add(lower);
+      cleanTags.push(trimmed);
+    }
+  }
+
+  for (const tagName of cleanTags) {
+    let tag = tx
+      .select()
+      .from(schema.tags)
+      .where(sql`lower(${schema.tags.name}) = lower(${tagName})`)
+      .get();
+
+    if (!tag) {
+      const tagId = randomUUID();
+      tx.insert(schema.tags)
+        .values({
+          id: tagId,
+          name: tagName,
+        })
+        .run();
+      tag = { id: tagId, name: tagName, createdAt: Math.floor(Date.now() / 1000) };
+    }
+
+    tx.insert(schema.recipeTags)
+      .values({
+        recipeId,
+        tagId: tag.id,
+      })
+      .onConflictDoNothing()
+      .run();
+  }
 }
 
 export async function createRecipe(input: RecipeInput): Promise<string> {
@@ -158,6 +258,8 @@ export async function createRecipe(input: RecipeInput): Promise<string> {
         })
         .run();
     });
+
+    syncRecipeTags(tx, id, input.tags);
   });
 
   return id;
@@ -190,6 +292,7 @@ export async function updateRecipe(
 
     tx.delete(schema.ingredients).where(eq(schema.ingredients.recipeId, id)).run();
     tx.delete(schema.steps).where(eq(schema.steps.recipeId, id)).run();
+    tx.delete(schema.recipeTags).where(eq(schema.recipeTags.recipeId, id)).run();
 
     input.ingredients.forEach((ing, i) => {
       tx.insert(schema.ingredients)
@@ -209,6 +312,8 @@ export async function updateRecipe(
         .values({ id: randomUUID(), recipeId: id, order: i, text })
         .run();
     });
+
+    syncRecipeTags(tx, id, input.tags);
   });
 }
 
@@ -276,9 +381,19 @@ export async function createRecipesBatch(inputs: RecipeInput[]): Promise<string[
           })
           .run();
       });
+
+      syncRecipeTags(tx, id, input.tags);
     }
   });
 
   return ids;
+}
+
+export async function listAllTags(): Promise<string[]> {
+  const rows = await db
+    .select({ name: schema.tags.name })
+    .from(schema.tags)
+    .orderBy(asc(schema.tags.name));
+  return rows.map((r) => r.name);
 }
 

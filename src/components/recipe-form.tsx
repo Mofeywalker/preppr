@@ -24,6 +24,7 @@ export type RecipeFormInitial = {
   fiberG?: number | null;
   ingredients?: { name: string; quantity?: number | null; unit?: string | null }[];
   steps?: string[];
+  tags?: string[];
 };
 
 type IngField = { name: string; quantity: string; unit: string };
@@ -58,6 +59,7 @@ export function recipeFormInitialFromFull(r: FullRecipe): RecipeFormInitial {
       unit: i.unit,
     })),
     steps: r.steps.map((s) => s.text),
+    tags: r.tags ?? [],
   };
 }
 
@@ -69,6 +71,7 @@ export function RecipeForm({
   sourceUrl,
   mode,
   recipeId,
+  availableTags,
 }: {
   initial?: RecipeFormInitial;
   recipe?: FullRecipe;
@@ -77,6 +80,7 @@ export function RecipeForm({
   sourceUrl?: string | null;
   mode: "create" | "edit";
   recipeId?: string;
+  availableTags?: string[];
 }) {
   const init = recipe ? recipeFormInitialFromFull(recipe) : initial;
   const t = useTranslations("RecipeForm");
@@ -112,6 +116,8 @@ export function RecipeForm({
   const [fiber, setFiber] = useState(
     init?.fiberG == null ? "" : String(init.fiberG),
   );
+  const [tags, setTags] = useState<string[]>(init?.tags ?? []);
+  const [tagInput, setTagInput] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const num = (s: string): number | null =>
@@ -119,6 +125,26 @@ export function RecipeForm({
 
   const addIng = () => setIngs((l) => [...l, { name: "", quantity: "", unit: "" }]);
   const addStep = () => setStepList((l) => [...l, ""]);
+
+  const handleAddTag = (tagToAdd?: string) => {
+    const name = (tagToAdd ?? tagInput).trim();
+    if (!name) return;
+    if (!tags.some((t) => t.toLowerCase() === name.toLowerCase())) {
+      setTags((prev) => [...prev, name]);
+    }
+    setTagInput("");
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setTags((prev) => prev.filter((t) => t !== tagToRemove));
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      handleAddTag();
+    }
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,6 +177,7 @@ export function RecipeForm({
           unit: i.unit.trim() || null,
         })),
       steps: stepList.map((s) => s.trim()).filter(Boolean),
+      tags,
     };
 
     startTransition(async () => {
@@ -268,6 +295,78 @@ export function RecipeForm({
                 className="bg-background"
               />
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-muted/10 p-5 space-y-3">
+            <div>
+              <h2 className="text-base font-semibold tracking-tight">{t("tags")}</h2>
+              <p className="text-xs text-foreground/60">{t("tagsDescription")}</p>
+            </div>
+
+            <div className="flex gap-2">
+              <Input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                placeholder={t("tagPlaceholder")}
+                className="bg-background"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleAddTag()}
+                disabled={!tagInput.trim()}
+                className="shrink-0"
+              >
+                + {t("addTag")}
+              </Button>
+            </div>
+
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1 text-xs font-medium"
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTag(tag)}
+                      className="hover:opacity-70 cursor-pointer rounded-full p-0.5"
+                      aria-label={`Remove ${tag}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {availableTags &&
+              availableTags.filter((at) => !tags.some((t) => t.toLowerCase() === at.toLowerCase()))
+                .length > 0 && (
+                <div className="pt-2 border-t border-border/50">
+                  <span className="text-xs font-medium text-foreground/50 block mb-1.5">
+                    {t("suggestedTags")}:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableTags
+                      .filter((at) => !tags.some((t) => t.toLowerCase() === at.toLowerCase()))
+                      .slice(0, 10)
+                      .map((at) => (
+                        <button
+                          key={at}
+                          type="button"
+                          onClick={() => handleAddTag(at)}
+                          className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-xs text-foreground/70 hover:text-foreground hover:border-foreground/40 transition cursor-pointer"
+                        >
+                          + {at}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
           </div>
 
           <div className="rounded-2xl border border-border bg-muted/10 p-5 space-y-4">

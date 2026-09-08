@@ -26,6 +26,7 @@ export interface PrepprExportRecipe {
   fiberG?: number | null;
   ingredients: { name: string; quantity?: number | null; unit?: string | null }[];
   steps: string[];
+  tags?: string[];
 }
 
 export interface PrepprExportManifest {
@@ -110,6 +111,7 @@ export async function exportRecipesToZip(recipes: FullRecipe[]): Promise<Buffer>
         unit: ing.unit,
       })),
       steps: recipe.steps.map((st) => st.text),
+      tags: recipe.tags,
     });
   }
 
@@ -149,6 +151,8 @@ export interface RawRecipeItem {
   fiberG?: number | null;
   ingredients?: Array<{ name?: string; quantity?: number | null; unit?: string | null } | string>;
   steps?: Array<{ text?: string; instruction?: string } | string>;
+  tags?: string[];
+  keywords?: Array<{ name?: string } | string> | string[];
 }
 
 function sanitizeRecipeInput(item: RawRecipeItem, fallbackLocale: Locale = "de"): RecipeInput {
@@ -184,6 +188,23 @@ function sanitizeRecipeInput(item: RawRecipeItem, fallbackLocale: Locale = "de")
     steps.push(description || title);
   }
 
+  let tags: string[] = [];
+  if (Array.isArray(item.tags)) {
+    tags = item.tags
+      .map((t) => (typeof t === "string" ? t.trim() : ""))
+      .filter(Boolean);
+  } else if (Array.isArray(item.keywords)) {
+    tags = item.keywords
+      .map((k) =>
+        typeof k === "string"
+          ? k.trim()
+          : typeof k === "object" && k?.name
+            ? k.name.trim()
+            : "",
+      )
+      .filter(Boolean);
+  }
+
   return {
     sourceType: item.sourceType === "youtube" || item.sourceType === "tandoor" ? item.sourceType : "manual",
     sourceUrl: item.sourceUrl || null,
@@ -201,6 +222,7 @@ function sanitizeRecipeInput(item: RawRecipeItem, fallbackLocale: Locale = "de")
     fiberG: typeof item.fiberG === "number" ? item.fiberG : null,
     ingredients,
     steps,
+    tags,
   };
 }
 

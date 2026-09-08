@@ -193,6 +193,16 @@ export function tandoorToRecipeInput(
       ? raw.image
       : null);
 
+  const tags: string[] = [];
+  if (raw.keywords && Array.isArray(raw.keywords)) {
+    for (const kw of raw.keywords) {
+      const name = typeof kw === "string" ? kw : (kw as { name?: string })?.name;
+      if (name && typeof name === "string" && name.trim()) {
+        tags.push(name.trim());
+      }
+    }
+  }
+
   return {
     sourceType: "tandoor",
     sourceUrl: options?.sourceUrl ?? raw.source_url ?? null,
@@ -210,6 +220,7 @@ export function tandoorToRecipeInput(
     fiberG: nutrition.fiberG,
     ingredients: allIngredients,
     steps,
+    tags,
   };
 }
 
