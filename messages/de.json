@@ -25,7 +25,18 @@
     "allTags": "Alle Tags",
     "clearFilters": "Filter zurücksetzen",
     "noFilteredResults": "Keine Rezepte mit diesen Kriterien gefunden.",
-    "tags": "Tags"
+    "tags": "Tags",
+    "sortBy": "Sortieren",
+    "sortNewest": "Neueste zuerst",
+    "sortOldest": "Älteste zuerst",
+    "sortTitleAsc": "Titel (A–Z)",
+    "sortTitleDesc": "Titel (Z–A)",
+    "sortTimeAsc": "Kürzeste Zeit",
+    "sortCaloriesAsc": "Wenigste Kalorien",
+    "viewGrid": "Kartenansicht",
+    "viewList": "Listenansicht",
+    "caloriesShort": "kcal",
+    "searchShortcut": "Drücke / zum Suchen"
   },
   "RecipeDetail": {
     "ingredients": "Zutaten",
