@@ -2,6 +2,7 @@
 
 # ---- base: native build tools + runtime deps (ffmpeg, yt-dlp) ----
 FROM node:22-alpine AS base
+ENV NPM_CONFIG_UPDATE_NOTIFIER=false
 RUN apk add --no-cache python3 make g++ ffmpeg yt-dlp
 
 # ---- deps: install node_modules with native build tools available ----

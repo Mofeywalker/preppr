@@ -3,13 +3,23 @@ import { generateObject, generateImage } from "ai";
 import { z } from "zod";
 import type { Locale } from "@/i18n/routing";
 
-if (!process.env.GEMINI_API_KEY) {
-  console.warn("GEMINI_API_KEY is not set — AI features will be disabled");
+function getModel() {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not set");
+  }
+  const provider = createGoogle({ apiKey });
+  return provider("gemini-2.5-flash");
 }
 
-const provider = createGoogle({ apiKey: process.env.GEMINI_API_KEY });
-const model = provider("gemini-2.5-flash");
-const imageModel = provider.image("gemini-2.5-flash-image");
+function getImageModel() {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not set");
+  }
+  const provider = createGoogle({ apiKey });
+  return provider.image("gemini-2.5-flash-image");
+}
 
 export const extractSchema = z.object({
   title: z.string(),
@@ -51,7 +61,7 @@ export async function extractFromTranscript(
   preferredLocale: Locale,
 ): Promise<ExtractedRecipe> {
   const { object } = await generateObject({
-    model,
+    model: getModel(),
     schema: extractSchema,
     schemaName: "Recipe",
     system: SYSTEM_PROMPT,
@@ -66,7 +76,7 @@ export async function extractFromAudio(
   preferredLocale: Locale,
 ): Promise<ExtractedRecipe> {
   const { object } = await generateObject({
-    model,
+    model: getModel(),
     schema: extractSchema,
     schemaName: "Recipe",
     system: SYSTEM_PROMPT,
@@ -95,7 +105,7 @@ export async function generateRecipeImage(
   description: string | null,
 ): Promise<string> {
   const { image } = await generateImage({
-    model: imageModel,
+    model: getImageModel(),
     prompt: `A mouth-watering, professional food photograph of: ${title}. ${
       description ?? ""
     } Studio lighting, shallow depth of field, appetizing presentation.`,
