@@ -92,10 +92,21 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                 : tSharing("visibilityPrivate")}
             </span>
           ) : (
-            <span className="hidden sm:inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-              {recipe.authorName
-                ? tSharing("sharedBy", { name: recipe.authorName })
-                : tSharing("sharedBadge")}
+            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+              {recipe.authorImage && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={recipe.authorImage}
+                  alt=""
+                  className="size-4 rounded-full object-cover shrink-0"
+                  referrerPolicy="no-referrer"
+                />
+              )}
+              <span>
+                {recipe.authorName
+                  ? tSharing("sharedBy", { name: recipe.authorName })
+                  : tSharing("sharedBadge")}
+              </span>
             </span>
           )}
 

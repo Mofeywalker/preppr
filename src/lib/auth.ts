@@ -23,6 +23,17 @@ if (process.env.OIDC_CLIENT_ID) {
           scopes: process.env.OIDC_SCOPES
             ? process.env.OIDC_SCOPES.split(" ")
             : ["openid", "profile", "email"],
+          overrideUserInfo: true,
+          mapProfileToUser: (profile) => {
+            return {
+              image:
+                (profile.picture as string | undefined) ||
+                (profile.avatar_url as string | undefined) ||
+                (profile.avatar as string | undefined) ||
+                (profile.image as string | undefined) ||
+                undefined,
+            };
+          },
         },
       ],
     })

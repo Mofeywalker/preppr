@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname, useRouter, Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { type Locale } from "@/i18n/routing";
@@ -31,6 +32,8 @@ export function Navbar({ locale }: { locale: Locale }) {
   const tNav = useTranslations("Nav");
   const tAuth = useTranslations("Auth");
   const { data: session } = useSession();
+
+  const [imageError, setImageError] = useState(false);
 
   const isAuthPage =
     pathname.startsWith("/login") || pathname.startsWith("/register");
@@ -87,12 +90,24 @@ export function Navbar({ locale }: { locale: Locale }) {
 
           {!isAuthPage && session?.user && (
             <div className="flex items-center gap-2 border-l border-border pl-3">
-              <div
-                className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary"
-                title={session.user.name || session.user.email}
-              >
-                {userInitials}
-              </div>
+              {session.user.image && !imageError ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={session.user.image}
+                  alt={session.user.name || session.user.email || ""}
+                  onError={() => setImageError(true)}
+                  className="size-8 rounded-full object-cover border border-border shrink-0"
+                  referrerPolicy="no-referrer"
+                  title={session.user.name || session.user.email}
+                />
+              ) : (
+                <div
+                  className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary shrink-0"
+                  title={session.user.name || session.user.email}
+                >
+                  {userInitials}
+                </div>
+              )}
               <button
                 type="button"
                 onClick={handleSignOut}

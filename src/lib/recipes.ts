@@ -28,6 +28,7 @@ export type RecipeWithTags = schema.Recipe & {
   tags: string[];
   isOwner: boolean;
   authorName?: string | null;
+  authorImage?: string | null;
 };
 export type FullRecipe = schema.Recipe & {
   ingredients: schema.Ingredient[];
@@ -35,6 +36,7 @@ export type FullRecipe = schema.Recipe & {
   tags: string[];
   isOwner: boolean;
   authorName?: string | null;
+  authorImage?: string | null;
 };
 
 export async function listRecipes(
@@ -59,6 +61,7 @@ export async function listRecipes(
       .select({
         recipe: schema.recipes,
         authorName: schema.user.name,
+        authorImage: schema.user.image,
       })
       .from(schema.recipes)
       .leftJoin(schema.user, eq(schema.recipes.userId, schema.user.id))
@@ -81,11 +84,12 @@ export async function listRecipes(
     tagsByRecipe.set(link.recipeId, list);
   }
 
-  return recipeRows.map(({ recipe, authorName }) => ({
+  return recipeRows.map(({ recipe, authorName, authorImage }) => ({
     ...recipe,
     tags: tagsByRecipe.get(recipe.id) || [],
     isOwner: !recipe.userId || (!!userId && recipe.userId === userId),
     authorName: authorName ?? null,
+    authorImage: authorImage ?? null,
   }));
 }
 
@@ -97,6 +101,7 @@ export async function getRecipe(
     .select({
       recipe: schema.recipes,
       authorName: schema.user.name,
+      authorImage: schema.user.image,
     })
     .from(schema.recipes)
     .leftJoin(schema.user, eq(schema.recipes.userId, schema.user.id))
@@ -104,7 +109,7 @@ export async function getRecipe(
     .get();
 
   if (!row) return null;
-  const { recipe, authorName } = row;
+  const { recipe, authorName, authorImage } = row;
 
   const isOwner = !recipe.userId || (!!userId && recipe.userId === userId);
   if (!isOwner && recipe.visibility !== "shared") {
@@ -137,6 +142,7 @@ export async function getRecipe(
     tags: tagRows.map((t) => t.name),
     isOwner,
     authorName: authorName ?? null,
+    authorImage: authorImage ?? null,
   };
 }
 
@@ -161,6 +167,7 @@ export async function getFullRecipes(
     .select({
       recipe: schema.recipes,
       authorName: schema.user.name,
+      authorImage: schema.user.image,
     })
     .from(schema.recipes)
     .leftJoin(schema.user, eq(schema.recipes.userId, schema.user.id))
@@ -214,13 +221,14 @@ export async function getFullRecipes(
     tagsByRecipe.set(link.recipeId, list);
   }
 
-  return recipeRows.map(({ recipe, authorName }) => ({
+  return recipeRows.map(({ recipe, authorName, authorImage }) => ({
     ...recipe,
     ingredients: ingredientsByRecipe.get(recipe.id) || [],
     steps: stepsByRecipe.get(recipe.id) || [],
     tags: tagsByRecipe.get(recipe.id) || [],
     isOwner: !recipe.userId || (!!userId && recipe.userId === userId),
     authorName: authorName ?? null,
+    authorImage: authorImage ?? null,
   }));
 }
 

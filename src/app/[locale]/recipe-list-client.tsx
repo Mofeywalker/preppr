@@ -588,10 +588,18 @@ export function RecipeListClient({
                     </div>
                   )}
 
-                  {/* Shared indicator badge */}
                   {!r.isOwner && r.visibility === "shared" && (
-                    <div className="absolute top-2.5 left-2.5 z-10 rounded-full bg-primary text-primary-foreground backdrop-blur-xs px-2 py-0.5 text-[10px] font-medium shadow-xs">
-                      {r.authorName ? `${r.authorName}` : tSharing("sharedBadge")}
+                    <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1 rounded-full bg-primary text-primary-foreground backdrop-blur-xs px-2 py-0.5 text-[10px] font-medium shadow-xs">
+                      {r.authorImage && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={r.authorImage}
+                          alt=""
+                          className="size-3.5 rounded-full object-cover shrink-0"
+                          referrerPolicy="no-referrer"
+                        />
+                      )}
+                      <span>{r.authorName ? `${r.authorName}` : tSharing("sharedBadge")}</span>
                     </div>
                   )}
                 </div>
@@ -732,8 +740,17 @@ export function RecipeListClient({
                         {r.title}
                       </Link>
                       {!r.isOwner && r.visibility === "shared" && (
-                        <span className="shrink-0 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-medium">
-                          {r.authorName ? `${r.authorName}` : tSharing("sharedBadge")}
+                        <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-medium">
+                          {r.authorImage && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={r.authorImage}
+                              alt=""
+                              className="size-3.5 rounded-full object-cover shrink-0"
+                              referrerPolicy="no-referrer"
+                            />
+                          )}
+                          <span>{r.authorName ? `${r.authorName}` : tSharing("sharedBadge")}</span>
                         </span>
                       )}
                     </h2>
