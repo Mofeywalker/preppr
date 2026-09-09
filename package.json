@@ -16,7 +16,7 @@
     "@emnapi/runtime": "^1.11.3",
     "ai": "^7.0.93",
     "better-auth": "^1.7.3",
-    "better-sqlite3": "^13.0.3",
+    "better-sqlite3": "^12.11.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
     "fuse.js": "^7.5.0",
