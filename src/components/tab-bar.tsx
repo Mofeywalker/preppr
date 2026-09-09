@@ -89,6 +89,10 @@ export function TabBar() {
   const pathname = usePathname();
   const t = useTranslations("Nav");
 
+  if (pathname.startsWith("/login") || pathname.startsWith("/register")) {
+    return null;
+  }
+
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur md:hidden">
       <div className="mx-auto flex max-w-md items-stretch">

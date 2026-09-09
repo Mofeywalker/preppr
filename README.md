@@ -57,12 +57,19 @@ Without a key the rest of the app works; the import + image-gen routes return a
 
 ### Environment variables
 
-| Variable         | Required | Default      | Purpose                                  |
-| ---------------- | -------- | ------------ | ---------------------------------------- |
-| `GEMINI_API_KEY` | for AI   | —            | Google Gemini API key                    |
-| `DATABASE_PATH`  | no       | `./dev.db`   | SQLite file path (use the volume in Docker) |
-| `UPLOAD_DIR`     | no       | `/data/uploads` in Docker or `./public/uploads` | Path to store uploaded/imported images |
-| `YT_DLP_PATH`    | no       | `yt-dlp`     | Override the yt-dlp binary path          |
+| Variable                | Required | Default      | Purpose                                           |
+| ----------------------- | -------- | ------------ | ------------------------------------------------- |
+| `GEMINI_API_KEY`        | for AI   | —            | Google Gemini API key                             |
+| `DATABASE_PATH`         | no       | `./dev.db`   | SQLite file path (use the volume in Docker)       |
+| `UPLOAD_DIR`            | no       | `/data/uploads` in Docker or `./public/uploads` | Path to store uploaded/imported images |
+| `YT_DLP_PATH`           | no       | `yt-dlp`     | Override the yt-dlp binary path                   |
+| `BETTER_AUTH_SECRET`    | prod     | auto-dev key | Secret used for cookie signing and session hashing|
+| `BETTER_AUTH_URL`       | no       | `http://localhost:3000` | Canonical app URL (set for production/reverse proxy) |
+| `AUTH_DISABLE_REGISTER` | no       | `false`      | Set to `true` to disable new registrations         |
+| `OIDC_CLIENT_ID`        | for OIDC | —            | OpenID Connect Client ID                          |
+| `OIDC_CLIENT_SECRET`    | for OIDC | —            | OpenID Connect Client Secret                      |
+| `OIDC_DISCOVERY_URL`    | for OIDC | —            | OIDC `.well-known/openid-configuration` endpoint  |
+| `OIDC_PROVIDER_NAME`    | no       | `OpenID Connect` | Display name for the SSO button               |
 
 ## Run with Docker
 

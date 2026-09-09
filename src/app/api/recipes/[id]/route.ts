@@ -6,6 +6,7 @@ import {
   deleteRecipe,
   type RecipeInput,
 } from "@/lib/recipes";
+import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -33,22 +34,29 @@ const updateSchema: z.ZodType<RecipeInput> = z.object({
   ingredients: z.array(ingredientSchema).min(1),
   steps: z.array(z.string().min(1)).min(1),
   tags: z.array(z.string()).optional(),
+  visibility: z.enum(["private", "shared"]).optional(),
 });
 
 export async function GET(
-  _req: NextRequest,
-  ctx: RouteContext<"/api/recipes/[id]">,
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> },
 ) {
+  const session = await auth.api.getSession({ headers: req.headers });
   const { id } = await ctx.params;
-  const recipe = await getRecipe(id);
+  const recipe = await getRecipe(id, session?.user.id);
   if (!recipe) return Response.json({ error: "not found" }, { status: 404 });
   return Response.json(recipe);
 }
 
 export async function PATCH(
   req: NextRequest,
-  ctx: RouteContext<"/api/recipes/[id]">,
+  ctx: { params: Promise<{ id: string }> },
 ) {
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await ctx.params;
   const body = await req.json();
   const parsed = updateSchema.safeParse(body);
@@ -58,15 +66,30 @@ export async function PATCH(
       { status: 400 },
     );
   }
-  await updateRecipe(id, parsed.data);
-  return Response.json({ id });
+  try {
+    await updateRecipe(id, parsed.data, session.user.id);
+    return Response.json({ id });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Update failed";
+    return Response.json({ error: message }, { status: 403 });
+  }
 }
 
 export async function DELETE(
-  _req: NextRequest,
-  ctx: RouteContext<"/api/recipes/[id]">,
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> },
 ) {
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await ctx.params;
-  await deleteRecipe(id);
-  return Response.json({ ok: true });
+  try {
+    await deleteRecipe(id, session.user.id);
+    return Response.json({ ok: true });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Delete failed";
+    return Response.json({ error: message }, { status: 403 });
+  }
 }

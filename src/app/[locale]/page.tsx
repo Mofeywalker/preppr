@@ -1,5 +1,6 @@
 import { listRecipes } from "@/lib/recipes";
 import { RecipeListClient } from "./recipe-list-client";
+import { getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -8,11 +9,12 @@ export default async function HomePage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ q?: string; tags?: string }>;
+  searchParams: Promise<{ q?: string; tags?: string; filter?: "all" | "mine" | "shared" }>;
 }) {
   await params;
-  const { q, tags } = await searchParams;
-  const recipes = await listRecipes();
+  const { q, tags, filter } = await searchParams;
+  const session = await getSession();
+  const recipes = await listRecipes(session?.user.id, filter ?? "all");
   const initialTags = tags
     ? tags
         .split(",")
@@ -24,6 +26,7 @@ export default async function HomePage({
       recipes={recipes}
       initialQuery={q ?? ""}
       initialTags={initialTags}
+      initialFilter={filter ?? "all"}
     />
   );
 }

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { tandoorToRecipeInput, saveUploadedImage, type TandoorRecipe } from "@/lib/tandoor";
 import type { Locale } from "@/i18n/routing";
+import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -19,6 +20,11 @@ function extractRecipeId(pathname: string): string | null {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const json = await req.json();
     const parsed = fetchBodySchema.safeParse(json);

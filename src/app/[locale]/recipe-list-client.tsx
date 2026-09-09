@@ -22,14 +22,18 @@ export function RecipeListClient({
   recipes,
   initialQuery = "",
   initialTags = [],
+  initialFilter = "all",
 }: {
   recipes: RecipeWithTags[];
   initialQuery?: string;
   initialTags?: string[];
+  initialFilter?: "all" | "mine" | "shared";
 }) {
   const t = useTranslations("Recipes");
   const tNav = useTranslations("Nav");
+  const tSharing = useTranslations("Sharing");
 
+  const [filter, setFilter] = useState<"all" | "mine" | "shared">(initialFilter);
   const [q, setQ] = useState(initialQuery);
   const [selectedTags, setSelectedTags] = useState<string[]>(initialTags);
   const [sortBy, setSortBy] = useState<SortOption>("newest");
@@ -144,6 +148,13 @@ export function RecipeListClient({
   const filteredAndSorted = useMemo(() => {
     let result = recipes;
 
+    // Filter by ownership/sharing scope
+    if (filter === "mine") {
+      result = result.filter((r) => r.isOwner);
+    } else if (filter === "shared") {
+      result = result.filter((r) => r.visibility === "shared" && !r.isOwner);
+    }
+
     // Filter by selected tags (AND conjunction: must match all selected tags)
     if (selectedTags.length > 0) {
       result = result.filter((r) =>
@@ -186,27 +197,23 @@ export function RecipeListClient({
         break;
       case "time-asc":
         sorted.sort((a, b) => {
-          const timeA = (a.prepTimeMin ?? 0) + (a.cookTimeMin ?? 0) || 999999;
-          const timeB = (b.prepTimeMin ?? 0) + (b.cookTimeMin ?? 0) || 999999;
-          return timeA - timeB;
+          const aTime = (a.prepTimeMin ?? 0) + (a.cookTimeMin ?? 0);
+          const bTime = (b.prepTimeMin ?? 0) + (b.cookTimeMin ?? 0);
+          return aTime - bTime;
         });
         break;
       case "calories-asc":
-        sorted.sort((a, b) => {
-          const calA = a.calories ?? 999999;
-          const calB = b.calories ?? 999999;
-          return calA - calB;
-        });
+        sorted.sort((a, b) => (a.calories ?? 999999) - (b.calories ?? 999999));
         break;
     }
 
     return sorted;
-  }, [q, recipes, selectedTags, sortBy]);
+  }, [q, recipes, selectedTags, sortBy, filter]);
 
   return (
     <div className="space-y-6">
-      {/* Top Header & Action Bar */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      {/* Top Row: Title & Primary Actions */}
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("title")}</h1>
           <p
@@ -218,9 +225,83 @@ export function RecipeListClient({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {recipes.length > 0 && (
+            <a href="/api/export" download>
+              <Button variant="outline" size="sm" className="h-9 font-medium gap-1.5 hidden sm:inline-flex">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-4"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                {t("export")}
+              </Button>
+            </a>
+          )}
+          <Link href="/recipes/new">
+            <Button size="sm" className="h-9 font-medium gap-1">
+              <span>+</span>
+              <span>{tNav("new")}</span>
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* Second Row: Scope Filter & Search/Sort Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Scope Filter: All / My Recipes / Shared */}
+        <div className="inline-flex h-9 self-start sm:self-auto items-center rounded-lg border border-input bg-muted/40 p-1 text-xs font-medium shrink-0">
+          <button
+            type="button"
+            onClick={() => setFilter("all")}
+            className={cn(
+              "px-3 py-1 rounded-md transition cursor-pointer whitespace-nowrap",
+              filter === "all"
+                ? "bg-background shadow-xs text-foreground font-semibold"
+                : "text-foreground/60 hover:text-foreground",
+            )}
+          >
+            {tSharing("filterAll")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter("mine")}
+            className={cn(
+              "px-3 py-1 rounded-md transition cursor-pointer whitespace-nowrap",
+              filter === "mine"
+                ? "bg-background shadow-xs text-foreground font-semibold"
+                : "text-foreground/60 hover:text-foreground",
+            )}
+          >
+            {tSharing("filterMine")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter("shared")}
+            className={cn(
+              "px-3 py-1 rounded-md transition cursor-pointer whitespace-nowrap",
+              filter === "shared"
+                ? "bg-background shadow-xs text-foreground font-semibold"
+                : "text-foreground/60 hover:text-foreground",
+            )}
+          >
+            {tSharing("filterShared")}
+          </button>
+        </div>
+
+        {/* Search, Sort, and View Mode Toolbar */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
           {/* Search Box */}
-          <label className="flex h-10 w-full sm:w-64 md:w-72 shrink-0 items-center gap-2 rounded-lg border border-input bg-background px-3 transition focus-within:border-foreground focus-within:ring-2 focus-within:ring-foreground/10 cursor-text">
+          <label className="flex h-9 w-full sm:w-52 md:w-64 shrink-0 items-center gap-2 rounded-lg border border-input bg-background px-3 transition focus-within:border-foreground focus-within:ring-2 focus-within:ring-foreground/10 cursor-text">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 20 20"
@@ -279,7 +360,7 @@ export function RecipeListClient({
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="h-10 rounded-lg border border-input bg-background px-3 pr-8 text-xs sm:text-sm font-medium text-foreground/80 focus:border-foreground focus:ring-2 focus:ring-foreground/10 cursor-pointer outline-none appearance-none"
+              className="h-9 rounded-lg border border-input bg-background px-3 pr-8 text-xs sm:text-sm font-medium text-foreground/80 focus:border-foreground focus:ring-2 focus:ring-foreground/10 cursor-pointer outline-none appearance-none"
               aria-label={t("sortBy")}
             >
               <option value="newest">{t("sortNewest")}</option>
@@ -304,12 +385,12 @@ export function RecipeListClient({
           </div>
 
           {/* Grid / List View Toggle */}
-          <div className="inline-flex h-10 items-center rounded-lg border border-input bg-muted/40 p-1">
+          <div className="inline-flex h-9 items-center rounded-lg border border-input bg-muted/40 p-0.5">
             <button
               type="button"
               onClick={() => setViewMode("grid")}
               className={cn(
-                "flex h-8 w-8 items-center justify-center rounded-md transition cursor-pointer",
+                "flex h-7 w-7 items-center justify-center rounded-md transition cursor-pointer",
                 viewMode === "grid"
                   ? "bg-background shadow-xs text-foreground"
                   : "text-foreground/50 hover:text-foreground",
@@ -337,7 +418,7 @@ export function RecipeListClient({
               type="button"
               onClick={() => setViewMode("list")}
               className={cn(
-                "flex h-8 w-8 items-center justify-center rounded-md transition cursor-pointer",
+                "flex h-7 w-7 items-center justify-center rounded-md transition cursor-pointer",
                 viewMode === "list"
                   ? "bg-background shadow-xs text-foreground"
                   : "text-foreground/50 hover:text-foreground",
@@ -364,33 +445,6 @@ export function RecipeListClient({
               </svg>
             </button>
           </div>
-
-          {recipes.length > 0 && (
-            <a href="/api/export" download>
-              <Button variant="outline" size="sm" className="h-10 font-medium gap-1.5 hidden sm:inline-flex">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="size-4"
-                >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                {t("export")}
-              </Button>
-            </a>
-          )}
-          <Link href="/recipes/new" className="hidden sm:inline-flex">
-            <Button size="sm" className="h-10 font-medium">
-              + {tNav("new")}
-            </Button>
-          </Link>
         </div>
       </div>
 
@@ -533,6 +587,13 @@ export function RecipeListClient({
                       {r.sourceType === "youtube" ? "YouTube" : "Tandoor"}
                     </div>
                   )}
+
+                  {/* Shared indicator badge */}
+                  {!r.isOwner && r.visibility === "shared" && (
+                    <div className="absolute top-2.5 left-2.5 z-10 rounded-full bg-primary text-primary-foreground backdrop-blur-xs px-2 py-0.5 text-[10px] font-medium shadow-xs">
+                      {r.authorName ? `${r.authorName}` : tSharing("sharedBadge")}
+                    </div>
+                  )}
                 </div>
 
                 {/* Card Content with Stretched Link Pattern */}
@@ -663,13 +724,18 @@ export function RecipeListClient({
                 {/* Main Row Info */}
                 <div className="flex-1 min-w-0 pr-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <h2 className="font-semibold text-sm sm:text-base tracking-tight truncate group-hover:underline">
+                    <h2 className="font-semibold text-sm sm:text-base tracking-tight truncate group-hover:underline flex items-center gap-2">
                       <Link
                         href={`/recipes/${r.id}`}
                         className="focus:outline-none after:absolute after:inset-0 after:content-['']"
                       >
                         {r.title}
                       </Link>
+                      {!r.isOwner && r.visibility === "shared" && (
+                        <span className="shrink-0 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-medium">
+                          {r.authorName ? `${r.authorName}` : tSharing("sharedBadge")}
+                        </span>
+                      )}
                     </h2>
                     {r.calories != null && (
                       <span className="shrink-0 text-xs font-medium text-foreground/60">

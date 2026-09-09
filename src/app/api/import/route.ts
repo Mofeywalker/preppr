@@ -10,6 +10,7 @@ import {
 import { extractFromTranscript, extractFromAudio, type ExtractedRecipe } from "@/lib/ai";
 import { saveUploadedImage } from "@/lib/storage";
 import type { Locale } from "@/i18n/routing";
+import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -20,6 +21,11 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   if (!process.env.GEMINI_API_KEY) {
     return Response.json({ error: "ai-config" }, { status: 503 });
   }

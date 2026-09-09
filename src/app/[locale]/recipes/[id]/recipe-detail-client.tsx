@@ -15,6 +15,7 @@ function fmt(n: number): string {
 export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
   const t = useTranslations("RecipeDetail");
   const tForm = useTranslations("Recipes");
+  const tSharing = useTranslations("Sharing");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -23,6 +24,7 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState(recipe.imageUrl);
+  const [forking, setForking] = useState(false);
 
   const scale = servings / recipe.servings;
 
@@ -32,6 +34,23 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
       await fetch(`/api/recipes/${recipe.id}`, { method: "DELETE" });
       router.push("/");
     });
+  };
+
+  const onFork = async () => {
+    setForking(true);
+    try {
+      const res = await fetch(`/api/recipes/${recipe.id}/fork`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      router.push(`/recipes/${data.id}`);
+      router.refresh();
+    } catch {
+      alert("Failed to copy recipe");
+    } finally {
+      setForking(false);
+    }
   };
 
   const onGenerate = async () => {
@@ -65,6 +84,21 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
           ← {t("back")}
         </Link>
         <div className="flex items-center gap-2">
+          {/* Visibility / Author status badge */}
+          {recipe.isOwner ? (
+            <span className="hidden sm:inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground/70">
+              {recipe.visibility === "shared"
+                ? tSharing("visibilityShared")
+                : tSharing("visibilityPrivate")}
+            </span>
+          ) : (
+            <span className="hidden sm:inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+              {recipe.authorName
+                ? tSharing("sharedBy", { name: recipe.authorName })
+                : tSharing("sharedBadge")}
+            </span>
+          )}
+
           <a href={`/api/recipes/${recipe.id}/export`} download>
             <Button variant="outline" size="sm" className="gap-1.5">
               <svg
@@ -84,19 +118,47 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
               {t("export")}
             </Button>
           </a>
-          <Link href={`/recipes/${recipe.id}/edit`}>
-            <Button variant="outline" size="sm">
-              {t("edit")}
+
+          {!recipe.isOwner ? (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={onFork}
+              disabled={forking}
+              className="gap-1.5"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-4"
+              >
+                <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+              </svg>
+              {forking ? tSharing("forking") : tSharing("fork")}
             </Button>
-          </Link>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={onDelete}
-            disabled={pending}
-          >
-            {pending ? <Spinner /> : t("delete")}
-          </Button>
+          ) : (
+            <>
+              <Link href={`/recipes/${recipe.id}/edit`}>
+                <Button variant="outline" size="sm">
+                  {t("edit")}
+                </Button>
+              </Link>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={onDelete}
+                disabled={pending}
+              >
+                {pending ? <Spinner /> : t("delete")}
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

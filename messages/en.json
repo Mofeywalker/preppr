@@ -153,6 +153,35 @@
   "New": {
     "title": "New recipe"
   },
+  "Auth": {
+    "signIn": "Sign in",
+    "signUp": "Create account",
+    "signOut": "Sign out",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "haveAccount": "Already have an account? Sign in",
+    "noAccount": "Don't have an account? Sign up",
+    "or": "or",
+    "signInWithOidc": "Sign in with SSO",
+    "invalidCredentials": "Invalid email or password",
+    "userExists": "An account with this email already exists",
+    "passwordTooShort": "Password must be at least 6 characters",
+    "submitting": "Please wait…"
+  },
+  "Sharing": {
+    "filterAll": "All",
+    "filterMine": "My recipes",
+    "filterShared": "Shared",
+    "visibility": "Visibility",
+    "visibilityShared": "Shared with household",
+    "visibilityPrivate": "Private (only you)",
+    "sharedBadge": "Shared",
+    "sharedBy": "Shared by {name}",
+    "fork": "Copy to my recipes",
+    "forking": "Copying…",
+    "forkSuccess": "Recipe copied to your recipes!"
+  },
   "Errors": {
     "titleRequired": "Title is required.",
     "generic": "Something went wrong."

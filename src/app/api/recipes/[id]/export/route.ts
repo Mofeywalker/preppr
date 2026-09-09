@@ -1,16 +1,22 @@
 import { NextRequest } from "next/server";
 import { getFullRecipes } from "@/lib/recipes";
 import { exportRecipesToZip } from "@/lib/archive";
+import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) {
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { id } = await ctx.params;
-    const recipes = await getFullRecipes([id]);
+    const recipes = await getFullRecipes([id], session.user.id);
     if (recipes.length === 0) {
       return Response.json({ error: "not found" }, { status: 404 });
     }

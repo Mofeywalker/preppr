@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { createRecipesBatch, type RecipeInput } from "@/lib/recipes";
+import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ const recipeInputSchema: z.ZodType<RecipeInput> = z.object({
   ingredients: z.array(ingredientSchema).min(1),
   steps: z.array(z.string().min(1)).min(1),
   tags: z.array(z.string()).optional(),
+  visibility: z.enum(["private", "shared"]).optional(),
 });
 
 const batchSchema = z.object({
@@ -35,6 +37,11 @@ const batchSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await req.json();
     const parsed = batchSchema.safeParse(body);
@@ -45,7 +52,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const ids = await createRecipesBatch(parsed.data.recipes);
+    const ids = await createRecipesBatch(parsed.data.recipes, session.user.id);
     return Response.json({ success: true, count: ids.length, ids }, { status: 201 });
   } catch (err) {
     console.error("Batch creation failed:", err);

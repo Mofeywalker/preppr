@@ -25,6 +25,7 @@ export type RecipeFormInitial = {
   ingredients?: { name: string; quantity?: number | null; unit?: string | null }[];
   steps?: string[];
   tags?: string[];
+  visibility?: "private" | "shared";
 };
 
 type IngField = { name: string; quantity: string; unit: string };
@@ -60,6 +61,7 @@ export function recipeFormInitialFromFull(r: FullRecipe): RecipeFormInitial {
     })),
     steps: r.steps.map((s) => s.text),
     tags: r.tags ?? [],
+    visibility: r.visibility,
   };
 }
 
@@ -85,12 +87,16 @@ export function RecipeForm({
   const init = recipe ? recipeFormInitialFromFull(recipe) : initial;
   const t = useTranslations("RecipeForm");
   const tErr = useTranslations("Errors");
+  const tSharing = useTranslations("Sharing");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   const [title, setTitle] = useState(init?.title ?? "");
   const [description, setDescription] = useState(init?.description ?? "");
   const [language, setLanguage] = useState<Locale>(init?.language ?? locale);
+  const [visibility, setVisibility] = useState<"private" | "shared">(
+    init?.visibility ?? "shared",
+  );
   const [servings, setServings] = useState(String(init?.servings ?? 4));
   const [prepTime, setPrepTime] = useState(
     init?.prepTimeMin == null ? "" : String(init.prepTimeMin),
@@ -158,6 +164,7 @@ export function RecipeForm({
       sourceType,
       sourceUrl: sourceUrl ?? null,
       language,
+      visibility,
       title: title.trim(),
       description: description.trim() || null,
       servings: Number(servings) || 4,
@@ -234,7 +241,7 @@ export function RecipeForm({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="language">{t("language")}</Label>
                 <Select
@@ -245,6 +252,18 @@ export function RecipeForm({
                 >
                   <option value="de">Deutsch</option>
                   <option value="en">English</option>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="visibility">{tSharing("visibility")}</Label>
+                <Select
+                  id="visibility"
+                  value={visibility}
+                  onChange={(e) => setVisibility(e.target.value as "private" | "shared")}
+                  className="bg-background"
+                >
+                  <option value="shared">{tSharing("visibilityShared")}</option>
+                  <option value="private">{tSharing("visibilityPrivate")}</option>
                 </Select>
               </div>
               <div className="space-y-1.5">

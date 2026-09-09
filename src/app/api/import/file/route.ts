@@ -1,11 +1,17 @@
 import { NextRequest } from "next/server";
 import { parseRecipeUpload } from "@/lib/archive";
 import type { Locale } from "@/i18n/routing";
+import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const formData = await req.formData();
     const file = formData.get("file");

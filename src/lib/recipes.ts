@@ -1,5 +1,5 @@
 import { db, schema } from "@/db/client";
-import { eq, inArray, asc, desc, sql } from "drizzle-orm";
+import { eq, inArray, asc, desc, sql, or, and, isNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export type RecipeInput = {
@@ -20,23 +20,49 @@ export type RecipeInput = {
   ingredients: { name: string; quantity?: number | null; unit?: string | null }[];
   steps: string[];
   tags?: string[];
+  visibility?: "private" | "shared";
 };
 
 export type Recipe = schema.Recipe;
 export type RecipeWithTags = schema.Recipe & {
   tags: string[];
+  isOwner: boolean;
+  authorName?: string | null;
 };
 export type FullRecipe = schema.Recipe & {
   ingredients: schema.Ingredient[];
   steps: schema.Step[];
   tags: string[];
+  isOwner: boolean;
+  authorName?: string | null;
 };
 
-export async function listRecipes(): Promise<RecipeWithTags[]> {
+export async function listRecipes(
+  userId?: string,
+  filter?: "all" | "mine" | "shared",
+): Promise<RecipeWithTags[]> {
+  const whereCondition =
+    filter === "mine"
+      ? eq(schema.recipes.userId, userId || "")
+      : filter === "shared"
+      ? eq(schema.recipes.visibility, "shared")
+      : userId
+      ? or(
+          eq(schema.recipes.visibility, "shared"),
+          eq(schema.recipes.userId, userId),
+          isNull(schema.recipes.userId),
+        )
+      : eq(schema.recipes.visibility, "shared");
+
   const [recipeRows, tagLinks] = await Promise.all([
     db
-      .select()
+      .select({
+        recipe: schema.recipes,
+        authorName: schema.user.name,
+      })
       .from(schema.recipes)
+      .leftJoin(schema.user, eq(schema.recipes.userId, schema.user.id))
+      .where(whereCondition)
       .orderBy(desc(schema.recipes.createdAt)),
     db
       .select({
@@ -55,19 +81,35 @@ export async function listRecipes(): Promise<RecipeWithTags[]> {
     tagsByRecipe.set(link.recipeId, list);
   }
 
-  return recipeRows.map((r) => ({
-    ...r,
-    tags: tagsByRecipe.get(r.id) || [],
+  return recipeRows.map(({ recipe, authorName }) => ({
+    ...recipe,
+    tags: tagsByRecipe.get(recipe.id) || [],
+    isOwner: !recipe.userId || (!!userId && recipe.userId === userId),
+    authorName: authorName ?? null,
   }));
 }
 
-export async function getRecipe(id: string): Promise<FullRecipe | null> {
-  const recipe = await db
-    .select()
+export async function getRecipe(
+  id: string,
+  userId?: string,
+): Promise<FullRecipe | null> {
+  const row = await db
+    .select({
+      recipe: schema.recipes,
+      authorName: schema.user.name,
+    })
     .from(schema.recipes)
+    .leftJoin(schema.user, eq(schema.recipes.userId, schema.user.id))
     .where(eq(schema.recipes.id, id))
     .get();
-  if (!recipe) return null;
+
+  if (!row) return null;
+  const { recipe, authorName } = row;
+
+  const isOwner = !recipe.userId || (!!userId && recipe.userId === userId);
+  if (!isOwner && recipe.visibility !== "shared") {
+    return null;
+  }
 
   const [ingredientRows, stepRows, tagRows] = await Promise.all([
     db
@@ -93,25 +135,41 @@ export async function getRecipe(id: string): Promise<FullRecipe | null> {
     ingredients: ingredientRows,
     steps: stepRows,
     tags: tagRows.map((t) => t.name),
+    isOwner,
+    authorName: authorName ?? null,
   };
 }
 
-export async function getFullRecipes(ids?: string[]): Promise<FullRecipe[]> {
-  const recipeRows =
+export async function getFullRecipes(
+  ids?: string[],
+  userId?: string,
+): Promise<FullRecipe[]> {
+  const accessCondition = userId
+    ? or(
+        eq(schema.recipes.visibility, "shared"),
+        eq(schema.recipes.userId, userId),
+        isNull(schema.recipes.userId),
+      )
+    : eq(schema.recipes.visibility, "shared");
+
+  const whereCondition =
     ids && ids.length > 0
-      ? await db
-          .select()
-          .from(schema.recipes)
-          .where(inArray(schema.recipes.id, ids))
-          .orderBy(desc(schema.recipes.createdAt))
-      : await db
-          .select()
-          .from(schema.recipes)
-          .orderBy(desc(schema.recipes.createdAt));
+      ? and(inArray(schema.recipes.id, ids), accessCondition)
+      : accessCondition;
+
+  const recipeRows = await db
+    .select({
+      recipe: schema.recipes,
+      authorName: schema.user.name,
+    })
+    .from(schema.recipes)
+    .leftJoin(schema.user, eq(schema.recipes.userId, schema.user.id))
+    .where(whereCondition)
+    .orderBy(desc(schema.recipes.createdAt));
 
   if (recipeRows.length === 0) return [];
 
-  const foundIds = recipeRows.map((r) => r.id);
+  const foundIds = recipeRows.map((r) => r.recipe.id);
 
   const [allIngredients, allSteps, allTagLinks] = await Promise.all([
     db
@@ -156,11 +214,13 @@ export async function getFullRecipes(ids?: string[]): Promise<FullRecipe[]> {
     tagsByRecipe.set(link.recipeId, list);
   }
 
-  return recipeRows.map((r) => ({
-    ...r,
-    ingredients: ingredientsByRecipe.get(r.id) || [],
-    steps: stepsByRecipe.get(r.id) || [],
-    tags: tagsByRecipe.get(r.id) || [],
+  return recipeRows.map(({ recipe, authorName }) => ({
+    ...recipe,
+    ingredients: ingredientsByRecipe.get(recipe.id) || [],
+    steps: stepsByRecipe.get(recipe.id) || [],
+    tags: tagsByRecipe.get(recipe.id) || [],
+    isOwner: !recipe.userId || (!!userId && recipe.userId === userId),
+    authorName: authorName ?? null,
   }));
 }
 
@@ -210,13 +270,18 @@ function syncRecipeTags(
   }
 }
 
-export async function createRecipe(input: RecipeInput): Promise<string> {
+export async function createRecipe(
+  input: RecipeInput,
+  userId?: string,
+): Promise<string> {
   const id = randomUUID();
   const now = Math.floor(Date.now() / 1000);
 
   db.transaction((tx) => {
     tx.insert(schema.recipes).values({
       id,
+      userId: userId ?? null,
+      visibility: input.visibility ?? "shared",
       sourceType: input.sourceType,
       sourceUrl: input.sourceUrl ?? null,
       language: input.language,
@@ -268,7 +333,19 @@ export async function createRecipe(input: RecipeInput): Promise<string> {
 export async function updateRecipe(
   id: string,
   input: RecipeInput,
+  userId?: string,
 ): Promise<void> {
+  const existing = await db
+    .select()
+    .from(schema.recipes)
+    .where(eq(schema.recipes.id, id))
+    .get();
+
+  if (!existing) throw new Error("Recipe not found");
+  if (existing.userId && userId && existing.userId !== userId) {
+    throw new Error("Unauthorized: Only the recipe owner can edit this recipe");
+  }
+
   const now = Math.floor(Date.now() / 1000);
 
   db.transaction((tx) => {
@@ -285,6 +362,7 @@ export async function updateRecipe(
         carbsG: input.carbsG ?? null,
         fatG: input.fatG ?? null,
         fiberG: input.fiberG ?? null,
+        visibility: input.visibility ?? existing.visibility,
         updatedAt: now,
       })
       .where(eq(schema.recipes.id, id))
@@ -317,11 +395,37 @@ export async function updateRecipe(
   });
 }
 
-export async function deleteRecipe(id: string): Promise<void> {
+export async function deleteRecipe(id: string, userId?: string): Promise<void> {
+  const existing = await db
+    .select()
+    .from(schema.recipes)
+    .where(eq(schema.recipes.id, id))
+    .get();
+
+  if (!existing) return;
+  if (existing.userId && userId && existing.userId !== userId) {
+    throw new Error("Unauthorized: Only the recipe owner can delete this recipe");
+  }
+
   db.delete(schema.recipes).where(eq(schema.recipes.id, id)).run();
 }
 
-export async function updateImage(id: string, imageUrl: string): Promise<void> {
+export async function updateImage(
+  id: string,
+  imageUrl: string,
+  userId?: string,
+): Promise<void> {
+  const existing = await db
+    .select()
+    .from(schema.recipes)
+    .where(eq(schema.recipes.id, id))
+    .get();
+
+  if (!existing) throw new Error("Recipe not found");
+  if (existing.userId && userId && existing.userId !== userId) {
+    throw new Error("Unauthorized: Only the recipe owner can update the image");
+  }
+
   const now = Math.floor(Date.now() / 1000);
   db.update(schema.recipes)
     .set({ imageUrl, updatedAt: now })
@@ -329,7 +433,48 @@ export async function updateImage(id: string, imageUrl: string): Promise<void> {
     .run();
 }
 
-export async function createRecipesBatch(inputs: RecipeInput[]): Promise<string[]> {
+export async function forkRecipe(
+  id: string,
+  userId: string,
+): Promise<string> {
+  const recipe = await getRecipe(id, userId);
+  if (!recipe) throw new Error("Recipe not found");
+
+  const newId = await createRecipe(
+    {
+      sourceType: recipe.sourceType,
+      sourceUrl: recipe.sourceUrl,
+      language: recipe.language,
+      title: `${recipe.title}`,
+      description: recipe.description,
+      servings: recipe.servings,
+      prepTimeMin: recipe.prepTimeMin,
+      cookTimeMin: recipe.cookTimeMin,
+      imageUrl: recipe.imageUrl,
+      calories: recipe.calories,
+      proteinG: recipe.proteinG,
+      carbsG: recipe.carbsG,
+      fatG: recipe.fatG,
+      fiberG: recipe.fiberG,
+      ingredients: recipe.ingredients.map((ing) => ({
+        name: ing.name,
+        quantity: ing.quantity,
+        unit: ing.unit,
+      })),
+      steps: recipe.steps.map((s) => s.text),
+      tags: recipe.tags,
+      visibility: "shared",
+    },
+    userId,
+  );
+
+  return newId;
+}
+
+export async function createRecipesBatch(
+  inputs: RecipeInput[],
+  userId?: string,
+): Promise<string[]> {
   const ids: string[] = [];
   const now = Math.floor(Date.now() / 1000);
 
@@ -340,6 +485,8 @@ export async function createRecipesBatch(inputs: RecipeInput[]): Promise<string[
 
       tx.insert(schema.recipes).values({
         id,
+        userId: userId ?? null,
+        visibility: input.visibility ?? "shared",
         sourceType: input.sourceType,
         sourceUrl: input.sourceUrl ?? null,
         language: input.language,

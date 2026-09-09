@@ -2,16 +2,25 @@ import { NextRequest } from "next/server";
 import { getRecipe, updateImage } from "@/lib/recipes";
 import { generateRecipeImage } from "@/lib/ai";
 import { saveUploadedImage } from "@/lib/storage";
+import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(
   req: NextRequest,
-  ctx: RouteContext<"/api/recipes/[id]">,
+  ctx: { params: Promise<{ id: string }> },
 ) {
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await ctx.params;
-  const recipe = await getRecipe(id);
+  const recipe = await getRecipe(id, session.user.id);
   if (!recipe) return Response.json({ error: "not found" }, { status: 404 });
+  if (!recipe.isOwner) {
+    return Response.json({ error: "Forbidden: Only owner can modify images" }, { status: 403 });
+  }
 
   const contentType = req.headers.get("content-type") ?? "";
 

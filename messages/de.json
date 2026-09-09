@@ -153,6 +153,35 @@
   "New": {
     "title": "Neues Rezept"
   },
+  "Auth": {
+    "signIn": "Anmelden",
+    "signUp": "Konto erstellen",
+    "signOut": "Abmelden",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "name": "Name",
+    "haveAccount": "Bereits ein Konto? Anmelden",
+    "noAccount": "Noch kein Konto? Registrieren",
+    "or": "oder",
+    "signInWithOidc": "Mit SSO anmelden",
+    "invalidCredentials": "Ungültige E-Mail oder Passwort",
+    "userExists": "Ein Konto mit dieser E-Mail existiert bereits",
+    "passwordTooShort": "Passwort muss mindestens 6 Zeichen lang sein",
+    "submitting": "Bitte warten…"
+  },
+  "Sharing": {
+    "filterAll": "Alle",
+    "filterMine": "Meine Rezepte",
+    "filterShared": "Geteilt",
+    "visibility": "Sichtbarkeit",
+    "visibilityShared": "Mit Haushalt geteilt",
+    "visibilityPrivate": "Privat (nur ich)",
+    "sharedBadge": "Geteilt",
+    "sharedBy": "Geteilt von {name}",
+    "fork": "In meine Rezepte kopieren",
+    "forking": "Kopiere…",
+    "forkSuccess": "Rezept wurde in deine Rezepte kopiert!"
+  },
   "Errors": {
     "titleRequired": "Titel ist erforderlich.",
     "generic": "Etwas ist schiefgelaufen."
