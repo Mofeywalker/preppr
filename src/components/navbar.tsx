@@ -7,6 +7,7 @@ import { type Locale } from "@/i18n/routing";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { cn } from "@/lib/utils";
 import { authClient, useSession } from "@/lib/auth-client";
+import { Logo } from "@/components/logo";
 
 const navItems = [
   {
@@ -56,9 +57,9 @@ export function Navbar({ locale }: { locale: Locale }) {
         <div className="flex items-center gap-8">
           <Link
             href="/"
-            className="text-lg font-bold tracking-tight text-foreground transition hover:opacity-80"
+            className="flex items-center transition hover:opacity-80"
           >
-            preppr
+            <Logo size="md" />
           </Link>
 
           {/* Desktop Navigation Links */}

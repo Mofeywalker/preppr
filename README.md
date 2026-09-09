@@ -1,118 +1,152 @@
-# preppr
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/logo-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="public/logo-light.svg">
+  <img src="public/logo-light.svg" alt="preppr" width="180">
+</picture>
 
-A mobile-first recipe & meal-prep app. Add recipes manually or import them from
-YouTube (videos + Shorts) with AI. German + English UI.
+A modern, mobile-first recipe & meal-prep application with AI-powered YouTube import.
 
-- **Next.js 16** (App Router) + TypeScript + Tailwind v4
-- **SQLite** via Drizzle ORM + better-sqlite3 (single file, no external DB)
-- **next-intl** for the `de`/`en` UI, locale-prefixed routing
-- **Vercel AI SDK** + **Google Gemini** for recipe extraction, nutrition
-  estimates, and image generation
-- **yt-dlp** for video metadata + audio fallback when no transcript exists
+---
 
-## Features
+### Highlights
 
-- **Manual recipes** — title, description, ingredients, steps, servings, times
-- **YouTube import** — paste a URL; the transcript (or audio, if no captions) is
-  sent to Gemini, which returns a structured recipe + nutrition in one pass
-- **Servings scaler** — change servings on the detail page; ingredient
-  quantities rescale live
-- **Nutrition** — per-serving calories / protein / carbs / fat / fiber
-- **Images** — YouTube thumbnail by default; optional Imagen generation
-- **DE + EN** — switch locale from the header
+- 📱 **Mobile-First Experience** — Optimized for kitchen use and quick glancing on mobile screens.
+- 📺 **YouTube & Shorts Import** — Paste any recipe link; Gemini extracts ingredients, steps, and nutrition in one pass.
+- ⚖️ **Dynamic Servings Scaler** — Adjust servings on the fly with automatic ingredient recalculation.
+- 🥗 **Nutritional Estimates** — Per-serving calories, protein, carbs, fats, and fiber.
+- 🌍 **Internationalization** — Native English and German (`en` / `de`) UI and localized routing.
+- ⚡ **Zero-Config Database** — Embedded SQLite via Drizzle ORM (single file, no external DB required).
 
-## Getting started (local)
+---
 
-Requires Node 20+ and `yt-dlp` + `ffmpeg` on your PATH (for YouTube import):
+## Tech Stack
+
+| Layer | Technology |
+| :--- | :--- |
+| **Framework** | [Next.js 16](https://nextjs.org/) (App Router) + TypeScript |
+| **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) |
+| **Database** | SQLite via [Drizzle ORM](https://orm.drizzle.team/) + `better-sqlite3` |
+| **AI / LLM** | [Vercel AI SDK](https://sdk.vercel.ai/) + Google Gemini (`gemini-2.5-flash`) |
+| **Media Processing** | `yt-dlp` + `ffmpeg` (automatic video transcript & audio fallback) |
+| **Auth** | [Better Auth](https://www.better-auth.com/) (Email/Password + optional OIDC SSO) |
+| **i18n** | [next-intl](https://next-intl-docs.vercel.app/) |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- **Node.js 20+**
+- **yt-dlp** & **ffmpeg** on your PATH (required for YouTube audio extraction):
 
 ```sh
-brew install yt-dlp ffmpeg        # macOS
-npm install
-cp .env.example .env               # then put your key in .env
-npm run dev                       # http://localhost:3000
+brew install yt-dlp ffmpeg   # macOS
 ```
 
-### Configure the Gemini integration
+### Installation
 
-1. Open **Google AI Studio** → https://aistudio.google.com/apikey
-2. Sign in with a Google account → **Create API key** (starts with `AIza…`)
-3. Put it in `.env`:
+1. **Clone & install dependencies:**
+   ```sh
+   git clone https://github.com/your-username/preppr.git
+   cd preppr
+   npm install
+   ```
 
+2. **Configure environment:**
+   ```sh
+   cp .env.example .env
+   ```
+
+3. **Start the local development server:**
+   ```sh
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+## Gemini AI Configuration
+
+To enable AI recipe extraction and image generation:
+
+1. Create an API key in [Google AI Studio](https://aistudio.google.com/apikey).
+2. Add your key to `.env`:
    ```env
    GEMINI_API_KEY=AIza...
    ```
 
-That single key powers:
-- `gemini-2.5-flash` — recipe + nutrition extraction from transcript or audio
-- `gemini-2.5-flash-image` — the "Generate image" button on the detail page
+> [!NOTE]
+> Without an API key, the core recipe app works normally. Only YouTube AI import and AI image generation require the key. A free-tier key is sufficient for personal use.
 
-Without a key the rest of the app works; the import + image-gen routes return a
-503 ("AI not configured"). A free-tier key is enough for local use.
+---
 
-> **Note:** the SDK in use is `@ai-sdk/google` (the Vercel AI SDK's Google
-> provider), **not** `@google/generative-ai` or `@google/genai`. Swapping to
-> another provider later (OpenAI, Anthropic, …) is a one-line model change in
-> `src/lib/ai.ts` plus installing that provider package — the Zod schema and
-> call sites stay the same.
+## Environment Variables
 
-### Environment variables
+| Variable | Required | Default | Purpose |
+| :--- | :---: | :--- | :--- |
+| `GEMINI_API_KEY` | For AI | — | Google Gemini API key |
+| `DATABASE_PATH` | No | `./dev.db` | SQLite database file location |
+| `UPLOAD_DIR` | No | `./public/uploads` | Directory for uploaded/generated images |
+| `YT_DLP_PATH` | No | `yt-dlp` | Custom path to the `yt-dlp` binary |
+| `BETTER_AUTH_SECRET` | Prod | *auto-dev* | Secret for cookie signing and session hashing |
+| `BETTER_AUTH_URL` | No | `http://localhost:3000` | Canonical app URL |
+| `AUTH_DISABLE_REGISTER` | No | `false` | Disable public user registrations |
+| `OIDC_CLIENT_ID` | For SSO | — | OpenID Connect Client ID |
+| `OIDC_CLIENT_SECRET` | For SSO | — | OpenID Connect Client Secret |
+| `OIDC_DISCOVERY_URL` | For SSO | — | OpenID Connect discovery endpoint |
 
-| Variable                | Required | Default      | Purpose                                           |
-| ----------------------- | -------- | ------------ | ------------------------------------------------- |
-| `GEMINI_API_KEY`        | for AI   | —            | Google Gemini API key                             |
-| `DATABASE_PATH`         | no       | `./dev.db`   | SQLite file path (use the volume in Docker)       |
-| `UPLOAD_DIR`            | no       | `/data/uploads` in Docker or `./public/uploads` | Path to store uploaded/imported images |
-| `YT_DLP_PATH`           | no       | `yt-dlp`     | Override the yt-dlp binary path                   |
-| `BETTER_AUTH_SECRET`    | prod     | auto-dev key | Secret used for cookie signing and session hashing|
-| `BETTER_AUTH_URL`       | no       | `http://localhost:3000` | Canonical app URL (set for production/reverse proxy) |
-| `AUTH_DISABLE_REGISTER` | no       | `false`      | Set to `true` to disable new registrations         |
-| `OIDC_CLIENT_ID`        | for OIDC | —            | OpenID Connect Client ID                          |
-| `OIDC_CLIENT_SECRET`    | for OIDC | —            | OpenID Connect Client Secret                      |
-| `OIDC_DISCOVERY_URL`    | for OIDC | —            | OIDC `.well-known/openid-configuration` endpoint  |
-| `OIDC_PROVIDER_NAME`    | no       | `OpenID Connect` | Display name for the SSO button               |
+---
 
-## Run with Docker
+## Docker Deployment
+
+Run the complete app with a single command:
 
 ```sh
-cp .env.example .env           # add GEMINI_API_KEY
-docker compose up --build     # http://localhost:3000
+cp .env.example .env       # set your GEMINI_API_KEY
+docker compose up --build # runs at http://localhost:3000
 ```
 
-The SQLite file lives in the `./data` volume (`/data/dev.db` in the container).
-The image bundles `ffmpeg` and `yt-dlp` for the YouTube import.
+The database is persisted in `./data/dev.db`, and `ffmpeg` + `yt-dlp` are pre-bundled inside the Docker container.
 
-## Database
+---
 
-Schema lives in `src/db/schema.ts`; migrations are generated with Drizzle Kit:
+## Database Management
+
+Schema definitions reside in `src/db/schema.ts`. Migrations run automatically on app boot.
 
 ```sh
-npm run db:generate           # create a new migration after schema changes
+npm run db:generate   # Generate a new Drizzle migration after schema changes
 ```
 
-Migrations run automatically on app boot (`src/db/client.ts`), so no manual
-`migrate` step is needed.
+---
 
 ## Scripts
 
-| Script              | What it does                          |
-| ------------------- | -------------------------------------- |
-| `npm run dev`       | dev server                             |
-| `npm run build`     | production build                       |
-| `npm run start`     | run the production build               |
-| `npm run typecheck` | `tsc --noEmit`                          |
-| `npm run lint`      | eslint                                 |
-| `npm run db:generate` | regenerate Drizzle migrations        |
+| Command | Action |
+| :--- | :--- |
+| `npm run dev` | Start local development server |
+| `npm run build` | Build production bundle |
+| `npm run start` | Run production server |
+| `npm run typecheck` | Run TypeScript validation (`tsc --noEmit`) |
+| `npm run lint` | Run ESLint |
+| `npm run db:generate` | Generate Drizzle migrations |
 
-## Project layout
+---
+
+## Project Structure
 
 ```
 src/
-  app/[locale]/        i18n-prefixed pages (list, detail, new, edit, import)
-  app/api/             recipes CRUD + import + image route handlers
-  components/          UI primitives, tab bar, locale switcher, recipe form
-  db/                  Drizzle schema + lazy SQLite client
-  i18n/                routing, navigation, request config (next-intl)
-  lib/                 recipes data access, ai.ts (Gemini), youtube.ts (yt-dlp)
-messages/              de.json, en.json
-drizzle/               generated SQL migrations
+├── app/
+│   ├── [locale]/      # i18n pages (recipes, import, auth)
+│   ├── api/           # API routes (recipes CRUD, import, auth)
+│   ├── icon.svg       # Native SVG favicon
+│   └── apple-icon.tsx # Apple touch icon generator
+├── components/        # UI components, navbar, tab bar, logo
+├── db/                # Drizzle schema & SQLite client
+├── i18n/              # Locale routing and navigation
+└── lib/               # Recipes store, AI extraction, YouTube parser
+messages/              # de.json & en.json translation bundles
+public/                # Static assets, SVG logos & icons
 ```

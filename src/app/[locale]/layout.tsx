@@ -26,6 +26,13 @@ export async function generateMetadata({
   return {
     title: "preppr",
     description: locale === "de" ? "Rezepte & Meal Prep" : "Recipes & meal prep",
+    icons: {
+      icon: [
+        { url: "/icon.svg", type: "image/svg+xml" },
+        { url: "/favicon.ico", sizes: "32x32" },
+      ],
+      apple: [{ url: "/apple-icon", sizes: "180x180" }],
+    },
   };
 }
 

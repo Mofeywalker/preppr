@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <style>
+    :root {
+      --fg: #171717;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --fg: #fafafa;
+      }
+    }
+    .shape {
+      fill: var(--fg);
+    }
+  </style>
+  <rect x="10" y="10" width="9" height="44" rx="4.5" class="shape"/>
+  <path d="M22 10H42C48.0751 10 53 14.9249 53 19.5C53 20.3284 52.3284 21 51.5 21H22V10Z" class="shape"/>
+  <path d="M22 23.5H51.5C52.3284 23.5 53 24.1716 53 25C53 29.5751 48.0751 34.5 42 34.5H22V23.5Z" class="shape"/>
+  <circle cx="42.5" cy="22.25" r="3" fill="#10B981"/>
+</svg>

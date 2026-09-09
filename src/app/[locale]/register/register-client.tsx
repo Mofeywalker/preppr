@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/logo";
 
 export function RegisterClient({
   registrationDisabled,
@@ -56,11 +57,9 @@ export function RegisterClient({
   return (
     <div className="flex min-h-[70vh] items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8 rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-sm">
-        <div className="text-center">
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
-            preppr
-          </h1>
-          <h2 className="mt-2 text-xl font-semibold text-foreground">
+        <div className="flex flex-col items-center text-center">
+          <Logo size="xl" className="justify-center" />
+          <h2 className="mt-4 text-xl font-semibold text-foreground">
             {t("signUp")}
           </h2>
         </div>
