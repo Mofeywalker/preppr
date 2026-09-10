@@ -11,6 +11,26 @@ const nextConfig: NextConfig = {
       process.env.DEFAULT_LOCALE ||
       "de",
   },
+  experimental: {
+    useOffline: true,
+  },
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          {
+            key: "Content-Type",
+            value: "application/javascript; charset=utf-8",
+          },
+          {
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 const withNextIntl = createNextIntlPlugin();

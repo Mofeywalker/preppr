@@ -7,7 +7,16 @@ const intlMiddleware = createMiddleware(routing);
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (pathname.startsWith("/uploads")) {
+  if (
+    pathname.startsWith("/uploads") ||
+    pathname.startsWith("/icons") ||
+    pathname === "/sw.js" ||
+    pathname === "/offline.html" ||
+    pathname === "/manifest.webmanifest" ||
+    pathname === "/apple-icon" ||
+    pathname === "/icon.svg" ||
+    pathname === "/favicon.ico"
+  ) {
     return NextResponse.next();
   }
 
@@ -50,6 +59,6 @@ export default async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next|_vercel|.*\\..*).*)"],
+  matcher: ["/((?!api|_next|_vercel|apple-icon|.*\\..*).*)"],
 };
 

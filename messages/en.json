@@ -188,5 +188,14 @@
   "Errors": {
     "titleRequired": "Title is required.",
     "generic": "Something went wrong."
+  },
+  "Pwa": {
+    "offlineTitle": "Offline mode",
+    "offlineDesc": "No internet connection. Loaded data remains available, actions will sync once you are back online.",
+    "installTitle": "Install preppr as an app",
+    "installDesc": "Install preppr on your home screen for quick access and a native app experience.",
+    "installButton": "Install App",
+    "iosSharePrompt": "Tap 'Share' in the Safari menu and select 'Add to Home Screen'.",
+    "dismiss": "Dismiss"
   }
 }

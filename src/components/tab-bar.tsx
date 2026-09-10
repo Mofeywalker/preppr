@@ -94,7 +94,7 @@ export function TabBar() {
   }
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur md:hidden pb-[env(safe-area-inset-bottom,0px)]">
       <div className="mx-auto flex max-w-md items-stretch">
         {tabs.map((tab) => {
           const active = tab.match(pathname);

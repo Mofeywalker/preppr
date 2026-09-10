@@ -188,5 +188,14 @@
   "Errors": {
     "titleRequired": "Titel ist erforderlich.",
     "generic": "Etwas ist schiefgelaufen."
+  },
+  "Pwa": {
+    "offlineTitle": "Offline-Modus",
+    "offlineDesc": "Keine Internetverbindung. Bereits geladene Daten bleiben verfügbar, Aktionen werden synchronisiert, sobald du wieder online bist.",
+    "installTitle": "preppr als App installieren",
+    "installDesc": "Installiere preppr auf deinem Home-Bildschirm für schnellen Zugriff und ein natives App-Gefühl.",
+    "installButton": "App installieren",
+    "iosSharePrompt": "Tippe im Safari-Menü auf „Teilen“ und wähle „Zum Home-Bildschirm“.",
+    "dismiss": "Ausblenden"
   }
 }
