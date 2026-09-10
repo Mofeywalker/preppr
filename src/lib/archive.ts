@@ -3,7 +3,7 @@ import { basename, extname } from "node:path";
 import type { FullRecipe, RecipeInput } from "@/lib/recipes";
 import { parseTandoorZip, tandoorToRecipeInput, type TandoorRecipe } from "@/lib/tandoor";
 import { saveUploadedImage, findUploadedImage } from "@/lib/storage";
-import type { Locale } from "@/i18n/routing";
+import { getInstanceLocale, type Locale } from "@/i18n/routing";
 
 export { saveUploadedImage, saveUploadedImage as saveRecipeImage };
 
@@ -155,7 +155,7 @@ export interface RawRecipeItem {
   keywords?: Array<{ name?: string } | string> | string[];
 }
 
-function sanitizeRecipeInput(item: RawRecipeItem, fallbackLocale: Locale = "de"): RecipeInput {
+function sanitizeRecipeInput(item: RawRecipeItem, fallbackLocale: Locale = getInstanceLocale()): RecipeInput {
   const title = (item.title || item.name || "Rezept").trim();
   const description = typeof item.description === "string" ? item.description.trim() || null : null;
   const language = item.language === "en" || item.language === "de" ? item.language : fallbackLocale;
@@ -231,7 +231,7 @@ function sanitizeRecipeInput(item: RawRecipeItem, fallbackLocale: Locale = "de")
  */
 export async function parsePrepprZip(
   zipBuffer: Buffer | ArrayBuffer,
-  locale: Locale = "de",
+  locale: Locale = getInstanceLocale(),
 ): Promise<RecipeInput[]> {
   const zip = await JSZip.loadAsync(zipBuffer);
 
@@ -351,7 +351,7 @@ export async function parsePrepprZip(
 export async function parseRecipeUpload(
   buffer: Buffer,
   filename: string,
-  locale: Locale = "de",
+  locale: Locale = getInstanceLocale(),
 ): Promise<RecipeInput[]> {
   const lower = filename.toLowerCase();
 

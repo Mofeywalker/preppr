@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { parseRecipeUpload } from "@/lib/archive";
-import type { Locale } from "@/i18n/routing";
+import { getInstanceLocale, type Locale } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get("file");
-    const locale = (formData.get("locale") as Locale) || "de";
+    const locale = (formData.get("locale") as Locale) || getInstanceLocale();
 
     if (!(file instanceof File)) {
       return Response.json({ error: "no-file" }, { status: 400 });

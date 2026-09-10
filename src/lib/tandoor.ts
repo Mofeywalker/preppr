@@ -1,7 +1,7 @@
 import JSZip from "jszip";
 import { saveUploadedImage } from "@/lib/storage";
 import type { RecipeInput } from "@/lib/recipes";
-import type { Locale } from "@/i18n/routing";
+import { getInstanceLocale, type Locale } from "@/i18n/routing";
 
 export { saveUploadedImage };
 
@@ -125,7 +125,7 @@ export function extractUnit(ing: TandoorIngredient): string | null {
 
 export function tandoorToRecipeInput(
   raw: TandoorRecipe,
-  locale: Locale = "en",
+  locale: Locale = getInstanceLocale(),
   options?: { sourceUrl?: string | null; imageUrl?: string | null },
 ): RecipeInput {
   const title = (raw.name || raw.title || "Tandoor Recipe").trim();
@@ -229,7 +229,7 @@ export function tandoorToRecipeInput(
  */
 export async function parseTandoorZip(
   zipBuffer: Buffer | ArrayBuffer,
-  locale: Locale = "en",
+  locale: Locale = getInstanceLocale(),
 ): Promise<ExtractedTandoorItem[]> {
   const zip = await JSZip.loadAsync(zipBuffer);
   const results: ExtractedTandoorItem[] = [];

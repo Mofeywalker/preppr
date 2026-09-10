@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { usePathname, useRouter, Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { type Locale } from "@/i18n/routing";
-import { LocaleSwitcher } from "@/components/locale-switcher";
 import { cn } from "@/lib/utils";
 import { authClient, useSession } from "@/lib/auth-client";
 import { Logo } from "@/components/logo";
@@ -27,7 +25,7 @@ const navItems = [
   },
 ] as const;
 
-export function Navbar({ locale }: { locale: Locale }) {
+export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const tNav = useTranslations("Nav");
@@ -87,10 +85,8 @@ export function Navbar({ locale }: { locale: Locale }) {
         </div>
 
         <div className="flex items-center gap-3">
-          <LocaleSwitcher locale={locale} />
-
           {!isAuthPage && session?.user && (
-            <div className="flex items-center gap-2 border-l border-border pl-3">
+            <div className="flex items-center gap-2">
               {session.user.image && !imageError ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img

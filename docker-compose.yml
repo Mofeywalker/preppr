@@ -10,4 +10,5 @@ services:
     environment:
       - DATABASE_PATH=/data/dev.db
       - UPLOAD_DIR=/data/uploads
+      - APP_LOCALE=de
     restart: unless-stopped

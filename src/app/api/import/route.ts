@@ -10,6 +10,7 @@ import {
 import { extractFromTranscript, extractFromAudio, type ExtractedRecipe } from "@/lib/ai";
 import { saveUploadedImage } from "@/lib/storage";
 import type { Locale } from "@/i18n/routing";
+import { getInstanceLocale } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export const maxDuration = 300;
 
 const bodySchema = z.object({
   url: z.string().url(),
-  locale: z.enum(["de", "en"]).default("en"),
+  locale: z.enum(["de", "en"]).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -34,7 +35,8 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return Response.json({ error: "invalid-url" }, { status: 400 });
   }
-  const { url, locale } = parsed.data as { url: string; locale: Locale };
+  const { url } = parsed.data;
+  const locale: Locale = parsed.data.locale || getInstanceLocale();
 
   if (!isYouTubeUrl(url)) {
     return Response.json({ error: "invalid-url" }, { status: 400 });

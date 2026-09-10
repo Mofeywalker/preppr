@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { tandoorToRecipeInput, saveUploadedImage, type TandoorRecipe } from "@/lib/tandoor";
-import type { Locale } from "@/i18n/routing";
+import { getInstanceLocale, type Locale } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export const maxDuration = 300;
 const fetchBodySchema = z.object({
   url: z.string().url(),
   apiToken: z.string().optional(),
-  locale: z.enum(["de", "en"]).default("en"),
+  locale: z.enum(["de", "en"]).optional(),
   recipeIds: z.array(z.union([z.number(), z.string()])).optional(),
 });
 
@@ -32,12 +32,8 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "invalid-request", issues: parsed.error.issues }, { status: 400 });
     }
 
-    const { url, apiToken, locale, recipeIds } = parsed.data as {
-      url: string;
-      apiToken?: string;
-      locale: Locale;
-      recipeIds?: (number | string)[];
-    };
+    const { url, apiToken, recipeIds } = parsed.data;
+    const locale: Locale = parsed.data.locale || getInstanceLocale();
 
     const parsedUrl = new URL(url);
     const headers: Record<string, string> = {};

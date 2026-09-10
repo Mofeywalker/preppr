@@ -93,7 +93,7 @@ export function RecipeForm({
 
   const [title, setTitle] = useState(init?.title ?? "");
   const [description, setDescription] = useState(init?.description ?? "");
-  const [language, setLanguage] = useState<Locale>(init?.language ?? locale);
+  const [language] = useState<Locale>(init?.language ?? locale);
   const [visibility, setVisibility] = useState<"private" | "shared">(
     init?.visibility ?? "shared",
   );
@@ -241,19 +241,7 @@ export function RecipeForm({
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="language">{t("language")}</Label>
-                <Select
-                  id="language"
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value as Locale)}
-                  className="bg-background"
-                >
-                  <option value="de">Deutsch</option>
-                  <option value="en">English</option>
-                </Select>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="visibility">{tSharing("visibility")}</Label>
                 <Select

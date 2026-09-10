@@ -89,6 +89,7 @@ To enable AI recipe extraction and image generation:
 | `DATABASE_PATH` | No | `./dev.db` | SQLite database file location |
 | `UPLOAD_DIR` | No | `./public/uploads` | Directory for uploaded/generated images |
 | `YT_DLP_PATH` | No | `yt-dlp` | Custom path to the `yt-dlp` binary |
+| `APP_LOCALE` | No | `de` | Instance language (`de` or `en`) used for UI and recipe imports |
 | `BETTER_AUTH_SECRET` | Prod | *auto-dev* | Secret for cookie signing and session hashing |
 | `BETTER_AUTH_URL` | No | `http://localhost:3000` | Canonical app URL |
 | `AUTH_DISABLE_REGISTER` | No | `false` | Disable public user registrations |

@@ -5,7 +5,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { Geist, Geist_Mono } from "next/font/google";
 import type { Metadata } from "next";
-import { routing, type Locale } from "@/i18n/routing";
+import { routing } from "@/i18n/routing";
 import { Navbar } from "@/components/navbar";
 import { TabBar } from "@/components/tab-bar";
 import "../globals.css";
@@ -55,7 +55,7 @@ export default async function LocaleLayout({
     >
       <body className="min-h-full bg-background text-foreground">
         <NextIntlClientProvider messages={messages}>
-          <Navbar locale={locale as Locale} />
+          <Navbar />
           <main className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 pt-6 pb-24 md:pb-12">
             {children}
           </main>

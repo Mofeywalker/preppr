@@ -1,7 +1,7 @@
 import { createGoogle } from "@ai-sdk/google";
 import { generateObject, generateImage } from "ai";
 import { z } from "zod";
-import type { Locale } from "@/i18n/routing";
+import { getInstanceLocale, type Locale } from "@/i18n/routing";
 
 function getModel() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -49,23 +49,28 @@ export const extractSchema = z.object({
 
 export type ExtractedRecipe = z.infer<typeof extractSchema>;
 
-const SYSTEM_PROMPT = `You extract structured recipes from cooking video transcripts and descriptions.
-Detect the language of the recipe (de for German, en for English) and keep all content in that language.
+function getExtractionSystemPrompt(preferredLocale: Locale) {
+  const langName = preferredLocale === "de" ? "German (Deutsch)" : "English";
+  return `You extract structured recipes from cooking video transcripts and descriptions.
+Extract and translate the recipe into ${langName}. All textual fields including title, description, ingredient names, units, and step instructions MUST be written in ${langName}, regardless of the original language of the video or transcript.
+Set the "language" field in the output schema to "${preferredLocale}".
 Extract ingredients with quantities and units. If a quantity can't be determined, leave it null but keep the unit.
 Estimate nutrition per serving (calories, protein/carbs/fat/fiber in grams) as best you can.
 Return ONLY the structured recipe.`;
+}
 
 export async function extractFromTranscript(
   transcript: string,
   description: string,
-  preferredLocale: Locale,
+  preferredLocale: Locale = getInstanceLocale(),
 ): Promise<ExtractedRecipe> {
+  const targetLanguage = preferredLocale === "de" ? "German (Deutsch)" : "English";
   const { object } = await generateObject({
     model: getModel(),
     schema: extractSchema,
     schemaName: "Recipe",
-    system: SYSTEM_PROMPT,
-    prompt: `Video description:\n${description}\n\nTranscript:\n${transcript}\n\nPrefer the language: ${preferredLocale}.`,
+    system: getExtractionSystemPrompt(preferredLocale),
+    prompt: `Video description:\n${description}\n\nTranscript:\n${transcript}\n\nOutput all recipe content in ${targetLanguage} with language: "${preferredLocale}".`,
   });
   return object;
 }
@@ -73,20 +78,21 @@ export async function extractFromTranscript(
 export async function extractFromAudio(
   audioBase64: string,
   description: string,
-  preferredLocale: Locale,
+  preferredLocale: Locale = getInstanceLocale(),
 ): Promise<ExtractedRecipe> {
+  const targetLanguage = preferredLocale === "de" ? "German (Deutsch)" : "English";
   const { object } = await generateObject({
     model: getModel(),
     schema: extractSchema,
     schemaName: "Recipe",
-    system: SYSTEM_PROMPT,
+    system: getExtractionSystemPrompt(preferredLocale),
     messages: [
       {
         role: "user",
         content: [
           {
             type: "text",
-            text: `Transcribe this cooking video audio and extract a structured recipe from it. Video description:\n${description}\n\nPrefer the language: ${preferredLocale}.`,
+            text: `Transcribe this cooking video audio and extract a structured recipe from it. Video description:\n${description}\n\nOutput all recipe content in ${targetLanguage} with language: "${preferredLocale}".`,
           },
           {
             type: "file",

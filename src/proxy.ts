@@ -1,5 +1,5 @@
 import createMiddleware from "next-intl/middleware";
-import { routing } from "./i18n/routing";
+import { routing, getInstanceLocale } from "./i18n/routing";
 import { NextRequest, NextResponse } from "next/server";
 
 const intlMiddleware = createMiddleware(routing);
@@ -9,6 +9,21 @@ export default async function middleware(req: NextRequest) {
 
   if (pathname.startsWith("/uploads")) {
     return NextResponse.next();
+  }
+
+  const instanceLocale = getInstanceLocale();
+
+  // If a URL is requested with another locale prefix (e.g. /en when instance is de),
+  // redirect to the instance locale.
+  const localeMatch = pathname.match(/^\/(de|en)($|\/.*)/);
+  if (localeMatch) {
+    const urlLocale = pathname.split("/")[1];
+    if (urlLocale !== instanceLocale) {
+      const rest = pathname.substring(urlLocale.length + 1);
+      const redirectUrl = new URL(`/${instanceLocale}${rest || ""}`, req.url);
+      redirectUrl.search = req.nextUrl.search;
+      return NextResponse.redirect(redirectUrl);
+    }
   }
 
   const isAuthPage =
@@ -21,16 +36,13 @@ export default async function middleware(req: NextRequest) {
     req.cookies.get("better-auth.session_token")?.value ||
     req.cookies.get("__Secure-better-auth.session_token")?.value;
 
-  const localeMatch = pathname.match(/^\/(de|en)($|\/)/);
-  const locale = localeMatch ? localeMatch[1] : routing.defaultLocale;
-
   if (!sessionToken && !isAuthPage) {
-    const loginUrl = new URL(`/${locale}/login`, req.url);
+    const loginUrl = new URL(`/${instanceLocale}/login`, req.url);
     return NextResponse.redirect(loginUrl);
   }
 
   if (sessionToken && isAuthPage) {
-    const homeUrl = new URL(`/${locale}`, req.url);
+    const homeUrl = new URL(`/${instanceLocale}`, req.url);
     return NextResponse.redirect(homeUrl);
   }
 
