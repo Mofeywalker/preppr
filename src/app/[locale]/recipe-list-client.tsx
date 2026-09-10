@@ -584,7 +584,7 @@ export function RecipeListClient({
                   {/* Source indicator badge */}
                   {r.sourceType && r.sourceType !== "manual" && (
                     <div className="absolute top-2.5 right-2.5 z-10 rounded-full bg-background/85 backdrop-blur-xs px-2 py-0.5 text-[10px] font-medium text-foreground/80 shadow-xs border border-border/40">
-                      {r.sourceType === "youtube" ? "YouTube" : "Tandoor"}
+                      {r.sourceType === "youtube" ? "YouTube" : r.sourceType === "website" ? "Web" : "Tandoor"}
                     </div>
                   )}
 
@@ -804,7 +804,7 @@ export function RecipeListClient({
                     )}
                     {r.sourceType && r.sourceType !== "manual" && (
                       <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-foreground/60">
-                        {r.sourceType === "youtube" ? "YouTube" : "Tandoor"}
+                        {r.sourceType === "youtube" ? "YouTube" : r.sourceType === "website" ? "Web" : "Tandoor"}
                       </span>
                     )}
 

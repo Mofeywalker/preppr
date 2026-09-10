@@ -56,7 +56,7 @@ export const recipes = sqliteTable("recipes", {
   id: text("id").primaryKey(),
   userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
   visibility: text("visibility", { enum: ["private", "shared"] }).notNull().default("shared"),
-  sourceType: text("source_type", { enum: ["manual", "youtube", "tandoor"] }).notNull(),
+  sourceType: text("source_type", { enum: ["manual", "youtube", "tandoor", "website"] }).notNull(),
   sourceUrl: text("source_url"),
   language: text("language", { enum: ["de", "en"] }).notNull(),
   title: text("title").notNull(),

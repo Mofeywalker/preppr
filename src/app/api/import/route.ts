@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 import {
   isYouTubeUrl,
   parseYouTubeId,
@@ -7,7 +8,13 @@ import {
   getMetadata,
   downloadAudio,
 } from "@/lib/youtube";
-import { extractFromTranscript, extractFromAudio, type ExtractedRecipe } from "@/lib/ai";
+import {
+  extractFromTranscript,
+  extractFromAudio,
+  extractFromWebpage,
+  type ExtractedRecipe,
+} from "@/lib/ai";
+import { scrapeRecipeUrl } from "@/lib/scraper";
 import { saveUploadedImage } from "@/lib/storage";
 import type { Locale } from "@/i18n/routing";
 import { getInstanceLocale } from "@/i18n/routing";
@@ -38,60 +45,116 @@ export async function POST(req: NextRequest) {
   const { url } = parsed.data;
   const locale: Locale = parsed.data.locale || getInstanceLocale();
 
-  if (!isYouTubeUrl(url)) {
+  // Validate URL protocol
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+      return Response.json({ error: "invalid-url" }, { status: 400 });
+    }
+  } catch {
     return Response.json({ error: "invalid-url" }, { status: 400 });
   }
-  const videoId = parseYouTubeId(url)!;
 
-  let meta;
-  try {
-    meta = await getMetadata(url);
-  } catch {
-    meta = { title: "", description: "", thumbnail: null };
-  }
+  // --- FLOW 1: YOUTUBE VIDEO IMPORT ---
+  if (isYouTubeUrl(url)) {
+    const videoId = parseYouTubeId(url)!;
 
-  const transcript = await getTranscript(videoId);
-
-  let recipe: ExtractedRecipe;
-  try {
-    if (transcript && transcript.length > 0) {
-      recipe = await extractFromTranscript(transcript, meta.description, locale);
-    } else {
-      const { base64 } = await downloadAudio(url);
-      recipe = await extractFromAudio(base64, meta.description, locale);
+    let meta;
+    try {
+      meta = await getMetadata(url);
+    } catch {
+      meta = { title: "", description: "", thumbnail: null };
     }
-  } catch (err) {
-    const message = (err as Error).message ?? "";
-    if (transcript === null) {
+
+    const transcript = await getTranscript(videoId);
+
+    let recipe: ExtractedRecipe;
+    try {
+      if (transcript && transcript.length > 0) {
+        recipe = await extractFromTranscript(transcript, meta.description, locale);
+      } else {
+        const { base64 } = await downloadAudio(url);
+        recipe = await extractFromAudio(base64, meta.description, locale);
+      }
+    } catch (err) {
+      const message = (err as Error).message ?? "";
+      if (transcript === null) {
+        return Response.json(
+          { error: "no-transcript", detail: message },
+          { status: 502 },
+        );
+      }
       return Response.json(
-        { error: "no-transcript", detail: message },
+        { error: "extraction-failed", detail: message },
         { status: 502 },
       );
     }
-    return Response.json(
-      { error: "extraction-failed", detail: message },
-      { status: 502 },
-    );
-  }
 
-  let thumbnail =
-    meta.thumbnail || (videoId ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg` : null);
+    let thumbnail =
+      meta.thumbnail || (videoId ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg` : null);
 
-  if (thumbnail) {
-    try {
-      const res = await fetch(thumbnail, { signal: AbortSignal.timeout(5000) });
-      if (res.ok) {
-        const buf = Buffer.from(await res.arrayBuffer());
-        thumbnail = await saveUploadedImage(buf, `${videoId}.jpg`);
+    if (thumbnail) {
+      try {
+        const res = await fetch(thumbnail, { signal: AbortSignal.timeout(5000) });
+        if (res.ok) {
+          const buf = Buffer.from(await res.arrayBuffer());
+          thumbnail = await saveUploadedImage(buf, `${videoId}.jpg`);
+        }
+      } catch {
+        // Keep external URL fallback
       }
-    } catch {
-      // Keep external URL fallback
     }
+
+    return Response.json({
+      recipe,
+      thumbnail,
+      sourceUrl: url,
+      sourceType: "youtube",
+    });
   }
 
-  return Response.json({
-    recipe,
-    thumbnail,
-    sourceUrl: url,
-  });
+  // --- FLOW 2: GENERIC RECIPE WEBSITE IMPORT ---
+  try {
+    const pageData = await scrapeRecipeUrl(url);
+    const recipe = await extractFromWebpage(pageData, locale);
+
+    let thumbnail: string | null = pageData.imageUrl;
+    if (thumbnail) {
+      try {
+        const res = await fetch(thumbnail, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+            Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+          },
+          signal: AbortSignal.timeout(8000),
+        });
+        if (res.ok) {
+          const contentType = res.headers.get("content-type") || "";
+          let ext = "jpg";
+          if (contentType.includes("png")) ext = "png";
+          else if (contentType.includes("webp")) ext = "webp";
+          else if (contentType.includes("gif")) ext = "gif";
+
+          const buf = Buffer.from(await res.arrayBuffer());
+          thumbnail = await saveUploadedImage(buf, `${randomUUID()}.${ext}`);
+        }
+      } catch {
+        // Fallback to external URL or null if download fails
+      }
+    }
+
+    return Response.json({
+      recipe,
+      thumbnail,
+      sourceUrl: url,
+      sourceType: "website",
+    });
+  } catch (err) {
+    const message = (err as Error).message ?? "";
+    if (message.includes("fetch-failed")) {
+      return Response.json({ error: "fetch-failed", detail: message }, { status: 502 });
+    }
+    return Response.json({ error: "extraction-failed", detail: message }, { status: 502 });
+  }
 }

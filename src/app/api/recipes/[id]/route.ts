@@ -17,7 +17,7 @@ const ingredientSchema = z.object({
 });
 
 const updateSchema: z.ZodType<RecipeInput> = z.object({
-  sourceType: z.enum(["manual", "youtube", "tandoor"]),
+  sourceType: z.enum(["manual", "youtube", "tandoor", "website"]),
   sourceUrl: z.string().nullable().optional(),
   language: z.enum(["de", "en"]),
   title: z.string().min(1),

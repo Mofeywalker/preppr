@@ -3,7 +3,7 @@ import { eq, inArray, asc, desc, sql, or, and, isNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export type RecipeInput = {
-  sourceType: "manual" | "youtube" | "tandoor";
+  sourceType: "manual" | "youtube" | "tandoor" | "website";
   sourceUrl?: string | null;
   language: "de" | "en";
   title: string;

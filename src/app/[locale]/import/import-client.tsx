@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 
 type SingleImport = {
   recipe: RecipeInput;
-  sourceType: "manual" | "youtube" | "tandoor";
+  sourceType: "manual" | "youtube" | "tandoor" | "website";
   sourceUrl?: string | null;
 };
 
@@ -56,7 +56,7 @@ export function ImportClient({ locale }: { locale: Locale }) {
     setBatchSuccessCount(null);
   };
 
-  // YouTube submit handler
+  // URL submit handler (YouTube & Web)
   const onExtractYouTube = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -73,17 +73,27 @@ export function ImportClient({ locale }: { locale: Locale }) {
           const key =
             data.error === "invalid-url"
               ? "errorInvalidUrl"
-              : data.error === "ai-config"
-                ? "errorAiConfig"
-                : data.error === "no-transcript"
-                  ? "errorNoTranscript"
-                  : "error";
+              : data.error === "fetch-failed"
+                ? "errorFetchFailed"
+                : data.error === "extraction-failed"
+                  ? "errorExtractionFailed"
+                  : data.error === "ai-config"
+                    ? "errorAiConfig"
+                    : data.error === "no-transcript"
+                      ? "errorNoTranscript"
+                      : "error";
           setError(t(key));
           return;
         }
-        const data: { recipe: ExtractedRecipe; thumbnail: string | null; sourceUrl: string } = await res.json();
+        const data: {
+          recipe: ExtractedRecipe;
+          thumbnail: string | null;
+          sourceUrl: string;
+          sourceType?: "youtube" | "website";
+        } = await res.json();
+        const effectiveSourceType = data.sourceType || "website";
         const recipeInput: RecipeInput = {
-          sourceType: "youtube",
+          sourceType: effectiveSourceType,
           sourceUrl: data.sourceUrl,
           language: data.recipe.language,
           title: data.recipe.title,
@@ -102,7 +112,7 @@ export function ImportClient({ locale }: { locale: Locale }) {
         };
         setSingleResult({
           recipe: recipeInput,
-          sourceType: "youtube",
+          sourceType: effectiveSourceType,
           sourceUrl: data.sourceUrl,
         });
       } catch {
@@ -282,7 +292,7 @@ export function ImportClient({ locale }: { locale: Locale }) {
             size="sm"
             onClick={() => setSingleResult(null)}
           >
-            ← {singleResult.sourceType === "youtube" ? t("tabYoutube") : singleResult.sourceType === "tandoor" ? t("tabTandoor") : t("tabPreppr")}
+            ← {singleResult.sourceType === "youtube" || singleResult.sourceType === "website" ? t("tabYoutube") : singleResult.sourceType === "tandoor" ? t("tabTandoor") : t("tabPreppr")}
           </Button>
         </div>
         <div className="rounded-2xl border border-border bg-muted/40 p-4 text-sm">

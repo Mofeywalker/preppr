@@ -9,7 +9,7 @@ export { saveUploadedImage, saveUploadedImage as saveRecipeImage };
 
 export interface PrepprExportRecipe {
   id?: string;
-  sourceType: "manual" | "youtube" | "tandoor";
+  sourceType: "manual" | "youtube" | "tandoor" | "website";
   sourceUrl?: string | null;
   language: "de" | "en";
   title: string;
@@ -206,7 +206,10 @@ function sanitizeRecipeInput(item: RawRecipeItem, fallbackLocale: Locale = getIn
   }
 
   return {
-    sourceType: item.sourceType === "youtube" || item.sourceType === "tandoor" ? item.sourceType : "manual",
+    sourceType:
+      item.sourceType === "youtube" || item.sourceType === "tandoor" || item.sourceType === "website"
+        ? item.sourceType
+        : "manual",
     sourceUrl: item.sourceUrl || null,
     language,
     title,
