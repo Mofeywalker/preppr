@@ -15,6 +15,7 @@ import {
   type ExtractedRecipe,
 } from "@/lib/ai";
 import { scrapeRecipeUrl } from "@/lib/scraper";
+import { parseJsonLdRecipe } from "@/lib/jsonld-parser";
 import { saveUploadedImage } from "@/lib/storage";
 import type { Locale } from "@/i18n/routing";
 import { getInstanceLocale } from "@/i18n/routing";
@@ -32,10 +33,6 @@ export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: req.headers });
   if (!session) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (!process.env.GEMINI_API_KEY) {
-    return Response.json({ error: "ai-config" }, { status: 503 });
   }
 
   const parsed = bodySchema.safeParse(await req.json());
@@ -57,6 +54,9 @@ export async function POST(req: NextRequest) {
 
   // --- FLOW 1: YOUTUBE VIDEO IMPORT ---
   if (isYouTubeUrl(url)) {
+    if (!process.env.GEMINI_API_KEY) {
+      return Response.json({ error: "ai-config" }, { status: 503 });
+    }
     const videoId = parseYouTubeId(url)!;
 
     let meta;
@@ -116,7 +116,21 @@ export async function POST(req: NextRequest) {
   // --- FLOW 2: GENERIC RECIPE WEBSITE IMPORT ---
   try {
     const pageData = await scrapeRecipeUrl(url);
-    const recipe = await extractFromWebpage(pageData, locale);
+
+    let recipe: ExtractedRecipe | null = null;
+
+    // 1. Try deterministic direct JSON-LD parsing first (no AI needed, instant & free)
+    if (pageData.jsonLdRecipe) {
+      recipe = parseJsonLdRecipe(pageData.jsonLdRecipe, locale);
+    }
+
+    // 2. Fallback to Gemini AI if no JSON-LD was found or parsing was incomplete
+    if (!recipe) {
+      if (!process.env.GEMINI_API_KEY) {
+        return Response.json({ error: "ai-config" }, { status: 503 });
+      }
+      recipe = await extractFromWebpage(pageData, locale);
+    }
 
     let thumbnail: string | null = pageData.imageUrl;
     if (thumbnail) {
