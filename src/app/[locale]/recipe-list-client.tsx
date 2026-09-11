@@ -39,7 +39,33 @@ export function RecipeListClient({
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
+  const [sortOpen, setSortOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const sortRef = useRef<HTMLDivElement>(null);
+
+  // Close sort menu on outside click or Escape
+  useEffect(() => {
+    if (!sortOpen) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
+        setSortOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setSortOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [sortOpen]);
 
   // Extract all unique tags with count
   const allTagsWithCount = useMemo(() => {
@@ -210,14 +236,29 @@ export function RecipeListClient({
     return sorted;
   }, [q, recipes, selectedTags, sortBy, filter]);
 
+  const sortOptions: Array<{ value: SortOption; label: string }> = [
+    { value: "newest", label: t("sortNewest") },
+    { value: "oldest", label: t("sortOldest") },
+    { value: "title-asc", label: t("sortTitleAsc") },
+    { value: "title-desc", label: t("sortTitleDesc") },
+    { value: "time-asc", label: t("sortTimeAsc") },
+    { value: "calories-asc", label: t("sortCaloriesAsc") },
+  ];
+
+  const currentSortLabel =
+    sortOptions.find((o) => o.value === sortBy)?.label ?? t("sortNewest");
+
   return (
-    <div className="space-y-6">
-      {/* Top Row: Title & Primary Actions */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
+    <div className="space-y-4 sm:space-y-6">
+      {/* Top Row: Title & Primary Actions / Mobile Scope */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("title")}</h1>
+          <span className="sm:hidden inline-flex items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground/70">
+            {filteredAndSorted.length}
+          </span>
           <p
-            className="mt-0.5 text-xs sm:text-sm text-foreground/60"
+            className="hidden sm:block mt-0.5 text-xs sm:text-sm text-foreground/60"
             aria-live="polite"
             aria-atomic="true"
           >
@@ -225,10 +266,51 @@ export function RecipeListClient({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        {/* Mobile Scope Filter: All / My Recipes / Shared */}
+        <div className="sm:hidden inline-flex h-8 items-center rounded-lg border border-input bg-muted/40 p-0.5 text-xs font-medium shrink-0">
+          <button
+            type="button"
+            onClick={() => setFilter("all")}
+            className={cn(
+              "px-2.5 py-1 rounded-md transition cursor-pointer whitespace-nowrap",
+              filter === "all"
+                ? "bg-background shadow-xs text-foreground font-semibold"
+                : "text-foreground/60 hover:text-foreground",
+            )}
+          >
+            {tSharing("filterAll")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter("mine")}
+            className={cn(
+              "px-2.5 py-1 rounded-md transition cursor-pointer whitespace-nowrap",
+              filter === "mine"
+                ? "bg-background shadow-xs text-foreground font-semibold"
+                : "text-foreground/60 hover:text-foreground",
+            )}
+          >
+            {tSharing("filterMineShort")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter("shared")}
+            className={cn(
+              "px-2.5 py-1 rounded-md transition cursor-pointer whitespace-nowrap",
+              filter === "shared"
+                ? "bg-background shadow-xs text-foreground font-semibold"
+                : "text-foreground/60 hover:text-foreground",
+            )}
+          >
+            {tSharing("filterShared")}
+          </button>
+        </div>
+
+        {/* Desktop Primary Actions */}
+        <div className="hidden sm:flex items-center gap-2 sm:gap-3">
           {recipes.length > 0 && (
             <a href="/api/export" download>
-              <Button variant="outline" size="sm" className="h-9 font-medium gap-1.5 hidden sm:inline-flex">
+              <Button variant="outline" size="sm" className="h-9 font-medium gap-1.5">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
@@ -256,10 +338,10 @@ export function RecipeListClient({
         </div>
       </div>
 
-      {/* Second Row: Scope Filter & Search/Sort Controls */}
+      {/* Second Row: Desktop Scope Filter & Combined Search/Sort/View Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* Scope Filter: All / My Recipes / Shared */}
-        <div className="inline-flex h-9 self-start sm:self-auto items-center rounded-lg border border-input bg-muted/40 p-1 text-xs font-medium shrink-0">
+        {/* Desktop Scope Filter */}
+        <div className="hidden sm:inline-flex h-9 items-center rounded-lg border border-input bg-muted/40 p-1 text-xs font-medium shrink-0">
           <button
             type="button"
             onClick={() => setFilter("all")}
@@ -298,10 +380,10 @@ export function RecipeListClient({
           </button>
         </div>
 
-        {/* Search, Sort, and View Mode Toolbar */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+        {/* Combined Toolbar (Search, Sort, View Mode) */}
+        <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
           {/* Search Box */}
-          <label className="flex h-9 w-full sm:w-52 md:w-64 shrink-0 items-center gap-2 rounded-lg border border-input bg-background px-3 transition focus-within:border-foreground focus-within:ring-2 focus-within:ring-foreground/10 cursor-text">
+          <label className="flex h-9 min-w-0 flex-1 sm:w-52 md:w-64 sm:flex-initial items-center gap-2 rounded-lg border border-input bg-background px-3 transition focus-within:border-foreground focus-within:ring-2 focus-within:ring-foreground/10 cursor-text">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 20 20"
@@ -356,36 +438,98 @@ export function RecipeListClient({
           </label>
 
           {/* Sort Dropdown */}
-          <div className="relative">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="h-9 rounded-lg border border-input bg-background px-3 pr-8 text-xs sm:text-sm font-medium text-foreground/80 focus:border-foreground focus:ring-2 focus:ring-foreground/10 cursor-pointer outline-none appearance-none"
+          <div ref={sortRef} className="relative inline-block shrink-0">
+            <button
+              type="button"
+              onClick={() => setSortOpen((prev) => !prev)}
               aria-label={t("sortBy")}
+              aria-haspopup="menu"
+              aria-expanded={sortOpen}
+              className={cn(
+                "flex h-9 items-center justify-center gap-1.5 rounded-lg border border-input bg-background text-xs sm:text-sm font-medium text-foreground/80 transition hover:bg-muted hover:text-foreground cursor-pointer shrink-0 px-2.5 sm:px-3",
+                sortOpen && "bg-muted text-foreground ring-2 ring-foreground/20",
+              )}
             >
-              <option value="newest">{t("sortNewest")}</option>
-              <option value="oldest">{t("sortOldest")}</option>
-              <option value="title-asc">{t("sortTitleAsc")}</option>
-              <option value="title-desc">{t("sortTitleDesc")}</option>
-              <option value="time-asc">{t("sortTimeAsc")}</option>
-              <option value="calories-asc">{t("sortCaloriesAsc")}</option>
-            </select>
-            <svg
-              className="size-4 text-foreground/40 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                fillRule="evenodd"
-                d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
-                clipRule="evenodd"
-              />
-            </svg>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-4 shrink-0"
+                aria-hidden="true"
+              >
+                <path d="m3 16 4 4 4-4" />
+                <path d="M7 20V4" />
+                <path d="m21 8-4-4-4 4" />
+                <path d="M17 4v16" />
+              </svg>
+              <span className="hidden sm:inline truncate max-w-[120px]">{currentSortLabel}</span>
+              <svg
+                className="size-3.5 text-foreground/40 hidden sm:inline shrink-0"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </button>
+
+            {sortOpen && (
+              <div
+                role="menu"
+                aria-orientation="vertical"
+                className="absolute right-0 mt-2 w-48 origin-top-right rounded-xl border border-border bg-background/95 backdrop-blur-md p-1 shadow-lg z-50 animate-in fade-in-50 zoom-in-95 duration-100"
+              >
+                {sortOptions.map((opt) => {
+                  const isSelected = sortBy === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      role="menuitem"
+                      type="button"
+                      onClick={() => {
+                        setSortBy(opt.value);
+                        setSortOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium transition cursor-pointer text-left",
+                        isSelected
+                          ? "bg-muted text-foreground font-semibold"
+                          : "text-foreground/70 hover:bg-muted/70 hover:text-foreground",
+                      )}
+                    >
+                      <span>{opt.label}</span>
+                      {isSelected && (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="size-3.5 shrink-0 text-primary"
+                          aria-hidden="true"
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Grid / List View Toggle */}
-          <div className="inline-flex h-9 items-center rounded-lg border border-input bg-muted/40 p-0.5">
+          <div className="inline-flex h-9 items-center rounded-lg border border-input bg-muted/40 p-0.5 shrink-0">
             <button
               type="button"
               onClick={() => setViewMode("grid")}

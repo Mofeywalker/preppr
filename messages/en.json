@@ -198,6 +198,7 @@
   "Sharing": {
     "filterAll": "All",
     "filterMine": "My recipes",
+    "filterMineShort": "Mine",
     "filterShared": "Shared",
     "visibility": "Visibility",
     "visibilityShared": "Shared with household",
