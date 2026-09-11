@@ -18,7 +18,7 @@ type SingleImport = {
   sourceUrl?: string | null;
 };
 
-export function ImportClient({ locale }: { locale: Locale }) {
+export function ImportClient({ locale, availableTags }: { locale: Locale; availableTags?: string[] }) {
   const t = useTranslations("Import");
   const [pending, startTransition] = useTransition();
 
@@ -305,6 +305,7 @@ export function ImportClient({ locale }: { locale: Locale }) {
           sourceUrl={singleResult.sourceUrl}
           locale={locale}
           initial={initial}
+          availableTags={availableTags}
         />
       </div>
     );
