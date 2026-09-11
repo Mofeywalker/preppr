@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useRef, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -130,7 +130,54 @@ export function RecipeForm({
   const [refetchPhotoSuccess, setRefetchPhotoSuccess] = useState(false);
   const [refetchPhotoError, setRefetchPhotoError] = useState<string | null>(null);
 
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadPhotoSuccess, setUploadPhotoSuccess] = useState(false);
+  const [uploadPhotoError, setUploadPhotoError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const isYouTube = sourceType === "youtube" && !!sourceUrl;
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    setUploadingPhoto(true);
+    setUploadPhotoError(null);
+    setUploadPhotoSuccess(false);
+    setRefetchPhotoSuccess(false);
+    setRefetchPhotoError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const endpoint = recipeId
+        ? `/api/recipes/${recipeId}/image`
+        : `/api/upload`;
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || t("uploadPhotoError"));
+      }
+
+      const { url } = await res.json();
+      if (url) {
+        setImageUrl(url);
+        setUploadPhotoSuccess(true);
+        router.refresh();
+      }
+    } catch (err) {
+      setUploadPhotoError((err as Error).message || t("uploadPhotoError"));
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   const handleRecreatePhoto = async () => {
     if (!recipeId || refetchingPhoto) return;
@@ -346,7 +393,22 @@ export function RecipeForm({
             </div>
 
             <div className="space-y-3">
-              <Label htmlFor="imageUrl">{t("imageUrl")}</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="imageUrl">{t("imageUrl")}</Label>
+                {imageUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImageUrl("");
+                      setUploadPhotoSuccess(false);
+                      setRefetchPhotoSuccess(false);
+                    }}
+                    className="text-xs font-medium text-red-500 hover:text-red-600 transition cursor-pointer"
+                  >
+                    {t("removePhoto")}
+                  </button>
+                )}
+              </div>
 
               {imageUrl && (
                 <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-border bg-muted">
@@ -359,71 +421,124 @@ export function RecipeForm({
                 </div>
               )}
 
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingPhoto || refetchingPhoto || pending}
+                  className="gap-2 cursor-pointer"
+                >
+                  {uploadingPhoto ? (
+                    <Spinner />
+                  ) : (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="size-4"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                  )}
+                  <span>
+                    {uploadingPhoto ? t("uploadingPhoto") : t("uploadPhoto")}
+                  </span>
+                </Button>
+
+                {mode === "edit" && recipeId && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRecreatePhoto}
+                    disabled={uploadingPhoto || refetchingPhoto || pending}
+                    className="gap-2 cursor-pointer"
+                  >
+                    {refetchingPhoto ? (
+                      <Spinner />
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="size-4"
+                      >
+                        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                        <path d="M3 3v5h5" />
+                        <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                        <path d="M16 21h5v-5" />
+                      </svg>
+                    )}
+                    <span>
+                      {refetchingPhoto
+                        ? t("refetchingPhoto")
+                        : isYouTube
+                        ? t("refetchPhoto")
+                        : t("recreatePhoto")}
+                    </span>
+                  </Button>
+                )}
+
+                {uploadPhotoSuccess && (
+                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                    ✓ {t("uploadPhotoSuccess")}
+                  </span>
+                )}
+                {refetchPhotoSuccess && (
+                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                    ✓ {t("refetchPhotoSuccess")}
+                  </span>
+                )}
+              </div>
+
+              {uploadPhotoError && (
+                <p className="text-xs text-red-600 dark:text-red-400 font-medium">
+                  {uploadPhotoError}
+                </p>
+              )}
+              {refetchPhotoError && (
+                <p className="text-xs text-red-600 dark:text-red-400 font-medium">
+                  {refetchPhotoError}
+                </p>
+              )}
+
               <Input
                 id="imageUrl"
                 value={imageUrl}
                 onChange={(e) => {
                   setImageUrl(e.target.value);
                   setRefetchPhotoSuccess(false);
+                  setUploadPhotoSuccess(false);
                 }}
                 placeholder="https://…"
                 className="bg-background"
               />
 
               {mode === "edit" && recipeId && (
-                <div className="pt-1 space-y-2">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleRecreatePhoto}
-                      disabled={refetchingPhoto || pending}
-                      className="gap-2 cursor-pointer"
-                    >
-                      {refetchingPhoto ? (
-                        <Spinner />
-                      ) : (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="size-4"
-                        >
-                          <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                          <path d="M3 3v5h5" />
-                          <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-                          <path d="M16 21h5v-5" />
-                        </svg>
-                      )}
-                      <span>
-                        {refetchingPhoto
-                          ? t("refetchingPhoto")
-                          : isYouTube
-                          ? t("refetchPhoto")
-                          : t("recreatePhoto")}
-                      </span>
-                    </Button>
-
-                    {refetchPhotoSuccess && (
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                        ✓ {t("refetchPhotoSuccess")}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-foreground/60">
-                    {isYouTube ? t("refetchPhotoHint") : t("recreatePhotoHint")}
-                  </p>
-                  {refetchPhotoError && (
-                    <p className="text-xs text-red-600 dark:text-red-400 font-medium">
-                      {refetchPhotoError}
-                    </p>
-                  )}
-                </div>
+                <p className="text-xs text-foreground/60">
+                  {isYouTube ? t("refetchPhotoHint") : t("recreatePhotoHint")}
+                </p>
               )}
             </div>
           </div>

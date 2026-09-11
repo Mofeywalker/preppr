@@ -62,7 +62,10 @@
     "deleteConfirm": "Delete this recipe?",
     "notFound": "Recipe not found.",
     "nutritionUnknown": "unknown",
-    "generateImage": "Generate image"
+    "generateImage": "Generate image",
+    "uploadImage": "Upload picture",
+    "changeImage": "Change picture",
+    "uploadingImage": "Uploading…"
   },
   "RecipeForm": {
     "title": "Title",
@@ -95,6 +98,11 @@
     "saving": "Saving…",
     "cancel": "Cancel",
     "imageUrl": "Image URL",
+    "uploadPhoto": "Upload picture",
+    "uploadingPhoto": "Uploading photo…",
+    "uploadPhotoSuccess": "Photo uploaded successfully!",
+    "uploadPhotoError": "Failed to upload photo",
+    "removePhoto": "Remove picture",
     "refetchPhoto": "Refetch and re-create photo",
     "recreatePhoto": "Generate photo with AI",
     "refetchingPhoto": "Processing photo…",

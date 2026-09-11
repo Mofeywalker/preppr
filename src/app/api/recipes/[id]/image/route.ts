@@ -31,7 +31,30 @@ export async function POST(
     if (!(file instanceof File)) {
       return Response.json({ error: "no file" }, { status: 400 });
     }
-    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+
+    const extMatch = file.name.match(/\.([a-zA-Z0-9]+)$/);
+    const mimeExt = file.type.startsWith("image/")
+      ? file.type.split("/")[1]?.replace("jpeg", "jpg")
+      : null;
+    const ext = (extMatch ? extMatch[1].toLowerCase() : mimeExt) || "jpg";
+
+    if (
+      !file.type.startsWith("image/") &&
+      !["jpg", "jpeg", "png", "webp", "gif", "avif"].includes(ext)
+    ) {
+      return Response.json(
+        { error: "Only image files are supported" },
+        { status: 400 },
+      );
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      return Response.json(
+        { error: "File size exceeds 15MB limit" },
+        { status: 400 },
+      );
+    }
+
     const name = `${id}-${Date.now()}.${ext}`;
     const bytes = Buffer.from(await file.arrayBuffer());
     if (recipe.imageUrl?.startsWith("/uploads/")) {

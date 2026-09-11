@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useRef, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,9 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
   const [imgError, setImgError] = useState(false);
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageUrl, setImageUrl] = useState(recipe.imageUrl);
   const [prevRecipeImageUrl, setPrevRecipeImageUrl] = useState(recipe.imageUrl);
   const [forking, setForking] = useState(false);
@@ -57,6 +60,38 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
       alert("Failed to copy recipe");
     } finally {
       setForking(false);
+    }
+  };
+
+  const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch(`/api/recipes/${recipe.id}/image`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || t("uploadImage"));
+      }
+      const { url } = await res.json();
+      if (url) {
+        setImageUrl(url);
+        setImgError(false);
+        router.refresh();
+      }
+    } catch (err) {
+      setUploadError((err as Error).message || t("uploadImage"));
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -183,29 +218,105 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Media, Servings scaler, Nutrition, Source (sticky on desktop) */}
         <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-20">
-          <div className="overflow-hidden rounded-2xl border border-border bg-muted">
+          <div className="overflow-hidden rounded-2xl border border-border bg-muted relative group">
             {imageUrl && !imgError ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={imageUrl}
-                alt={recipe.title}
-                onError={() => setImgError(true)}
-                className="aspect-video w-full object-cover"
-              />
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageUrl}
+                  alt={recipe.title}
+                  onError={() => setImgError(true)}
+                  className="aspect-video w-full object-cover"
+                />
+                {recipe.isOwner && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    title={t("changeImage")}
+                    className="absolute top-3 right-3 flex items-center gap-1.5 rounded-lg bg-black/60 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur hover:bg-black/80 transition shadow-sm cursor-pointer"
+                  >
+                    {uploading ? (
+                      <Spinner />
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="size-3.5"
+                      >
+                        <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                        <circle cx="12" cy="13" r="3" />
+                      </svg>
+                    )}
+                    <span>{uploading ? t("uploadingImage") : t("changeImage")}</span>
+                  </button>
+                )}
+              </>
             ) : (
               <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 p-6 text-center">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={onGenerate}
-                  disabled={genLoading}
-                >
-                  {genLoading ? <Spinner /> : t("generateImage")}
-                </Button>
+                {recipe.isOwner ? (
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading || genLoading}
+                      className="gap-2 cursor-pointer"
+                    >
+                      {uploading ? (
+                        <Spinner />
+                      ) : (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="size-4"
+                        >
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                      )}
+                      <span>{uploading ? t("uploadingImage") : t("uploadImage")}</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={onGenerate}
+                      disabled={uploading || genLoading}
+                    >
+                      {genLoading ? <Spinner /> : t("generateImage")}
+                    </Button>
+                  </div>
+                ) : (
+                  <span className="text-xs font-semibold text-foreground/30 uppercase tracking-widest">
+                    preppr
+                  </span>
+                )}
               </div>
             )}
+            {recipe.isOwner && (
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onUpload}
+              />
+            )}
           </div>
+          {uploadError && <p className="text-xs text-red-600">{uploadError}</p>}
           {genError && <p className="text-xs text-red-600">{genError}</p>}
 
           {/* Servings Adjuster */}

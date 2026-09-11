@@ -62,7 +62,10 @@
     "deleteConfirm": "Dieses Rezept löschen?",
     "notFound": "Rezept nicht gefunden.",
     "nutritionUnknown": "unbekannt",
-    "generateImage": "Bild generieren"
+    "generateImage": "Bild generieren",
+    "uploadImage": "Bild hochladen",
+    "changeImage": "Bild ändern",
+    "uploadingImage": "Wird hochgeladen…"
   },
   "RecipeForm": {
     "title": "Titel",
@@ -95,6 +98,11 @@
     "saving": "Speichern…",
     "cancel": "Abbrechen",
     "imageUrl": "Bild-URL",
+    "uploadPhoto": "Bild hochladen",
+    "uploadingPhoto": "Bild wird hochgeladen…",
+    "uploadPhotoSuccess": "Bild erfolgreich hochgeladen!",
+    "uploadPhotoError": "Fehler beim Hochladen des Bildes",
+    "removePhoto": "Bild entfernen",
     "refetchPhoto": "Foto neu von YouTube laden & generieren",
     "recreatePhoto": "Foto mit KI neu generieren",
     "refetchingPhoto": "Foto wird verarbeitet…",
