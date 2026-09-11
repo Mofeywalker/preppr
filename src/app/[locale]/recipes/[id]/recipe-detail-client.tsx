@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useTransition } from "react";
+import { useState, useRef, useTransition, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,31 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
   const [imageUrl, setImageUrl] = useState(recipe.imageUrl);
   const [prevRecipeImageUrl, setPrevRecipeImageUrl] = useState(recipe.imageUrl);
   const [forking, setForking] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuOpen]);
 
   if (recipe.imageUrl !== prevRecipeImageUrl) {
     setPrevRecipeImageUrl(recipe.imageUrl);
@@ -117,24 +142,27 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
 
   return (
     <div className="space-y-6">
-      {/* Top navigation & desktop action buttons */}
-      <div className="flex items-center justify-between border-b border-border/60 pb-4">
+      {/* Top navigation & action buttons */}
+      <div className="flex items-center justify-between border-b border-border/60 pb-4 gap-3">
         <Link
           href="/"
-          className="text-sm font-medium text-foreground/60 hover:text-foreground transition flex items-center gap-1"
+          className="text-sm font-medium text-foreground/60 hover:text-foreground transition inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap"
         >
-          ← {t("back")}
+          <ChevronLeftIcon className="size-4" />
+          <span>{t("back")}</span>
         </Link>
-        <div className="flex items-center gap-2">
+
+        {/* Desktop buttons (sm and above) */}
+        <div className="hidden sm:flex items-center gap-2">
           {/* Visibility / Author status badge */}
           {recipe.isOwner ? (
-            <span className="hidden sm:inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground/70">
+            <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground/70">
               {recipe.visibility === "shared"
                 ? tSharing("visibilityShared")
                 : tSharing("visibilityPrivate")}
             </span>
           ) : (
-            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
               {recipe.authorImage && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -154,21 +182,8 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
 
           <a href={`/api/recipes/${recipe.id}/export`} download>
             <Button variant="outline" size="sm" className="gap-1.5">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="size-4"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              {t("export")}
+              <DownloadIcon className="size-4" />
+              <span>{t("export")}</span>
             </Button>
           </a>
 
@@ -180,26 +195,15 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
               disabled={forking}
               className="gap-1.5"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="size-4"
-              >
-                <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-              </svg>
-              {forking ? tSharing("forking") : tSharing("fork")}
+              <CopyIcon className="size-4" />
+              <span>{forking ? tSharing("forking") : tSharing("fork")}</span>
             </Button>
           ) : (
             <>
               <Link href={`/recipes/${recipe.id}/edit`}>
-                <Button variant="outline" size="sm">
-                  {t("edit")}
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <PencilIcon className="size-4" />
+                  <span>{t("edit")}</span>
                 </Button>
               </Link>
               <Button
@@ -207,11 +211,90 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                 size="sm"
                 onClick={onDelete}
                 disabled={pending}
+                className="gap-1.5"
               >
-                {pending ? <Spinner /> : t("delete")}
+                {pending ? <Spinner /> : <TrashIcon className="size-4" />}
+                <span>{t("delete")}</span>
               </Button>
             </>
           )}
+        </div>
+
+        {/* Mobile actions (< sm) */}
+        <div className="flex sm:hidden items-center gap-2">
+          {!recipe.isOwner ? (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={onFork}
+              disabled={forking}
+              className="gap-1.5 h-9"
+            >
+              <CopyIcon className="size-3.5" />
+              <span>{forking ? tSharing("forking") : tSharing("fork")}</span>
+            </Button>
+          ) : (
+            <Link href={`/recipes/${recipe.id}/edit`}>
+              <Button variant="outline" size="sm" className="gap-1.5 h-9">
+                <PencilIcon className="size-3.5" />
+                <span>{t("edit")}</span>
+              </Button>
+            </Link>
+          )}
+
+          {/* Overflow Menu */}
+          <div ref={menuRef} className="relative inline-block">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMenuOpen((prev) => !prev)}
+              aria-label={t("moreActions")}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              className="size-9 p-0"
+            >
+              <MoreHorizontalIcon className="size-4" />
+            </Button>
+
+            {menuOpen && (
+              <div
+                role="menu"
+                aria-orientation="vertical"
+                className="absolute right-0 mt-2 w-44 origin-top-right rounded-xl border border-border bg-background/95 backdrop-blur-md p-1 shadow-lg z-50 animate-in fade-in-50 zoom-in-95 duration-100"
+              >
+                <a
+                  href={`/api/recipes/${recipe.id}/export`}
+                  download
+                  role="menuitem"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition cursor-pointer"
+                >
+                  <DownloadIcon className="size-4 shrink-0 text-foreground/70" />
+                  <span>{t("export")}</span>
+                </a>
+
+                {recipe.isOwner && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onDelete();
+                    }}
+                    disabled={pending}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-500/10 transition cursor-pointer text-left"
+                  >
+                    {pending ? (
+                      <Spinner />
+                    ) : (
+                      <TrashIcon className="size-4 shrink-0 text-red-600" />
+                    )}
+                    <span>{t("delete")}</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -469,11 +552,129 @@ function NutRow({
 }) {
   const t = useTranslations("RecipeDetail");
   return (
-    <div className="flex items-baseline justify-between rounded-lg bg-muted px-2.5 py-1.5">
-      <span className="text-foreground/70">{label}</span>
-      <span className="font-medium">
+    <div className="flex items-baseline justify-between gap-2 rounded-lg bg-muted px-2.5 py-1.5">
+      <span className="text-foreground/70 truncate">{label}</span>
+      <span className="font-medium shrink-0">
         {value == null ? t("nutritionUnknown") : `${value} ${unit}`}
       </span>
     </div>
+  );
+}
+
+function ChevronLeftIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  );
+}
+
+function DownloadIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
+
+function PencilIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+      <path d="m15 5 4 4" />
+    </svg>
+  );
+}
+
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M3 6h18" />
+      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+      <line x1="10" x2="10" y1="11" y2="17" />
+      <line x1="14" x2="14" y1="11" y2="17" />
+    </svg>
+  );
+}
+
+function MoreHorizontalIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="1.5" />
+      <circle cx="19" cy="12" r="1.5" />
+      <circle cx="5" cy="12" r="1.5" />
+    </svg>
+  );
+}
+
+function CopyIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+    </svg>
   );
 }

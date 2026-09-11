@@ -71,7 +71,8 @@
     "generateImage": "Generate image",
     "uploadImage": "Upload picture",
     "changeImage": "Change picture",
-    "uploadingImage": "Uploading…"
+    "uploadingImage": "Uploading…",
+    "moreActions": "More actions"
   },
   "RecipeForm": {
     "title": "Title",
