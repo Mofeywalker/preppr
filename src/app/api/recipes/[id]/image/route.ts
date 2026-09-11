@@ -40,7 +40,7 @@ export async function POST(
 
   const body = await req.json().catch(() => ({}));
   if (body.generate) {
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.OPENROUTER_API_KEY) {
       return Response.json({ error: "ai not configured" }, { status: 503 });
     }
     try {

@@ -146,7 +146,7 @@
     "errorInvalidUrl": "Bitte einen gültigen Rezept- oder YouTube-Link eingeben.",
     "errorFetchFailed": "Die Rezeptseite konnte nicht geladen werden. Bitte prüfe die URL.",
     "errorExtractionFailed": "Aus diesem Link konnte kein Rezept extrahiert werden.",
-    "errorAiConfig": "KI ist nicht konfiguriert. Setze GEMINI_API_KEY.",
+    "errorAiConfig": "KI ist nicht konfiguriert. Setze OPENROUTER_API_KEY.",
     "errorPrepprFile": "Die Preppr-Datei konnte nicht gelesen werden. Bitte Dateiformat prüfen.",
     "errorTandoorFile": "Tandoor-Exportdatei konnte nicht gelesen werden. Bitte Dateiformat prüfen.",
     "errorTandoorServer": "Verbindung zum Tandoor-Server fehlgeschlagen. Prüfe URL und API-Token.",

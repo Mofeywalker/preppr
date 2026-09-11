@@ -26,7 +26,7 @@ A modern, mobile-first recipe & meal-prep application with AI-powered YouTube im
 | **Framework** | [Next.js 16](https://nextjs.org/) (App Router) + TypeScript |
 | **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) |
 | **Database** | SQLite via [Drizzle ORM](https://orm.drizzle.team/) + `better-sqlite3` |
-| **AI / LLM** | [Vercel AI SDK](https://sdk.vercel.ai/) + Google Gemini (`gemini-2.5-flash`) |
+| **AI / LLM** | [Vercel AI SDK](https://sdk.vercel.ai/) + OpenRouter (`gpt-5.6-luna`, `gemini-flash-3.1-images`) |
 | **Media Processing** | `yt-dlp` + `ffmpeg` (automatic video transcript & audio fallback) |
 | **Auth** | [Better Auth](https://www.better-auth.com/) (Email/Password + optional OIDC SSO) |
 | **i18n** | [next-intl](https://next-intl-docs.vercel.app/) |
@@ -66,18 +66,18 @@ brew install yt-dlp ffmpeg   # macOS
 
 ---
 
-## Gemini AI Configuration
+## OpenRouter AI Configuration
 
 To enable AI recipe extraction and image generation:
 
-1. Create an API key in [Google AI Studio](https://aistudio.google.com/apikey).
+1. Create an API key on [OpenRouter](https://openrouter.ai/).
 2. Add your key to `.env`:
    ```env
-   GEMINI_API_KEY=AIza...
+   OPENROUTER_API_KEY=sk-or-v1-...
    ```
 
 > [!NOTE]
-> Without an API key, the core recipe app works normally. Only YouTube AI import and AI image generation require the key. A free-tier key is sufficient for personal use.
+> Without an API key, the core recipe app works normally. Only YouTube AI import and AI image generation require the key.
 
 ---
 
@@ -85,7 +85,7 @@ To enable AI recipe extraction and image generation:
 
 | Variable | Required | Default | Purpose |
 | :--- | :---: | :--- | :--- |
-| `GEMINI_API_KEY` | For AI | — | Google Gemini API key |
+| `OPENROUTER_API_KEY` | For AI | — | OpenRouter API key |
 | `DATABASE_PATH` | No | `./dev.db` | SQLite database file location |
 | `UPLOAD_DIR` | No | `./public/uploads` | Directory for uploaded/generated images |
 | `YT_DLP_PATH` | No | `yt-dlp` | Custom path to the `yt-dlp` binary |
@@ -104,7 +104,7 @@ To enable AI recipe extraction and image generation:
 Run the complete app with a single command:
 
 ```sh
-cp .env.example .env       # set your GEMINI_API_KEY
+cp .env.example .env       # set your OPENROUTER_API_KEY
 docker compose up --build # runs at http://localhost:3000
 ```
 
