@@ -135,8 +135,6 @@ export function RecipeForm({
   const [uploadPhotoError, setUploadPhotoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isYouTube = sourceType === "youtube" && !!sourceUrl;
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -186,13 +184,12 @@ export function RecipeForm({
     setRefetchPhotoSuccess(false);
 
     try {
-      const payload = isYouTube
-        ? { refetchYouTube: true }
-        : {
-            generate: true,
-            title: title.trim(),
-            description: description.trim(),
-          };
+      const payload = {
+        generate: true,
+        title: title.trim(),
+        description: description.trim(),
+        imageUrl: imageUrl.trim() || undefined,
+      };
 
       const res = await fetch(`/api/recipes/${recipeId}/image`, {
         method: "POST",
@@ -202,9 +199,7 @@ export function RecipeForm({
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(
-          data.error || (isYouTube ? t("refetchPhotoError") : t("recreatePhotoError")),
-        );
+        throw new Error(data.error || t("recreatePhotoError"));
       }
 
       const { url } = await res.json();
@@ -215,8 +210,7 @@ export function RecipeForm({
       }
     } catch (err) {
       setRefetchPhotoError(
-        (err as Error).message ||
-          (isYouTube ? t("refetchPhotoError") : t("recreatePhotoError")),
+        (err as Error).message || t("recreatePhotoError"),
       );
     } finally {
       setRefetchingPhoto(false);
@@ -493,8 +487,6 @@ export function RecipeForm({
                     <span>
                       {refetchingPhoto
                         ? t("refetchingPhoto")
-                        : isYouTube
-                        ? t("refetchPhoto")
                         : t("recreatePhoto")}
                     </span>
                   </Button>
@@ -537,7 +529,7 @@ export function RecipeForm({
 
               {mode === "edit" && recipeId && (
                 <p className="text-xs text-foreground/60">
-                  {isYouTube ? t("refetchPhotoHint") : t("recreatePhotoHint")}
+                  {t("recreatePhotoHint")}
                 </p>
               )}
             </div>

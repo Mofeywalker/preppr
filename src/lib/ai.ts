@@ -190,20 +190,20 @@ export async function generateRecipeImage(
   return image.base64;
 }
 
-export async function processYouTubeThumbnail(
-  thumbnailBuffer: Buffer,
+export async function transformRecipeImage(
+  imageBuffer: Buffer,
   title: string,
   description?: string | null,
 ): Promise<string> {
   const promptText = [
-    `This is a thumbnail or still image from a cooking video for the recipe: "${title}".`,
-    description ? `Recipe/Video description: ${description}` : "",
-    `Re-create and transform this photo into a professional, mouth-watering food photograph in 16:9 landscape format.`,
+    `This is a reference image of the prepared food/dish for the recipe: "${title}".`,
+    description ? `Recipe description: ${description}` : "",
+    `Transform and re-create this image into a professional, mouth-watering food photograph in 16:9 landscape format based on this dish.`,
     `CRITICAL REQUIREMENTS:`,
-    `1. The sole focus MUST be the prepared food/dish from this recipe.`,
+    `1. The sole focus MUST be the prepared food/dish from this recipe. Keep the food identifiable and true to the recipe.`,
     `2. Completely remove any persons, people, faces, hands, bodies, or human silhouettes.`,
     `3. Completely remove all text overlays, channel titles, logos, subtitles, badges, emojis, borders, and clickbait graphics.`,
-    `4. If the original image is portrait (e.g. YouTube Shorts) or closely cropped, naturally extend and reframe the scene into a standard 16:9 landscape aspect ratio centered on the food.`,
+    `4. If the original image is in portrait orientation or closely cropped, naturally extend and reframe the scene into a standard 16:9 landscape aspect ratio centered on the food.`,
     `5. Professional food photography style, warm natural lighting, shallow depth of field, appetizing presentation on a table or plate.`,
   ]
     .filter(Boolean)
@@ -212,7 +212,7 @@ export async function processYouTubeThumbnail(
   const { image } = await generateImage({
     model: getImageModel(),
     prompt: {
-      images: [thumbnailBuffer],
+      images: [imageBuffer],
       text: promptText,
     },
     aspectRatio: "16:9",
@@ -220,4 +220,6 @@ export async function processYouTubeThumbnail(
 
   return image.base64;
 }
+
+export const processYouTubeThumbnail = transformRecipeImage;
 
