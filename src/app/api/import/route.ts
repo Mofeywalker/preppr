@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
   // --- FLOW 1: YOUTUBE VIDEO IMPORT ---
   if (isYouTubeUrl(url)) {
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.OPENROUTER_API_KEY) {
       return Response.json({ error: "ai-config" }, { status: 503 });
     }
     const videoId = parseYouTubeId(url)!;
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Fallback to Gemini AI if no JSON-LD was found or parsing was incomplete
     if (!recipe) {
-      if (!process.env.GEMINI_API_KEY) {
+      if (!process.env.OPENROUTER_API_KEY) {
         return Response.json({ error: "ai-config" }, { status: 503 });
       }
       recipe = await extractFromWebpage(pageData, locale);

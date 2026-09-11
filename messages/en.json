@@ -146,7 +146,7 @@
     "errorInvalidUrl": "Please enter a valid recipe or YouTube URL.",
     "errorFetchFailed": "Could not load the recipe website. Please check the URL.",
     "errorExtractionFailed": "Could not extract a recipe from this link.",
-    "errorAiConfig": "AI is not configured. Set GEMINI_API_KEY.",
+    "errorAiConfig": "AI is not configured. Set OPENROUTER_API_KEY.",
     "errorPrepprFile": "Could not read Preppr export file. Please check the file format.",
     "errorTandoorFile": "Could not read Tandoor export file. Please check the file format.",
     "errorTandoorServer": "Could not connect to Tandoor server. Check the URL and API token.",

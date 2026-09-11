@@ -1,25 +1,25 @@
-import { createGoogle } from "@ai-sdk/google";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateObject, generateImage } from "ai";
 import { z } from "zod";
 import { getInstanceLocale, type Locale } from "@/i18n/routing";
 import type { ScrapedRecipePage } from "./scraper";
 
 function getModel() {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not set");
+    throw new Error("OPENROUTER_API_KEY is not set");
   }
-  const provider = createGoogle({ apiKey });
-  return provider("gemini-2.5-flash");
+  const provider = createOpenRouter({ apiKey });
+  return provider("gpt-5.6-luna");
 }
 
 function getImageModel() {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not set");
+    throw new Error("OPENROUTER_API_KEY is not set");
   }
-  const provider = createGoogle({ apiKey });
-  return provider.image("gemini-2.5-flash-image");
+  const provider = createOpenRouter({ apiKey });
+  return provider.imageModel("gemini-flash-3.1-images");
 }
 
 export const extractSchema = z.object({
