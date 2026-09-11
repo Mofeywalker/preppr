@@ -1,23 +1,62 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { useOffline } from "next/offline";
+import { useRouter } from "@/i18n/navigation";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+function subscribeOnline(callback: () => void) {
+  window.addEventListener("online", callback);
+  window.addEventListener("offline", callback);
+  return () => {
+    window.removeEventListener("online", callback);
+    window.removeEventListener("offline", callback);
+  };
+}
+
+function getOnlineSnapshot() {
+  return navigator.onLine;
+}
+
+function getServerSnapshot() {
+  return true;
+}
+
 export function PwaClient() {
   const t = useTranslations("Pwa");
+  const router = useRouter();
   const nextIsOffline = useOffline();
-  const [browserOffline, setBrowserOffline] = useState(false);
+  const isOnline = useSyncExternalStore(subscribeOnline, getOnlineSnapshot, getServerSnapshot);
+  const browserOffline = !isOnline;
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [isIos, setIsIos] = useState(false);
 
-  // Register service worker & listen for online/offline events
+  // Refresh server data when restored from bfcache or navigating back/forward
+  useEffect(() => {
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        router.refresh();
+      }
+    };
+    const handlePopState = () => {
+      router.refresh();
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [router]);
+
+  // Register service worker & handle install prompt
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -29,16 +68,6 @@ export function PwaClient() {
           console.warn("PWA: ServiceWorker registration failed:", error);
         });
     }
-
-    // Offline / Online listeners
-    const handleOnline = () => setBrowserOffline(false);
-    const handleOffline = () => setBrowserOffline(true);
-
-    // Initial state
-    setBrowserOffline(!navigator.onLine);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
 
     // Check if already running in standalone mode
     const isStandalone =
@@ -56,9 +85,11 @@ export function PwaClient() {
         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
       if (isIosDevice) {
-        setIsIos(true);
         // Delay showing prompt to avoid interfering with initial page view
-        const timer = setTimeout(() => setShowInstallPrompt(true), 3000);
+        const timer = setTimeout(() => {
+          setIsIos(true);
+          setShowInstallPrompt(true);
+        }, 3000);
         return () => clearTimeout(timer);
       }
 
@@ -72,16 +103,9 @@ export function PwaClient() {
       window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
       return () => {
-        window.removeEventListener("online", handleOnline);
-        window.removeEventListener("offline", handleOffline);
         window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       };
     }
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
   }, []);
 
   const handleInstallClick = async () => {

@@ -24,7 +24,14 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState(recipe.imageUrl);
+  const [prevRecipeImageUrl, setPrevRecipeImageUrl] = useState(recipe.imageUrl);
   const [forking, setForking] = useState(false);
+
+  if (recipe.imageUrl !== prevRecipeImageUrl) {
+    setPrevRecipeImageUrl(recipe.imageUrl);
+    setImageUrl(recipe.imageUrl);
+    setImgError(false);
+  }
 
   const scale = servings / recipe.servings;
 

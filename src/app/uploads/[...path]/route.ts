@@ -23,7 +23,7 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": getMimeType(filename),
-        "Cache-Control": "public, max-age=31536000, immutable",
+        "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
       },
     });
   } catch (err) {

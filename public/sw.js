@@ -1,5 +1,5 @@
 // Service Worker for preppr PWA
-const CACHE_VERSION = "preppr-v1";
+const CACHE_VERSION = "preppr-v2";
 const STATIC_CACHE = `preppr-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `preppr-pages-${CACHE_VERSION}`;
 
@@ -53,12 +53,16 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Never cache API, auth, or Next.js server actions / data endpoints
+  // Never cache API, auth, Next.js server actions, or Next.js router/RSC data requests
   if (
     url.pathname.startsWith("/api/") ||
     url.pathname.startsWith("/api") ||
     request.headers.get("x-action") ||
-    request.headers.get("next-action")
+    request.headers.get("next-action") ||
+    request.headers.get("rsc") ||
+    request.headers.get("next-router-state-tree") ||
+    request.headers.get("next-router-prefetch") ||
+    url.searchParams.has("_rsc")
   ) {
     return;
   }
@@ -113,7 +117,27 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Other assets (images, uploads, etc.): Stale-while-revalidate
+  // Recipe uploads: Network-first to always serve fresh images, falling back to cache if offline
+  if (url.pathname.startsWith("/uploads/")) {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          return new Response("Image unavailable offline", { status: 504 });
+        })
+    );
+    return;
+  }
+
+  // Other assets: Stale-while-revalidate
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       const fetchPromise = fetch(request)

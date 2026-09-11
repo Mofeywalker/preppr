@@ -256,7 +256,10 @@ export function RecipeForm({
           });
           if (!res.ok) throw new Error(tErr("generic"));
         }
-        if (id) router.push(`/recipes/${id}`);
+        if (id) {
+          router.push(`/recipes/${id}`);
+          router.refresh();
+        }
       } catch {
         setError(tErr("generic"));
       }

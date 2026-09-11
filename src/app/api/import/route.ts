@@ -117,7 +117,11 @@ export async function POST(req: NextRequest) {
       }
 
       try {
-        thumbnail = await saveUploadedImage(finalBuf, `${videoId}.${ext}`);
+        thumbnail = await saveUploadedImage(
+          finalBuf,
+          `${videoId}.${ext}`,
+          `${videoId}-${Date.now()}.${ext}`,
+        );
       } catch (saveErr) {
         console.warn("Failed to save uploaded YouTube thumbnail:", saveErr);
         thumbnail =

@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { getRecipe, updateImage } from "@/lib/recipes";
 import { generateRecipeImage, processYouTubeThumbnail } from "@/lib/ai";
 import { parseYouTubeId, fetchYouTubeThumbnailBuffer } from "@/lib/youtube";
-import { saveUploadedImage } from "@/lib/storage";
+import { saveUploadedImage, deleteUploadedImage } from "@/lib/storage";
 import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -32,8 +32,11 @@ export async function POST(
       return Response.json({ error: "no file" }, { status: 400 });
     }
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    const name = `${id}.${ext}`;
+    const name = `${id}-${Date.now()}.${ext}`;
     const bytes = Buffer.from(await file.arrayBuffer());
+    if (recipe.imageUrl?.startsWith("/uploads/")) {
+      await deleteUploadedImage(recipe.imageUrl);
+    }
     const url = await saveUploadedImage(bytes, file.name, name);
     await updateImage(id, url);
     return Response.json({ url });
@@ -54,7 +57,10 @@ export async function POST(
           ? body.description.trim()
           : recipe.description;
       const base64 = await generateRecipeImage(title, description);
-      const name = `${id}.png`;
+      const name = `${id}-${Date.now()}.png`;
+      if (recipe.imageUrl?.startsWith("/uploads/")) {
+        await deleteUploadedImage(recipe.imageUrl);
+      }
       const url = await saveUploadedImage(
         Buffer.from(base64, "base64"),
         "generated.png",
@@ -102,7 +108,10 @@ export async function POST(
         recipe.title,
         recipe.description,
       );
-      const name = `${id}.png`;
+      const name = `${id}-${Date.now()}.png`;
+      if (recipe.imageUrl?.startsWith("/uploads/")) {
+        await deleteUploadedImage(recipe.imageUrl);
+      }
       const url = await saveUploadedImage(
         Buffer.from(base64, "base64"),
         "youtube-processed.png",

@@ -554,7 +554,7 @@ export function RecipeListClient({
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
           {filteredAndSorted.map((r, idx) => {
             const totalTime = (r.prepTimeMin ?? 0) + (r.cookTimeMin ?? 0);
-            const hasImage = Boolean(r.imageUrl && !failedImages.has(r.id));
+            const hasImage = Boolean(r.imageUrl && !failedImages.has(r.imageUrl));
             // First two cards are above the fold (LCP candidates)
             const isPriority = idx < 2;
 
@@ -572,7 +572,10 @@ export function RecipeListClient({
                       alt={r.title}
                       fetchPriority={isPriority ? "high" : undefined}
                       loading={isPriority ? "eager" : "lazy"}
-                      onError={() => setFailedImages((prev) => new Set(prev).add(r.id))}
+                      onError={() =>
+                        r.imageUrl &&
+                        setFailedImages((prev) => new Set(prev).add(r.imageUrl!))
+                      }
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                   ) : (
@@ -702,7 +705,7 @@ export function RecipeListClient({
         <div className="flex flex-col divide-y divide-border/60 rounded-2xl border border-border bg-background overflow-hidden">
           {filteredAndSorted.map((r, idx) => {
             const totalTime = (r.prepTimeMin ?? 0) + (r.cookTimeMin ?? 0);
-            const hasImage = Boolean(r.imageUrl && !failedImages.has(r.id));
+            const hasImage = Boolean(r.imageUrl && !failedImages.has(r.imageUrl));
             const isPriority = idx < 4;
 
             return (
@@ -719,7 +722,10 @@ export function RecipeListClient({
                       alt={r.title}
                       fetchPriority={isPriority ? "high" : undefined}
                       loading={isPriority ? "eager" : "lazy"}
-                      onError={() => setFailedImages((prev) => new Set(prev).add(r.id))}
+                      onError={() =>
+                        r.imageUrl &&
+                        setFailedImages((prev) => new Set(prev).add(r.imageUrl!))
+                      }
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                   ) : (

@@ -1,4 +1,4 @@
-import { mkdir, writeFile, readFile, stat } from "node:fs/promises";
+import { mkdir, writeFile, readFile, stat, unlink } from "node:fs/promises";
 import { join, dirname, basename, extname } from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -127,3 +127,21 @@ export async function saveUploadedImage(
 
   return `/uploads/${filename}`;
 }
+
+/**
+ * Deletes an uploaded image from disk if it exists.
+ */
+export async function deleteUploadedImage(filenameOrUrl: string): Promise<void> {
+  try {
+    const found = await findUploadedImage(filenameOrUrl);
+    if (found) {
+      await unlink(found.path).catch(() => {});
+    }
+    const filename = basename(filenameOrUrl);
+    const publicCopy = join(process.cwd(), "public", "uploads", filename);
+    await unlink(publicCopy).catch(() => {});
+  } catch {
+    // ignore
+  }
+}
+
