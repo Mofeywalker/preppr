@@ -94,7 +94,12 @@
     "save": "Speichern",
     "saving": "Speichern…",
     "cancel": "Abbrechen",
-    "imageUrl": "Bild-URL"
+    "imageUrl": "Bild-URL",
+    "refetchPhoto": "Foto neu von YouTube laden & generieren",
+    "refetchingPhoto": "Foto wird verarbeitet…",
+    "refetchPhotoSuccess": "Foto erfolgreich neu generiert!",
+    "refetchPhotoError": "Foto konnte nicht neu generiert werden",
+    "refetchPhotoHint": "Lädt das YouTube-Thumbnail neu herunter und generiert es per KI mit Fokus auf das Essen neu."
   },
   "Import": {
     "title": "Rezepte importieren & exportieren",

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getRecipe, updateImage } from "@/lib/recipes";
-import { generateRecipeImage } from "@/lib/ai";
+import { generateRecipeImage, processYouTubeThumbnail } from "@/lib/ai";
+import { parseYouTubeId, fetchYouTubeThumbnailBuffer } from "@/lib/youtube";
 import { saveUploadedImage } from "@/lib/storage";
 import { auth } from "@/lib/auth";
 
@@ -59,6 +60,54 @@ export async function POST(
     } catch (err) {
       return Response.json(
         { error: (err as Error).message },
+        { status: 500 },
+      );
+    }
+  }
+
+  if (body.refetchYouTube) {
+    if (recipe.sourceType !== "youtube" || !recipe.sourceUrl) {
+      return Response.json(
+        { error: "Recipe was not imported from YouTube" },
+        { status: 400 },
+      );
+    }
+    const videoId = parseYouTubeId(recipe.sourceUrl);
+    if (!videoId) {
+      return Response.json(
+        { error: "Invalid YouTube URL" },
+        { status: 400 },
+      );
+    }
+    if (!process.env.OPENROUTER_API_KEY) {
+      return Response.json({ error: "ai not configured" }, { status: 503 });
+    }
+
+    const thumbBuf = await fetchYouTubeThumbnailBuffer(videoId);
+    if (!thumbBuf) {
+      return Response.json(
+        { error: "Failed to download YouTube thumbnail" },
+        { status: 502 },
+      );
+    }
+
+    try {
+      const base64 = await processYouTubeThumbnail(
+        thumbBuf,
+        recipe.title,
+        recipe.description,
+      );
+      const name = `${id}.png`;
+      const url = await saveUploadedImage(
+        Buffer.from(base64, "base64"),
+        "youtube-processed.png",
+        name,
+      );
+      await updateImage(id, url);
+      return Response.json({ url });
+    } catch (err) {
+      return Response.json(
+        { error: (err as Error).message || "Failed to process photo with AI" },
         { status: 500 },
       );
     }

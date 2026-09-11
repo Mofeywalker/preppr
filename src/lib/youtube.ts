@@ -93,3 +93,40 @@ export async function downloadAudio(
   await unlink(out).catch(() => {});
   return { path: out, base64 };
 }
+
+export async function fetchYouTubeThumbnailBuffer(
+  videoId: string,
+  preferredUrl?: string | null,
+): Promise<Buffer | null> {
+  const urls: string[] = [];
+  if (preferredUrl) urls.push(preferredUrl);
+  urls.push(
+    `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+    `https://i.ytimg.com/vi/${videoId}/sddefault.jpg`,
+    `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+  );
+
+  for (const u of urls) {
+    try {
+      const res = await fetch(u, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+        },
+        signal: AbortSignal.timeout(6000),
+      });
+      if (res.ok) {
+        const buf = Buffer.from(await res.arrayBuffer());
+        // YouTube sometimes returns a 120x90 transparent or small placeholder image when maxres is unavailable
+        if (buf.length > 1500) {
+          return buf;
+        }
+      }
+    } catch {
+      // try next candidate
+    }
+  }
+
+  return null;
+}
+

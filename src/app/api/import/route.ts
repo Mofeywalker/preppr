@@ -7,11 +7,13 @@ import {
   getTranscript,
   getMetadata,
   downloadAudio,
+  fetchYouTubeThumbnailBuffer,
 } from "@/lib/youtube";
 import {
   extractFromTranscript,
   extractFromAudio,
   extractFromWebpage,
+  processYouTubeThumbnail,
   type ExtractedRecipe,
 } from "@/lib/ai";
 import { scrapeRecipeUrl } from "@/lib/scraper";
@@ -90,19 +92,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let thumbnail =
-      meta.thumbnail || (videoId ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg` : null);
+    let thumbnail: string | null = null;
+    const thumbBuf = await fetchYouTubeThumbnailBuffer(videoId, meta.thumbnail);
 
-    if (thumbnail) {
-      try {
-        const res = await fetch(thumbnail, { signal: AbortSignal.timeout(5000) });
-        if (res.ok) {
-          const buf = Buffer.from(await res.arrayBuffer());
-          thumbnail = await saveUploadedImage(buf, `${videoId}.jpg`);
+    if (thumbBuf) {
+      let finalBuf = thumbBuf;
+      let ext = "jpg";
+
+      if (process.env.OPENROUTER_API_KEY) {
+        try {
+          const processedBase64 = await processYouTubeThumbnail(
+            thumbBuf,
+            recipe.title,
+            recipe.description,
+          );
+          finalBuf = Buffer.from(processedBase64, "base64");
+          ext = "png";
+        } catch (imgErr) {
+          console.warn(
+            "Failed to process YouTube thumbnail with Gemini, falling back to original:",
+            imgErr,
+          );
         }
-      } catch {
-        // Keep external URL fallback
       }
+
+      try {
+        thumbnail = await saveUploadedImage(finalBuf, `${videoId}.${ext}`);
+      } catch (saveErr) {
+        console.warn("Failed to save uploaded YouTube thumbnail:", saveErr);
+        thumbnail =
+          meta.thumbnail ||
+          (videoId ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg` : null);
+      }
+    } else if (meta.thumbnail) {
+      thumbnail = meta.thumbnail;
     }
 
     return Response.json({

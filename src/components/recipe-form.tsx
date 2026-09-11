@@ -126,6 +126,41 @@ export function RecipeForm({
   const [tagInput, setTagInput] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  const [refetchingPhoto, setRefetchingPhoto] = useState(false);
+  const [refetchPhotoSuccess, setRefetchPhotoSuccess] = useState(false);
+  const [refetchPhotoError, setRefetchPhotoError] = useState<string | null>(null);
+
+  const handleRefetchYouTubePhoto = async () => {
+    if (!recipeId || refetchingPhoto) return;
+    setRefetchingPhoto(true);
+    setRefetchPhotoError(null);
+    setRefetchPhotoSuccess(false);
+
+    try {
+      const res = await fetch(`/api/recipes/${recipeId}/image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refetchYouTube: true }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || t("refetchPhotoError"));
+      }
+
+      const { url } = await res.json();
+      if (url) {
+        setImageUrl(url);
+        setRefetchPhotoSuccess(true);
+        router.refresh();
+      }
+    } catch (err) {
+      setRefetchPhotoError((err as Error).message || t("refetchPhotoError"));
+    } finally {
+      setRefetchingPhoto(false);
+    }
+  };
+
   const num = (s: string): number | null =>
     s.trim() === "" ? null : Number(s);
 
@@ -292,15 +327,80 @@ export function RecipeForm({
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-3">
               <Label htmlFor="imageUrl">{t("imageUrl")}</Label>
+
+              {imageUrl && (
+                <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-border bg-muted">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imageUrl}
+                    alt={title || "Recipe preview"}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              )}
+
               <Input
                 id="imageUrl"
                 value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
+                onChange={(e) => {
+                  setImageUrl(e.target.value);
+                  setRefetchPhotoSuccess(false);
+                }}
                 placeholder="https://…"
                 className="bg-background"
               />
+
+              {mode === "edit" && recipeId && sourceType === "youtube" && (
+                <div className="pt-1 space-y-2">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRefetchYouTubePhoto}
+                      disabled={refetchingPhoto || pending}
+                      className="gap-2 cursor-pointer"
+                    >
+                      {refetchingPhoto ? (
+                        <Spinner />
+                      ) : (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="size-4"
+                        >
+                          <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                          <path d="M3 3v5h5" />
+                          <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                          <path d="M16 21h5v-5" />
+                        </svg>
+                      )}
+                      <span>
+                        {refetchingPhoto ? t("refetchingPhoto") : t("refetchPhoto")}
+                      </span>
+                    </Button>
+
+                    {refetchPhotoSuccess && (
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                        ✓ {t("refetchPhotoSuccess")}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-foreground/60">{t("refetchPhotoHint")}</p>
+                  {refetchPhotoError && (
+                    <p className="text-xs text-red-600 dark:text-red-400 font-medium">
+                      {refetchPhotoError}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

@@ -19,7 +19,8 @@ function getImageModel() {
     throw new Error("OPENROUTER_API_KEY is not set");
   }
   const provider = createOpenRouter({ apiKey });
-  return provider.imageModel("gemini-flash-3.1-images");
+  const modelId = process.env.OPENROUTER_IMAGE_MODEL || "google/gemini-2.5-flash-image";
+  return provider.imageModel(modelId);
 }
 
 export const extractSchema = z.object({
@@ -184,6 +185,39 @@ export async function generateRecipeImage(
     prompt: `A mouth-watering, professional food photograph of: ${title}. ${
       description ?? ""
     } Studio lighting, shallow depth of field, appetizing presentation.`,
+    aspectRatio: "16:9",
   });
   return image.base64;
 }
+
+export async function processYouTubeThumbnail(
+  thumbnailBuffer: Buffer,
+  title: string,
+  description?: string | null,
+): Promise<string> {
+  const promptText = [
+    `This is a thumbnail or still image from a cooking video for the recipe: "${title}".`,
+    description ? `Recipe/Video description: ${description}` : "",
+    `Re-create and transform this photo into a professional, mouth-watering food photograph in 16:9 landscape format.`,
+    `CRITICAL REQUIREMENTS:`,
+    `1. The sole focus MUST be the prepared food/dish from this recipe.`,
+    `2. Completely remove any persons, people, faces, hands, bodies, or human silhouettes.`,
+    `3. Completely remove all text overlays, channel titles, logos, subtitles, badges, emojis, borders, and clickbait graphics.`,
+    `4. If the original image is portrait (e.g. YouTube Shorts) or closely cropped, naturally extend and reframe the scene into a standard 16:9 landscape aspect ratio centered on the food.`,
+    `5. Professional food photography style, warm natural lighting, shallow depth of field, appetizing presentation on a table or plate.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const { image } = await generateImage({
+    model: getImageModel(),
+    prompt: {
+      images: [thumbnailBuffer],
+      text: promptText,
+    },
+    aspectRatio: "16:9",
+  });
+
+  return image.base64;
+}
+

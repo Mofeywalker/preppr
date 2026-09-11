@@ -94,7 +94,12 @@
     "save": "Save",
     "saving": "Saving…",
     "cancel": "Cancel",
-    "imageUrl": "Image URL"
+    "imageUrl": "Image URL",
+    "refetchPhoto": "Refetch and re-create photo",
+    "refetchingPhoto": "Processing photo…",
+    "refetchPhotoSuccess": "Photo successfully updated!",
+    "refetchPhotoError": "Failed to re-create photo",
+    "refetchPhotoHint": "Refetches the YouTube thumbnail and regenerates it with AI focused on the food."
   },
   "Import": {
     "title": "Import & Export recipes",
