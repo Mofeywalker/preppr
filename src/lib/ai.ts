@@ -19,7 +19,7 @@ function getImageModel() {
     throw new Error("OPENROUTER_API_KEY is not set");
   }
   const provider = createOpenRouter({ apiKey });
-  const modelId = process.env.OPENROUTER_IMAGE_MODEL || "google/gemini-2.5-flash-image";
+  const modelId = process.env.OPENROUTER_IMAGE_MODEL || "google/gemini-3.1-flash-image";
   return provider.imageModel(modelId);
 }
 

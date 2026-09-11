@@ -96,10 +96,13 @@
     "cancel": "Abbrechen",
     "imageUrl": "Bild-URL",
     "refetchPhoto": "Foto neu von YouTube laden & generieren",
+    "recreatePhoto": "Foto mit KI neu generieren",
     "refetchingPhoto": "Foto wird verarbeitet…",
     "refetchPhotoSuccess": "Foto erfolgreich neu generiert!",
     "refetchPhotoError": "Foto konnte nicht neu generiert werden",
-    "refetchPhotoHint": "Lädt das YouTube-Thumbnail neu herunter und generiert es per KI mit Fokus auf das Essen neu."
+    "recreatePhotoError": "Foto konnte nicht generiert werden",
+    "refetchPhotoHint": "Lädt das YouTube-Thumbnail neu herunter und generiert es per KI mit Fokus auf das Essen neu.",
+    "recreatePhotoHint": "Generiert ein frisches Food-Foto basierend auf Rezepttitel und Beschreibung mit KI."
   },
   "Import": {
     "title": "Rezepte importieren & exportieren",

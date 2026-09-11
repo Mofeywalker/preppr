@@ -130,22 +130,34 @@ export function RecipeForm({
   const [refetchPhotoSuccess, setRefetchPhotoSuccess] = useState(false);
   const [refetchPhotoError, setRefetchPhotoError] = useState<string | null>(null);
 
-  const handleRefetchYouTubePhoto = async () => {
+  const isYouTube = sourceType === "youtube" && !!sourceUrl;
+
+  const handleRecreatePhoto = async () => {
     if (!recipeId || refetchingPhoto) return;
     setRefetchingPhoto(true);
     setRefetchPhotoError(null);
     setRefetchPhotoSuccess(false);
 
     try {
+      const payload = isYouTube
+        ? { refetchYouTube: true }
+        : {
+            generate: true,
+            title: title.trim(),
+            description: description.trim(),
+          };
+
       const res = await fetch(`/api/recipes/${recipeId}/image`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refetchYouTube: true }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || t("refetchPhotoError"));
+        throw new Error(
+          data.error || (isYouTube ? t("refetchPhotoError") : t("recreatePhotoError")),
+        );
       }
 
       const { url } = await res.json();
@@ -155,7 +167,10 @@ export function RecipeForm({
         router.refresh();
       }
     } catch (err) {
-      setRefetchPhotoError((err as Error).message || t("refetchPhotoError"));
+      setRefetchPhotoError(
+        (err as Error).message ||
+          (isYouTube ? t("refetchPhotoError") : t("recreatePhotoError")),
+      );
     } finally {
       setRefetchingPhoto(false);
     }
@@ -352,14 +367,14 @@ export function RecipeForm({
                 className="bg-background"
               />
 
-              {mode === "edit" && recipeId && sourceType === "youtube" && (
+              {mode === "edit" && recipeId && (
                 <div className="pt-1 space-y-2">
                   <div className="flex flex-wrap items-center gap-3">
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={handleRefetchYouTubePhoto}
+                      onClick={handleRecreatePhoto}
                       disabled={refetchingPhoto || pending}
                       className="gap-2 cursor-pointer"
                     >
@@ -383,7 +398,11 @@ export function RecipeForm({
                         </svg>
                       )}
                       <span>
-                        {refetchingPhoto ? t("refetchingPhoto") : t("refetchPhoto")}
+                        {refetchingPhoto
+                          ? t("refetchingPhoto")
+                          : isYouTube
+                          ? t("refetchPhoto")
+                          : t("recreatePhoto")}
                       </span>
                     </Button>
 
@@ -393,7 +412,9 @@ export function RecipeForm({
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-foreground/60">{t("refetchPhotoHint")}</p>
+                  <p className="text-xs text-foreground/60">
+                    {isYouTube ? t("refetchPhotoHint") : t("recreatePhotoHint")}
+                  </p>
                   {refetchPhotoError && (
                     <p className="text-xs text-red-600 dark:text-red-400 font-medium">
                       {refetchPhotoError}

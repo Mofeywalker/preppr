@@ -45,10 +45,15 @@ export async function POST(
       return Response.json({ error: "ai not configured" }, { status: 503 });
     }
     try {
-      const base64 = await generateRecipeImage(
-        recipe.title,
-        recipe.description,
-      );
+      const title =
+        typeof body.title === "string" && body.title.trim()
+          ? body.title.trim()
+          : recipe.title;
+      const description =
+        typeof body.description === "string"
+          ? body.description.trim()
+          : recipe.description;
+      const base64 = await generateRecipeImage(title, description);
       const name = `${id}.png`;
       const url = await saveUploadedImage(
         Buffer.from(base64, "base64"),
@@ -59,7 +64,7 @@ export async function POST(
       return Response.json({ url });
     } catch (err) {
       return Response.json(
-        { error: (err as Error).message },
+        { error: (err as Error).message || "Failed to generate photo" },
         { status: 500 },
       );
     }
