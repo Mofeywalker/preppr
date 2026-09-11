@@ -8,6 +8,12 @@
     "en": "English",
     "de": "Deutsch"
   },
+  "Theme": {
+    "toggle": "Adjust theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
   "Recipes": {
     "title": "Recipes",
     "empty": "No recipes yet.",

@@ -9,6 +9,7 @@ import { routing } from "@/i18n/routing";
 import { Navbar } from "@/components/navbar";
 import { TabBar } from "@/components/tab-bar";
 import { PwaClient } from "@/components/pwa-client";
+import { ThemeProvider } from "@/components/theme-provider";
 import "../globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -73,16 +74,26 @@ export default async function LocaleLayout({
   return (
     <html
       lang={locale}
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=localStorage.getItem('preppr-theme');var m=window.matchMedia('(prefers-color-scheme: dark)').matches;var d=s==='dark'||((!s||s==='system')&&m);var r=document.documentElement;if(d){r.classList.add('dark');r.classList.remove('light');r.style.colorScheme='dark';}else{r.classList.remove('dark');r.classList.add('light');r.style.colorScheme='light';}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-full bg-background text-foreground">
         <NextIntlClientProvider messages={messages}>
-          <PwaClient />
-          <Navbar />
-          <main className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 pt-6 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-12">
-            {children}
-          </main>
-          <TabBar />
+          <ThemeProvider>
+            <PwaClient />
+            <Navbar />
+            <main className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 pt-6 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-12">
+              {children}
+            </main>
+            <TabBar />
+          </ThemeProvider>
         </NextIntlClientProvider>
       </body>
     </html>
