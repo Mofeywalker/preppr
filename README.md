@@ -174,3 +174,11 @@ messages/                     # de.json & en.json translation bundles
 public/                       # Static assets, PWA icons, Service Worker (sw.js), offline page
 scripts/                      # Build & asset scripts (PWA icon generator)
 ```
+
+---
+
+## License
+
+This project is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).  
+Free for personal and non-commercial use. Commercial use is reserved by the copyright holder.
+
