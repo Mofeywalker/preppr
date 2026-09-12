@@ -1,5 +1,5 @@
 // Service Worker for preppr PWA
-const CACHE_VERSION = "preppr-v2";
+const CACHE_VERSION = "preppr-v3";
 const STATIC_CACHE = `preppr-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `preppr-pages-${CACHE_VERSION}`;
 

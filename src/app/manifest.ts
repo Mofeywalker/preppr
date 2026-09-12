@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    id: "/",
     name: "preppr – Rezepte & Meal Prep",
     short_name: "preppr",
     description: "Rezepte speichern, planen und kochen – einfach & smart",
@@ -17,11 +18,13 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "/icons/icon-192.png",
         sizes: "192x192",
         type: "image/png",
+        purpose: "any",
       },
       {
         src: "/icons/icon-512.png",
         sizes: "512x512",
         type: "image/png",
+        purpose: "any",
       },
       {
         src: "/icons/icon-maskable-192.png",
@@ -35,11 +38,6 @@ export default function manifest(): MetadataRoute.Manifest {
         type: "image/png",
         purpose: "maskable",
       },
-      {
-        src: "/icon.svg",
-        sizes: "any",
-        type: "image/svg+xml",
-      },
     ],
     shortcuts: [
       {
@@ -47,14 +45,14 @@ export default function manifest(): MetadataRoute.Manifest {
         short_name: "Neu",
         description: "Ein neues Rezept manuell erstellen",
         url: "/recipes/new",
-        icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }],
+        icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
       },
       {
         name: "Rezept importieren",
         short_name: "Import",
         description: "Rezept von Website oder YouTube importieren",
         url: "/import",
-        icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }],
+        icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
       },
     ],
     share_target: {
