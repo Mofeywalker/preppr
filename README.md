@@ -12,6 +12,7 @@ A modern, mobile-first recipe & meal-prep application with AI-powered YouTube an
 
 - 📱 **Mobile-First Kitchen Experience** — Clean, touch-optimized UI designed for effortless reading and cooking in the kitchen.
 - 📺 **YouTube & Shorts AI Import** — Paste any cooking video link; AI extracts structured ingredients, step-by-step instructions, and macro nutrition in one pass.
+- 📸 **Handwritten & Photo Recipe Scan** — Snap or upload one or multiple photos of handwritten recipe cards, notebooks, or cookbook pages. Multimodal AI deciphers the handwriting and automatically structures ingredients, instructions, and nutrition into metric units.
 - 🌐 **Universal Web & Recipe Scraping** — Import from virtually any food blog or cooking site via Schema.org JSON-LD parsing with AI fallback and automated metric conversions (e.g. cups/oz to g/ml, °F to °C).
 - 📲 **Progressive Web App (PWA) & Share Target** — Installable on iOS, Android, and desktop with offline support. Preppr registers as a native OS Share Target—share recipe links directly from YouTube or browser apps with one tap.
 - 📦 **Tandoor & Full Archive Migration** — Live sync and batch import from any Tandoor instance via API token, or migrate via Tandoor ZIP/JSON. Export and restore complete Preppr backups including photos.

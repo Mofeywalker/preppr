@@ -43,7 +43,7 @@ export function ImportClient({
   const [pending, startTransition] = useTransition();
 
   // Tab & mode state
-  const [activeTab, setActiveTab] = useState<"youtube" | "preppr" | "tandoor">(
+  const [activeTab, setActiveTab] = useState<"youtube" | "photos" | "preppr" | "tandoor">(
     "youtube",
   );
   const [tandoorMode, setTandoorMode] = useState<"file" | "server">("file");
@@ -56,6 +56,13 @@ export function ImportClient({
     getClipboardSnapshot,
     getClipboardServerSnapshot,
   );
+
+  // Photos scan state
+  const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [isPhotoDragging, setIsPhotoDragging] = useState(false);
+  const photoGalleryInputRef = useRef<HTMLInputElement>(null);
+  const photoCameraInputRef = useRef<HTMLInputElement>(null);
 
   // Synchronize when initialUrl prop updates
   const [prevInitialUrl, setPrevInitialUrl] = useState(initialUrl);
@@ -104,12 +111,104 @@ export function ImportClient({
   const [batchSuccessCount, setBatchSuccessCount] = useState<number | null>(null);
 
   // Reset form when changing tabs
-  const switchTab = (tab: "youtube" | "preppr" | "tandoor") => {
+  const switchTab = (tab: "youtube" | "photos" | "preppr" | "tandoor") => {
     setActiveTab(tab);
     setError(null);
     setSingleResult(null);
     setBatchRecipes(null);
     setBatchSuccessCount(null);
+  };
+
+  const handleFilesAdded = (incomingFiles: FileList | File[]) => {
+    setError(null);
+    const valid = Array.from(incomingFiles).filter(
+      (f) =>
+        f.type.startsWith("image/") ||
+        /\.(jpe?g|png|webp|heic|heif|gif)$/i.test(f.name),
+    );
+    if (valid.length === 0) {
+      setError(t("errorNoPhotos"));
+      return;
+    }
+    const combined = [...selectedPhotos, ...valid].slice(0, 10);
+    setSelectedPhotos(combined);
+    setPhotoPreviews(combined.map((f) => URL.createObjectURL(f)));
+  };
+
+  const removePhoto = (index: number) => {
+    const next = selectedPhotos.filter((_, i) => i !== index);
+    setSelectedPhotos(next);
+    setPhotoPreviews(next.map((f) => URL.createObjectURL(f)));
+  };
+
+  const onExtractPhotos = () => {
+    if (selectedPhotos.length === 0) {
+      setError(t("errorNoPhotos"));
+      return;
+    }
+    setError(null);
+    setSingleResult(null);
+
+    const formData = new FormData();
+    formData.append("locale", locale);
+    for (const file of selectedPhotos) {
+      formData.append("photos", file);
+    }
+
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/import/photos", {
+          method: "POST",
+          body: formData,
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({ error: "generic" }));
+          const key =
+            data.error === "ai-config"
+              ? "errorAiConfig"
+              : data.error === "no-photos"
+                ? "errorNoPhotos"
+                : data.error === "extraction-failed"
+                  ? "errorPhotoExtraction"
+                  : "error";
+          setError(t(key));
+          return;
+        }
+
+        const data: {
+          recipe: ExtractedRecipe;
+          thumbnail: string | null;
+          sourceType?: "manual";
+        } = await res.json();
+
+        const recipeInput: RecipeInput = {
+          sourceType: "manual",
+          sourceUrl: null,
+          language: data.recipe.language,
+          title: data.recipe.title,
+          description: data.recipe.description,
+          servings: data.recipe.servings,
+          prepTimeMin: data.recipe.prepTimeMin,
+          cookTimeMin: data.recipe.cookTimeMin,
+          imageUrl: data.thumbnail,
+          calories: data.recipe.nutrition.calories,
+          proteinG: data.recipe.nutrition.proteinG,
+          carbsG: data.recipe.nutrition.carbsG,
+          fatG: data.recipe.nutrition.fatG,
+          fiberG: data.recipe.nutrition.fiberG,
+          ingredients: data.recipe.ingredients,
+          steps: data.recipe.steps,
+        };
+
+        setSingleResult({
+          recipe: recipeInput,
+          sourceType: "manual",
+          sourceUrl: null,
+        });
+      } catch {
+        setError(t("error"));
+      }
+    });
   };
 
   // URL submit handler (YouTube & Web)
@@ -348,7 +447,7 @@ export function ImportClient({
             size="sm"
             onClick={() => setSingleResult(null)}
           >
-            ← {singleResult.sourceType === "youtube" || singleResult.sourceType === "website" ? t("tabYoutube") : singleResult.sourceType === "tandoor" ? t("tabTandoor") : t("tabPreppr")}
+            ← {activeTab === "photos" ? t("tabPhotos") : singleResult.sourceType === "youtube" || singleResult.sourceType === "website" ? t("tabYoutube") : singleResult.sourceType === "tandoor" ? t("tabTandoor") : t("tabPreppr")}
           </Button>
         </div>
         <div className="rounded-2xl border border-border bg-muted/40 p-4 text-sm">
@@ -375,12 +474,12 @@ export function ImportClient({
       </div>
 
       {/* Top Source Switcher Tabs */}
-      <div className="flex rounded-xl border border-border bg-muted/30 p-1">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 rounded-xl border border-border bg-muted/30 p-1">
         <button
           type="button"
           onClick={() => switchTab("youtube")}
           className={cn(
-            "flex-1 rounded-lg py-2 text-sm font-medium transition cursor-pointer text-center",
+            "rounded-lg py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium transition cursor-pointer text-center truncate",
             activeTab === "youtube"
               ? "bg-background text-foreground shadow-sm font-semibold"
               : "text-foreground/60 hover:text-foreground",
@@ -390,9 +489,33 @@ export function ImportClient({
         </button>
         <button
           type="button"
+          onClick={() => switchTab("photos")}
+          className={cn(
+            "rounded-lg py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium transition cursor-pointer text-center truncate flex items-center justify-center gap-1.5",
+            activeTab === "photos"
+              ? "bg-background text-foreground shadow-sm font-semibold"
+              : "text-foreground/60 hover:text-foreground",
+          )}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="size-3.5 sm:size-4 shrink-0"
+          >
+            <path
+              fillRule="evenodd"
+              d="M1 8a2 2 0 0 1 2-2h.93a2 2 0 0 0 1.664-.89l.812-1.22A2 2 0 0 1 8.07 3h3.86a2 2 0 0 1 1.664.89l.812 1.22A2 2 0 0 0 16.07 6H17a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8Zm13.5 3a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM10 14a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"
+              clipRule="evenodd"
+            />
+          </svg>
+          <span className="truncate">{t("tabPhotos")}</span>
+        </button>
+        <button
+          type="button"
           onClick={() => switchTab("preppr")}
           className={cn(
-            "flex-1 rounded-lg py-2 text-sm font-medium transition cursor-pointer text-center",
+            "rounded-lg py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium transition cursor-pointer text-center truncate",
             activeTab === "preppr"
               ? "bg-background text-foreground shadow-sm font-semibold"
               : "text-foreground/60 hover:text-foreground",
@@ -404,7 +527,7 @@ export function ImportClient({
           type="button"
           onClick={() => switchTab("tandoor")}
           className={cn(
-            "flex-1 rounded-lg py-2 text-sm font-medium transition cursor-pointer text-center",
+            "rounded-lg py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium transition cursor-pointer text-center truncate",
             activeTab === "tandoor"
               ? "bg-background text-foreground shadow-sm font-semibold"
               : "text-foreground/60 hover:text-foreground",
@@ -620,6 +743,290 @@ export function ImportClient({
             {pending ? <Spinner /> : t("extract")}
           </Button>
         </form>
+      )}
+
+      {/* Photo Scan Form */}
+      {activeTab === "photos" && !batchRecipes && batchSuccessCount === null && (
+        <div className="space-y-5 rounded-2xl border border-border bg-muted/10 p-5 sm:p-6">
+          <div className="space-y-1.5">
+            <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-5 text-foreground/70"
+              >
+                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                <circle cx="12" cy="13" r="3" />
+              </svg>
+              {t("photosTitle")}
+            </h2>
+            <p className="text-xs sm:text-sm text-foreground/60">
+              {t("photosDescription")}
+            </p>
+          </div>
+
+          {/* Hidden inputs for gallery selection and direct camera capture */}
+          <input
+            ref={photoGalleryInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files && e.target.files.length > 0) {
+                handleFilesAdded(e.target.files);
+                e.target.value = "";
+              }
+            }}
+          />
+          <input
+            ref={photoCameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files && e.target.files.length > 0) {
+                handleFilesAdded(e.target.files);
+                e.target.value = "";
+              }
+            }}
+          />
+
+          {selectedPhotos.length === 0 ? (
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsPhotoDragging(true);
+              }}
+              onDragLeave={() => setIsPhotoDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsPhotoDragging(false);
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  handleFilesAdded(e.dataTransfer.files);
+                }
+              }}
+              className={cn(
+                "flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-6 sm:p-8 text-center transition",
+                isPhotoDragging
+                  ? "border-foreground bg-muted/40"
+                  : "border-border hover:border-foreground/40 bg-background/50",
+              )}
+            >
+              <div className="flex size-14 items-center justify-center rounded-2xl bg-muted text-foreground/70 shadow-inner">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth="1.5"
+                  stroke="currentColor"
+                  className="size-7"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"
+                  />
+                </svg>
+              </div>
+
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  {t("photosDropzone")}
+                </p>
+                <p className="text-xs text-foreground/50 mt-1">{t("photosHint")}</p>
+              </div>
+
+              {/* Action Buttons for Mobile Camera & File Picker */}
+              <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => photoCameraInputRef.current?.click()}
+                  className="gap-1.5 h-10 px-4 cursor-pointer"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="size-4"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M1 8a2 2 0 0 1 2-2h.93a2 2 0 0 0 1.664-.89l.812-1.22A2 2 0 0 1 8.07 3h3.86a2 2 0 0 1 1.664.89l.812 1.22A2 2 0 0 0 16.07 6H17a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8Zm13.5 3a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM10 14a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  {t("takePhoto")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => photoGalleryInputRef.current?.click()}
+                  className="gap-1.5 h-10 px-4 cursor-pointer"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="size-4"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M4.5 2A2.5 2.5 0 0 0 2 4.5v11A2.5 2.5 0 0 0 4.5 18h11a2.5 2.5 0 0 0 2.5-2.5v-11A2.5 2.5 0 0 0 15.5 2h-11ZM11 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm-4.5 7.5a.75.75 0 0 0 .75.75h5.5a.75.75 0 0 0 .75-.75v-1.086l-1.72-1.72a.75.75 0 0 0-1.06 0L9.5 11.94l-.72-.72a.75.75 0 0 0-1.06 0l-1.22 1.22v1.06Z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  {t("choosePhotos")}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-foreground/80 uppercase tracking-wider">
+                  {t("photosSelected", { count: selectedPhotos.length })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPhotos([]);
+                    setPhotoPreviews([]);
+                  }}
+                  className="text-xs text-foreground/60 hover:text-red-500 font-medium transition cursor-pointer"
+                >
+                  {t("deselectAll")}
+                </button>
+              </div>
+
+              {/* Photo preview grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {selectedPhotos.map((photo, idx) => (
+                  <div
+                    key={`${photo.name}-${photo.size}-${idx}`}
+                    className="relative group rounded-xl border border-border bg-background overflow-hidden shadow-xs aspect-4/3 flex flex-col justify-end"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photoPreviews[idx]}
+                      alt={`Photo ${idx + 1}`}
+                      className="absolute inset-0 size-full object-cover"
+                    />
+                    <div className="relative z-10 flex items-center justify-between bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 text-white">
+                      <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-black/50 backdrop-blur-xs">
+                        #{idx + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(idx)}
+                        className="flex size-7 items-center justify-center rounded-full bg-black/60 hover:bg-red-600 text-white transition cursor-pointer"
+                        aria-label={t("removePhoto")}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          className="size-4"
+                        >
+                          <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Add More Slot if < 10 */}
+                {selectedPhotos.length < 10 && (
+                  <div className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-background/50 hover:border-foreground/30 p-3 aspect-4/3 text-center">
+                    <span className="text-xs font-medium text-foreground/70">
+                      {t("addMorePhotos")}
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => photoCameraInputRef.current?.click()}
+                        className="flex size-9 items-center justify-center rounded-lg bg-muted hover:bg-muted/80 text-foreground cursor-pointer transition shadow-xs"
+                        title={t("addPhotoCamera")}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          className="size-4"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M1 8a2 2 0 0 1 2-2h.93a2 2 0 0 0 1.664-.89l.812-1.22A2 2 0 0 1 8.07 3h3.86a2 2 0 0 1 1.664.89l.812 1.22A2 2 0 0 0 16.07 6H17a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8Zm13.5 3a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM10 14a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => photoGalleryInputRef.current?.click()}
+                        className="flex size-9 items-center justify-center rounded-lg bg-muted hover:bg-muted/80 text-foreground cursor-pointer transition shadow-xs"
+                        title={t("choosePhotos")}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          className="size-4"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M4.5 2A2.5 2.5 0 0 0 2 4.5v11A2.5 2.5 0 0 0 4.5 18h11a2.5 2.5 0 0 0 2.5-2.5v-11A2.5 2.5 0 0 0 15.5 2h-11ZM11 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm-4.5 7.5a.75.75 0 0 0 .75.75h5.5a.75.75 0 0 0 .75-.75v-1.086l-1.72-1.72a.75.75 0 0 0-1.06 0L9.5 11.94l-.72-.72a.75.75 0 0 0-1.06 0l-1.22 1.22v1.06Z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Extract Recipe Action Button */}
+              <Button
+                type="button"
+                className="w-full h-11 font-medium text-base gap-2 cursor-pointer mt-2"
+                disabled={pending || selectedPhotos.length === 0}
+                onClick={onExtractPhotos}
+              >
+                {pending ? (
+                  <>
+                    <Spinner />
+                    <span>{t("extractingPhotos")}</span>
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="size-5"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 1c3.866 0 7 3.134 7 7a6.977 6.977 0 0 1-1.636 4.485l4.343 4.343a1 1 0 0 1-1.414 1.414l-4.343-4.343A6.977 6.977 0 0 1 10 15a7 7 0 1 1 0-14Zm-5 7a5 5 0 1 0 10 0 5 5 0 0 0-10 0Z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>{t("extractPhotos")}</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+        </div>
       )}
 
       {/* Preppr Form */}

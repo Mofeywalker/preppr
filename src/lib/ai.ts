@@ -11,7 +11,8 @@ function getModel() {
     throw new Error("OPENROUTER_API_KEY is not set");
   }
   const provider = createOpenRouter({ apiKey });
-  return provider("gpt-5.6-luna");
+  const modelId = process.env.OPENROUTER_MODEL || "gpt-5.6-luna";
+  return provider(modelId);
 }
 
 function getImageModel() {
@@ -99,6 +100,28 @@ Extract ingredients with quantities and units. If a quantity can't be determined
 Return ONLY the structured recipe.`;
 }
 
+function getHandwrittenExtractionSystemPrompt(preferredLocale: Locale) {
+  const langName = preferredLocale === "de" ? "German (Deutsch)" : "English";
+  return `You are an expert culinary AI specialized in transcribing and structuring recipes from photos of handwritten notes, recipe index cards, family notebooks, and cookbook clippings.
+Extract and translate the recipe into ${langName}. All textual fields including title, description, ingredient names, units, and step instructions MUST be written in ${langName}, regardless of the original language of the handwritten text.
+Set the "language" field in the output schema to "${preferredLocale}".
+
+HANDWRITING TRANSCRIPTION & MULTI-PHOTO GUIDELINES:
+1. Multi-photo consolidation: The user may provide multiple photos representing multiple pages, the front and back of recipe cards, or different sections of the same recipe. Combine them logically and chronologically into a single, complete recipe.
+2. Deciphering handwriting & culinary context: Carefully decipher cursive, abbreviations, or informal shorthand (e.g. "TL", "EL", "tbsp", "tsp", "pkg", "Pck.", "Prise", "pinch", "etwas"). If words or numbers are slightly faded or smudged, use culinary knowledge to infer the correct ingredients, measurements, or cooking instructions.
+3. Reasonable defaults: If servings, prep time, or cook time are not explicitly noted, infer a sensible default (e.g. 4 servings) or set to null if completely indeterminable.
+
+CRITICAL METRIC UNIT REQUIREMENT:
+You MUST ensure that the output recipe strictly uses METRIC units (e.g. g, kg, ml, l, cm, °C) and NEVER Imperial / US Customary units (cups, oz, ounces, lbs, pounds, fl oz, fluid ounces, Fahrenheit).
+If the handwritten note uses Imperial units or older customary units (cups, sticks of butter, etc.), convert them into metric cooking equivalents (e.g. 1 cup flour ≈ 120-125 g, 1 stick butter ≈ 115 g, 1 cup liquid ≈ 240-250 ml, convert °F to °C).
+
+MANDATORY NUTRITION ESTIMATION:
+Handwritten recipes virtually never contain nutritional data. You MUST calculate or realistically estimate the macro nutritional values per serving (calories, proteinG, carbsG, fatG, and fiberG in grams) based on the ingredients, quantities, and servings. Never return 0 or null for calories, protein, carbs, or fat unless the dish genuinely contains none.
+
+Extract ingredients with quantities and units. If a quantity can't be determined, leave it null but keep the unit if applicable.
+Return ONLY the structured recipe.`;
+}
+
 export async function extractFromTranscript(
   transcript: string,
   description: string,
@@ -171,6 +194,42 @@ export async function extractFromAudio(
             data: Buffer.from(audioBase64, "base64"),
           },
         ],
+      },
+    ],
+  });
+  return object;
+}
+
+export async function extractFromPhotos(
+  images: Array<{ buffer: Buffer; mimeType: string }>,
+  preferredLocale: Locale = getInstanceLocale(),
+): Promise<ExtractedRecipe> {
+  const targetLanguage = preferredLocale === "de" ? "German (Deutsch)" : "English";
+
+  const content: Array<
+    | { type: "text"; text: string }
+    | { type: "file"; data: Buffer; mediaType: string }
+  > = [
+    {
+      type: "text",
+      text: `Transcribe this handwritten recipe from the provided ${images.length} photo(s) and extract a structured recipe. Output all recipe content in ${targetLanguage} with language: "${preferredLocale}". Ensure metric units are used and nutrition is estimated.`,
+    },
+    ...images.map((img) => ({
+      type: "file" as const,
+      mediaType: img.mimeType || "image/jpeg",
+      data: img.buffer,
+    })),
+  ];
+
+  const { object } = await generateObject({
+    model: getModel(),
+    schema: extractSchema,
+    schemaName: "Recipe",
+    system: getHandwrittenExtractionSystemPrompt(preferredLocale),
+    messages: [
+      {
+        role: "user",
+        content,
       },
     ],
   });
