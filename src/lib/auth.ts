@@ -40,6 +40,14 @@ if (process.env.OIDC_CLIENT_ID) {
   );
 }
 
+const hasOidc = !!process.env.OIDC_CLIENT_ID;
+const disableEmailAuth =
+  hasOidc &&
+  (process.env.AUTH_DISABLE_EMAIL_LOGIN === "true" ||
+    process.env.AUTH_DISABLE_EMAIL_PASSWORD === "true");
+const disableEmailSignUp =
+  disableEmailAuth || process.env.AUTH_DISABLE_REGISTER === "true";
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "sqlite",
@@ -53,7 +61,8 @@ export const auth = betterAuth({
     process.env.BETTER_AUTH_SECRET ||
     "preppr-default-secret-key-change-in-production-32-chars-long",
   emailAndPassword: {
-    enabled: true,
+    enabled: !disableEmailAuth,
+    disableSignUp: disableEmailSignUp,
     minPasswordLength: 6,
     autoSignIn: true,
   },

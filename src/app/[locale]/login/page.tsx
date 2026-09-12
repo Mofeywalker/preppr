@@ -12,6 +12,18 @@ export default async function LoginPage({
   setRequestLocale(locale);
 
   const hasOidc = !!process.env.OIDC_CLIENT_ID;
+  const emailAuthDisabled =
+    hasOidc &&
+    (process.env.AUTH_DISABLE_EMAIL_LOGIN === "true" ||
+      process.env.AUTH_DISABLE_EMAIL_PASSWORD === "true");
+  const registrationDisabled =
+    emailAuthDisabled || process.env.AUTH_DISABLE_REGISTER === "true";
 
-  return <LoginClient hasOidc={hasOidc} />;
+  return (
+    <LoginClient
+      hasOidc={hasOidc}
+      emailAuthDisabled={emailAuthDisabled}
+      registrationDisabled={registrationDisabled}
+    />
+  );
 }

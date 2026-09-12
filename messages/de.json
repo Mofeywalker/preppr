@@ -201,7 +201,10 @@
     "invalidCredentials": "Ungültige E-Mail oder Passwort",
     "userExists": "Ein Konto mit dieser E-Mail existiert bereits",
     "passwordTooShort": "Passwort muss mindestens 6 Zeichen lang sein",
-    "submitting": "Bitte warten…"
+    "submitting": "Bitte warten…",
+    "registrationDisabled": "Die Registrierung per E-Mail ist auf dieser Instanz deaktiviert.",
+    "backToLogin": "Zurück zur Anmeldung",
+    "ssoOnlyNotice": "Die Anmeldung ist nur über Single Sign-On (SSO) möglich."
   },
   "Sharing": {
     "filterAll": "Alle",

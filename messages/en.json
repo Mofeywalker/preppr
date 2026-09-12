@@ -201,7 +201,10 @@
     "invalidCredentials": "Invalid email or password",
     "userExists": "An account with this email already exists",
     "passwordTooShort": "Password must be at least 6 characters",
-    "submitting": "Please wait…"
+    "submitting": "Please wait…",
+    "registrationDisabled": "Email registration is disabled on this instance.",
+    "backToLogin": "Back to sign in",
+    "ssoOnlyNotice": "Sign in is only available via Single Sign-On (SSO)."
   },
   "Sharing": {
     "filterAll": "All",

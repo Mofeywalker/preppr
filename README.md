@@ -92,7 +92,8 @@ To enable AI recipe extraction and image generation:
 | `APP_LOCALE` | No | `de` | Instance language (`de` or `en`) used for UI and recipe imports |
 | `BETTER_AUTH_SECRET` | Prod | *auto-dev* | Secret for cookie signing and session hashing |
 | `BETTER_AUTH_URL` | No | `http://localhost:3000` | Canonical app URL |
-| `AUTH_DISABLE_REGISTER` | No | `false` | Disable public user registrations |
+| `AUTH_DISABLE_REGISTER` | No | `false` | Disable public email/password user registrations |
+| `AUTH_DISABLE_EMAIL_LOGIN` | No | `false` | Disable email/password login entirely (SSO only, requires OIDC) |
 | `OIDC_CLIENT_ID` | For SSO | — | OpenID Connect Client ID |
 | `OIDC_CLIENT_SECRET` | For SSO | — | OpenID Connect Client Secret |
 | `OIDC_DISCOVERY_URL` | For SSO | — | OpenID Connect discovery endpoint |

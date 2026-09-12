@@ -9,8 +9,10 @@ import { Logo } from "@/components/logo";
 
 export function RegisterClient({
   registrationDisabled,
+  hasOidc = false,
 }: {
   registrationDisabled: boolean;
+  hasOidc?: boolean;
 }) {
   const t = useTranslations("Auth");
   const router = useRouter();
@@ -19,7 +21,22 @@ export function RegisterClient({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [oidcLoading, setOidcLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleOidcSignIn = async () => {
+    setError(null);
+    setOidcLoading(true);
+    try {
+      await authClient.signIn.social({
+        provider: "oidc",
+        callbackURL: window.location.origin,
+      });
+    } catch {
+      setError(t("invalidCredentials"));
+      setOidcLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,8 +88,40 @@ export function RegisterClient({
         )}
 
         {registrationDisabled ? (
-          <div className="rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">
-            Registration is currently disabled on this instance.
+          <div className="space-y-4">
+            <div className="rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">
+              {t("registrationDisabled")}
+            </div>
+
+            {hasOidc && (
+              <Button
+                type="button"
+                className="w-full py-2.5 font-semibold flex items-center justify-center gap-2 cursor-pointer"
+                disabled={oidcLoading}
+                onClick={handleOidcSignIn}
+              >
+                {oidcLoading ? (
+                  <span>{t("submitting")}</span>
+                ) : (
+                  <>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                      />
+                    </svg>
+                    <span>{t("signInWithOidc")}</span>
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         ) : (
           <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
@@ -148,7 +197,7 @@ export function RegisterClient({
             href="/login"
             className="font-medium text-primary hover:underline"
           >
-            {t("haveAccount")}
+            {registrationDisabled ? t("backToLogin") : t("haveAccount")}
           </Link>
         </div>
       </div>
