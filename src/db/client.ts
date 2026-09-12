@@ -13,8 +13,22 @@ function createInstance() {
   const sqlite = new Database(dbPath);
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
+  sqlite.pragma("busy_timeout = 10000");
   const instance = drizzle(sqlite, { schema });
-  migrate(instance, { migrationsFolder: "./drizzle" });
+
+  // Avoid running migrations during Next.js production build where parallel
+  // workers race against a freshly created database file.
+  if (process.env.NEXT_PHASE !== "phase-production-build") {
+    try {
+      migrate(instance, { migrationsFolder: "./drizzle" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!msg.includes("already exists")) {
+        throw err;
+      }
+    }
+  }
+
   return instance;
 }
 

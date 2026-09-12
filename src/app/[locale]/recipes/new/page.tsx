@@ -3,6 +3,8 @@ import { RecipeForm } from "@/components/recipe-form";
 import { listAllTags } from "@/lib/recipes";
 import type { Locale } from "@/i18n/routing";
 
+export const dynamic = "force-dynamic";
+
 export default async function NewRecipePage({
   params,
 }: {
