@@ -3,6 +3,7 @@ import { generateObject, generateImage } from "ai";
 import { z } from "zod";
 import { getInstanceLocale, type Locale } from "@/i18n/routing";
 import type { ScrapedRecipePage } from "./scraper";
+import type { RecipeInput } from "@/lib/recipes";
 
 function getModel() {
   const apiKey = process.env.OPENROUTER_API_KEY;
@@ -222,4 +223,103 @@ export async function transformRecipeImage(
 }
 
 export const processYouTubeThumbnail = transformRecipeImage;
+
+export const nutritionEstimateSchema = z.object({
+  calories: z.number().describe("Total calories in kcal per single serving"),
+  proteinG: z.number().describe("Protein in grams per single serving"),
+  carbsG: z.number().describe("Carbohydrates in grams per single serving"),
+  fatG: z.number().describe("Fat in grams per single serving"),
+  fiberG: z.number().nullable().describe("Fiber in grams per single serving"),
+});
+
+export type EstimatedNutrition = z.infer<typeof nutritionEstimateSchema>;
+
+export async function estimateRecipeNutrition(recipe: {
+  title: string;
+  servings: number;
+  ingredients: Array<{ name: string; quantity?: number | null; unit?: string | null }>;
+}): Promise<{
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+  fiberG: number | null;
+}> {
+  const ingList = recipe.ingredients
+    .map((ing) => {
+      const amount = [ing.quantity, ing.unit].filter(Boolean).join(" ");
+      return amount ? `- ${amount} ${ing.name}` : `- ${ing.name}`;
+    })
+    .join("\n");
+
+  const prompt = [
+    `Recipe: "${recipe.title}"`,
+    `Number of servings: ${recipe.servings || 1}`,
+    `Ingredients (total for the recipe):`,
+    ingList || "- Not specified",
+    "",
+    `Calculate or realistically estimate the macro nutritional values PER SINGLE SERVING (calories in kcal, protein, carbs, fat, and fiber in grams).`,
+    `Divide the total ingredient values by the number of servings (${recipe.servings || 1}).`,
+  ].join("\n");
+
+  const { object } = await generateObject({
+    model: getModel(),
+    schema: nutritionEstimateSchema,
+    schemaName: "NutritionEstimate",
+    prompt,
+  });
+
+  return {
+    calories: Math.round(object.calories),
+    proteinG: Math.round(object.proteinG * 10) / 10,
+    carbsG: Math.round(object.carbsG * 10) / 10,
+    fatG: Math.round(object.fatG * 10) / 10,
+    fiberG: object.fiberG != null ? Math.round(object.fiberG * 10) / 10 : null,
+  };
+}
+
+export async function populateMissingNutrition(
+  recipes: RecipeInput[],
+): Promise<RecipeInput[]> {
+  if (!process.env.OPENROUTER_API_KEY) {
+    return recipes;
+  }
+
+  const hasNutrition = (r: RecipeInput) =>
+    (r.calories != null && r.calories > 0) ||
+    (r.proteinG != null && r.proteinG > 0) ||
+    (r.carbsG != null && r.carbsG > 0) ||
+    (r.fatG != null && r.fatG > 0);
+
+  const missing = recipes.filter((r) => !hasNutrition(r) && r.ingredients && r.ingredients.length > 0);
+  if (missing.length === 0) {
+    return recipes;
+  }
+
+  // Process in concurrent batches of 4 to prevent rate limits or connection timeouts
+  const batchSize = 4;
+  for (let i = 0; i < missing.length; i += batchSize) {
+    const batch = missing.slice(i, i + batchSize);
+    await Promise.all(
+      batch.map(async (r) => {
+        try {
+          const estimated = await estimateRecipeNutrition({
+            title: r.title,
+            servings: r.servings,
+            ingredients: r.ingredients,
+          });
+          r.calories = estimated.calories;
+          r.proteinG = estimated.proteinG;
+          r.carbsG = estimated.carbsG;
+          r.fatG = estimated.fatG;
+          r.fiberG = estimated.fiberG;
+        } catch (err) {
+          console.warn(`Could not auto-estimate nutrition for "${r.title}":`, err);
+        }
+      }),
+    );
+  }
+
+  return recipes;
+}
 

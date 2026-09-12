@@ -30,6 +30,24 @@ export interface TandoorNutrition {
   carbohydrates?: number | string | null;
   fats?: number | string | null;
   fiber?: number | string | null;
+  [key: string]: unknown;
+}
+
+export interface TandoorProperty {
+  property_type?: {
+    id?: number;
+    name?: string;
+    open_data_slug?: string;
+  } | string | null;
+  property_amount?: number | string | null;
+}
+
+export interface TandoorFoodProperty {
+  id?: number;
+  name?: string;
+  unit?: string | null;
+  total_value?: number | string | null;
+  open_data_slug?: string | null;
 }
 
 export interface TandoorRecipe {
@@ -44,6 +62,8 @@ export interface TandoorRecipe {
   source_url?: string | null;
   image?: string | null;
   nutrition?: TandoorNutrition | null;
+  properties?: TandoorProperty[] | null;
+  food_properties?: Record<string, TandoorFoodProperty> | null;
   steps?: TandoorStep[] | null;
   ingredients?: TandoorIngredient[] | null;
   keywords?: Array<{ name: string }> | null;
@@ -63,35 +83,118 @@ export function parseNumber(val: unknown): number | null {
   if (typeof val === "string") {
     const cleaned = val.trim().replace(",", ".");
     if (!cleaned) return null;
-    const parsed = parseFloat(cleaned);
-    return Number.isFinite(parsed) ? parsed : null;
+    const match = cleaned.match(/-?\d+(?:\.\d+)?/);
+    if (match) {
+      const parsed = parseFloat(match[0]);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
   }
   return null;
 }
 
-export function extractNutrition(nut?: TandoorNutrition | null): {
+export function extractNutrition(
+  nut?: TandoorNutrition | Record<string, unknown> | null,
+  properties?: TandoorProperty[] | null,
+  foodProperties?: Record<string, TandoorFoodProperty> | null,
+  servings: number = 1,
+): {
   calories: number | null;
   proteinG: number | null;
   carbsG: number | null;
   fatG: number | null;
   fiberG: number | null;
 } {
-  if (!nut) {
-    return {
-      calories: null,
-      proteinG: null,
-      carbsG: null,
-      fatG: null,
-      fiberG: null,
+  let calories: number | null = null;
+  let proteinG: number | null = null;
+  let carbsG: number | null = null;
+  let fatG: number | null = null;
+  let fiberG: number | null = null;
+
+  // 1. Check explicit nutrition object
+  if (nut && typeof nut === "object") {
+    const record = nut as Record<string, unknown>;
+
+    const findNum = (keys: string[]): number | null => {
+      for (const k of keys) {
+        if (k in record && record[k] != null) {
+          const num = parseNumber(record[k]);
+          if (num != null) return num;
+        }
+      }
+      return null;
     };
+
+    const cal = findNum(["calories", "kcal", "energy", "cal"]);
+    if (cal != null) calories = Math.round(cal);
+
+    const prot = findNum(["proteins", "protein", "proteinContent", "eiweiss", "eiweiß"]);
+    if (prot != null) proteinG = Math.round(prot * 10) / 10;
+
+    const carbs = findNum(["carbohydrates", "carbohydrate", "carbs", "carbohydrateContent", "kohlenhydrate"]);
+    if (carbs != null) carbsG = Math.round(carbs * 10) / 10;
+
+    const fat = findNum(["fats", "fat", "fatContent", "fett"]);
+    if (fat != null) fatG = Math.round(fat * 10) / 10;
+
+    const fiber = findNum(["fiber", "fibre", "fiberContent", "dietary_fiber", "ballaststoffe"]);
+    if (fiber != null) fiberG = Math.round(fiber * 10) / 10;
+  }
+
+  // 2. Check recipe properties array (e.g. from Tandoor properties)
+  if (Array.isArray(properties) && properties.length > 0) {
+    for (const prop of properties) {
+      if (!prop) continue;
+      const pt = prop.property_type;
+      const slug = typeof pt === "object" ? (pt?.open_data_slug || "").toLowerCase() : "";
+      const name = typeof pt === "object" ? (pt?.name || "").toLowerCase() : typeof pt === "string" ? pt.toLowerCase() : "";
+      const val = parseNumber(prop.property_amount);
+      if (val == null) continue;
+
+      if (calories == null && (slug === "property-calories" || name.includes("calor") || name.includes("kalor") || name.includes("kcal") || name.includes("energi") || name.includes("energy"))) {
+        calories = Math.round(val);
+      } else if (proteinG == null && (slug === "property-proteins" || name.includes("protein") || name.includes("eiweiß") || name.includes("eiweiss"))) {
+        proteinG = Math.round(val * 10) / 10;
+      } else if (carbsG == null && (slug === "property-carbohydrates" || name.includes("carb") || name.includes("kohlenhydrat"))) {
+        carbsG = Math.round(val * 10) / 10;
+      } else if (fatG == null && (slug === "property-fats" || name.includes("fat") || name.includes("fett"))) {
+        fatG = Math.round(val * 10) / 10;
+      } else if (fiberG == null && (slug === "property-fiber" || name.includes("fiber") || name.includes("fibre") || name.includes("ballaststoff"))) {
+        fiberG = Math.round(val * 10) / 10;
+      }
+    }
+  }
+
+  // 3. Check food_properties object (Tandoor computed properties dictionary, total for all servings)
+  if (foodProperties && typeof foodProperties === "object") {
+    const sFactor = servings > 0 ? servings : 1;
+    for (const fp of Object.values(foodProperties)) {
+      if (!fp || fp.total_value == null) continue;
+      const slug = (fp.open_data_slug || "").toLowerCase();
+      const name = (fp.name || "").toLowerCase();
+      const rawTotal = parseNumber(fp.total_value);
+      if (rawTotal == null) continue;
+      const valPerServing = rawTotal / sFactor;
+
+      if (calories == null && (slug === "property-calories" || name.includes("calor") || name.includes("kalor") || name.includes("kcal") || name.includes("energi") || name.includes("energy"))) {
+        calories = Math.round(valPerServing);
+      } else if (proteinG == null && (slug === "property-proteins" || name.includes("protein") || name.includes("eiweiß") || name.includes("eiweiss"))) {
+        proteinG = Math.round(valPerServing * 10) / 10;
+      } else if (carbsG == null && (slug === "property-carbohydrates" || name.includes("carb") || name.includes("kohlenhydrat"))) {
+        carbsG = Math.round(valPerServing * 10) / 10;
+      } else if (fatG == null && (slug === "property-fats" || name.includes("fat") || name.includes("fett"))) {
+        fatG = Math.round(valPerServing * 10) / 10;
+      } else if (fiberG == null && (slug === "property-fiber" || name.includes("fiber") || name.includes("fibre") || name.includes("ballaststoff"))) {
+        fiberG = Math.round(valPerServing * 10) / 10;
+      }
+    }
   }
 
   return {
-    calories: parseNumber(nut.calories) ? Math.round(parseNumber(nut.calories)!) : null,
-    proteinG: parseNumber(nut.proteins),
-    carbsG: parseNumber(nut.carbohydrates),
-    fatG: parseNumber(nut.fats),
-    fiberG: parseNumber(nut.fiber),
+    calories,
+    proteinG,
+    carbsG,
+    fatG,
+    fiberG,
   };
 }
 
@@ -135,7 +238,7 @@ export function tandoorToRecipeInput(
 
   const prepTimeMin = parseNumber(raw.working_time);
   const cookTimeMin = parseNumber(raw.waiting_time);
-  const nutrition = extractNutrition(raw.nutrition);
+  const nutrition = extractNutrition(raw.nutrition, raw.properties, raw.food_properties, servings);
 
   // Extract ingredients from steps and/or root
   const allIngredients: { name: string; quantity?: number | null; unit?: string | null }[] = [];

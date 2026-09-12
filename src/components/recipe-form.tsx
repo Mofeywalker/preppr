@@ -133,6 +133,8 @@ export function RecipeForm({
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadPhotoSuccess, setUploadPhotoSuccess] = useState(false);
   const [uploadPhotoError, setUploadPhotoError] = useState<string | null>(null);
+  const [estimatingNutrition, setEstimatingNutrition] = useState(false);
+  const [nutritionNotice, setNutritionNotice] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -214,6 +216,55 @@ export function RecipeForm({
       );
     } finally {
       setRefetchingPhoto(false);
+    }
+  };
+
+  const handleEstimateNutrition = async () => {
+    const validIngs = ings
+      .filter((i) => i.name.trim())
+      .map((i) => ({
+        name: i.name.trim(),
+        quantity: i.quantity ? parseFloat(i.quantity) : null,
+        unit: i.unit.trim() || null,
+      }));
+
+    if (validIngs.length === 0) {
+      setNutritionNotice(t("estimateNutritionMissingIngredients"));
+      return;
+    }
+
+    setEstimatingNutrition(true);
+    setNutritionNotice(null);
+    try {
+      const parsedServings = parseFloat(servings);
+      const res = await fetch("/api/recipes/estimate-nutrition", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim() || "Recipe",
+          servings: !isNaN(parsedServings) && parsedServings > 0 ? Math.round(parsedServings) : 1,
+          ingredients: validIngs,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to estimate nutrition");
+      }
+
+      const data = await res.json();
+      if (data.nutrition) {
+        setCalories(data.nutrition.calories != null ? String(data.nutrition.calories) : "");
+        setProtein(data.nutrition.proteinG != null ? String(data.nutrition.proteinG) : "");
+        setCarbs(data.nutrition.carbsG != null ? String(data.nutrition.carbsG) : "");
+        setFat(data.nutrition.fatG != null ? String(data.nutrition.fatG) : "");
+        setFiber(data.nutrition.fiberG != null ? String(data.nutrition.fiberG) : "");
+        setNutritionNotice(t("estimateNutritionSuccess"));
+        setTimeout(() => setNutritionNotice(null), 4000);
+      }
+    } catch {
+      setNutritionNotice(t("estimateNutritionError"));
+    } finally {
+      setEstimatingNutrition(false);
     }
   };
 
@@ -608,7 +659,34 @@ export function RecipeForm({
           </div>
 
           <div className="rounded-2xl border border-border bg-muted/10 p-5 space-y-4">
-            <h2 className="text-base font-semibold tracking-tight">{t("nutrition")}</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-base font-semibold tracking-tight">{t("nutrition")}</h2>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={estimatingNutrition}
+                onClick={handleEstimateNutrition}
+                className="text-xs h-7 gap-1.5 px-2.5 cursor-pointer"
+              >
+                {estimatingNutrition ? (
+                  <>
+                    <Spinner />
+                    <span>{t("estimatingNutrition")}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>✨</span>
+                    <span>{t("estimateNutrition")}</span>
+                  </>
+                )}
+              </Button>
+            </div>
+            {nutritionNotice && (
+              <p className="text-xs text-muted-foreground animate-in fade-in duration-200">
+                {nutritionNotice}
+              </p>
+            )}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <NumField label={t("calories")} value={calories} onChange={setCalories} />
               <NumField label={t("protein")} value={protein} onChange={setProtein} />

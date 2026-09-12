@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { tandoorToRecipeInput, saveUploadedImage, type TandoorRecipe } from "@/lib/tandoor";
+import { populateMissingNutrition } from "@/lib/ai";
 import { getInstanceLocale, type Locale } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
 
@@ -89,6 +90,8 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      await populateMissingNutrition(results);
+
       return Response.json({
         type: "batch",
         recipes: results,
@@ -113,6 +116,8 @@ export async function POST(req: NextRequest) {
         sourceUrl: raw.source_url || url,
         imageUrl: localImageUrl,
       });
+
+      await populateMissingNutrition([recipeInput]);
 
       return Response.json({
         type: "single",

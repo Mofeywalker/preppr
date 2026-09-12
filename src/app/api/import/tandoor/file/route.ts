@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { parseRecipeUpload } from "@/lib/archive";
+import { populateMissingNutrition } from "@/lib/ai";
 import type { Locale } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
 
@@ -27,6 +28,8 @@ export async function POST(req: NextRequest) {
     if (recipes.length === 0) {
       return Response.json({ error: "no-recipes-found" }, { status: 400 });
     }
+
+    await populateMissingNutrition(recipes);
 
     if (recipes.length === 1) {
       return Response.json({
