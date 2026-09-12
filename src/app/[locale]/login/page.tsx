@@ -1,4 +1,6 @@
 import { setRequestLocale } from "next-intl/server";
+import { redirect } from "@/i18n/navigation";
+import { getSession } from "@/lib/auth";
 import { LoginClient } from "./login-client";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +12,11 @@ export default async function LoginPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+
+  const session = await getSession();
+  if (session) {
+    redirect({ href: "/", locale });
+  }
 
   const hasOidc = !!process.env.OIDC_CLIENT_ID;
   const emailAuthDisabled =

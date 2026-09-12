@@ -134,6 +134,15 @@ export function Navbar() {
               </button>
             </div>
           )}
+
+          {!isAuthPage && !session?.user && (
+            <Link
+              href="/login"
+              className="rounded-lg px-2.5 py-1 text-xs sm:text-sm font-medium transition text-foreground/70 hover:bg-muted/60 hover:text-foreground"
+            >
+              {tAuth("signIn")}
+            </Link>
+          )}
         </div>
       </div>
     </header>

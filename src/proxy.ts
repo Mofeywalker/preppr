@@ -51,11 +51,6 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (sessionToken && isAuthPage) {
-    const homeUrl = new URL(`/${instanceLocale}`, req.url);
-    return NextResponse.redirect(homeUrl);
-  }
-
   return intlMiddleware(req);
 }
 
