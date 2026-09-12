@@ -16,6 +16,6 @@ export function extractUrlFromShareData(
 
   let cleaned = match[0];
   // Strip trailing punctuation often attached when sharing from messages or apps
-  cleaned = cleaned.replace(/[.,;:!?)\\]}>]+$/, "");
+  cleaned = cleaned.replace(/[.,;:!?)}\]\\>]+$/, "");
   return cleaned;
 }
