@@ -69,6 +69,7 @@
     "notFound": "Recipe not found.",
     "nutritionUnknown": "unknown",
     "generateImage": "Generate image",
+    "generateImageError": "Failed to generate image",
     "uploadImage": "Upload picture",
     "changeImage": "Change picture",
     "uploadingImage": "Uploading…",

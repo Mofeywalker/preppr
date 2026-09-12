@@ -69,6 +69,7 @@
     "notFound": "Rezept nicht gefunden.",
     "nutritionUnknown": "unbekannt",
     "generateImage": "Bild generieren",
+    "generateImageError": "Bild konnte nicht generiert werden",
     "uploadImage": "Bild hochladen",
     "changeImage": "Bild ändern",
     "uploadingImage": "Wird hochgeladen…",

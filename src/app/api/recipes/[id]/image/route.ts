@@ -65,7 +65,7 @@ export async function POST(
       await deleteUploadedImage(recipe.imageUrl);
     }
     const url = await saveUploadedImage(bytes, file.name, name);
-    await updateImage(id, url);
+    await updateImage(id, url, session.user.id);
     return Response.json({ url });
   }
 
@@ -134,9 +134,10 @@ export async function POST(
         "generated.png",
         name,
       );
-      await updateImage(id, url);
+      await updateImage(id, url, session.user.id);
       return Response.json({ url });
     } catch (err) {
+      console.error("Failed to generate recipe image:", err);
       return Response.json(
         { error: (err as Error).message || "Failed to generate photo" },
         { status: 500 },

@@ -129,12 +129,16 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ generate: true }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || t("generateImageError"));
+      }
       const { url } = await res.json();
       setImageUrl(url);
       setImgError(false);
-    } catch {
-      setGenError(t("generateImage"));
+      router.refresh();
+    } catch (err) {
+      setGenError((err as Error).message || t("generateImageError"));
     } finally {
       setGenLoading(false);
     }
