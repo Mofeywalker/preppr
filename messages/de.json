@@ -161,6 +161,8 @@
     "viewRecipes": "Zu den Rezepten",
     "urlLabel": "Webseite- oder YouTube-Link",
     "urlPlaceholder": "https://... (z. B. Chefkoch, Foodblog oder YouTube)",
+    "pasteFromClipboard": "Aus Zwischenablage einfügen",
+    "sharedLinkDetected": "Geteilter Link wurde eingefügt",
     "extract": "Rezept importieren",
     "extracting": "Wird importiert…",
     "review": "Prüfen & bearbeiten",

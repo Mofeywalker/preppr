@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition, useRef, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,19 @@ import { RecipeForm, type RecipeFormInitial } from "@/components/recipe-form";
 import type { Locale } from "@/i18n/routing";
 import type { RecipeInput } from "@/lib/recipes";
 import type { ExtractedRecipe } from "@/lib/ai";
+import { extractUrlFromShareData } from "@/lib/urls";
 import { cn } from "@/lib/utils";
+
+const emptySubscribe = () => () => {};
+function getClipboardSnapshot() {
+  return (
+    typeof navigator !== "undefined" &&
+    Boolean(navigator.clipboard && typeof navigator.clipboard.readText === "function")
+  );
+}
+function getClipboardServerSnapshot() {
+  return false;
+}
 
 type SingleImport = {
   recipe: RecipeInput;
@@ -18,16 +30,60 @@ type SingleImport = {
   sourceUrl?: string | null;
 };
 
-export function ImportClient({ locale, availableTags }: { locale: Locale; availableTags?: string[] }) {
+export function ImportClient({
+  locale,
+  availableTags,
+  initialUrl,
+}: {
+  locale: Locale;
+  availableTags?: string[];
+  initialUrl?: string;
+}) {
   const t = useTranslations("Import");
   const [pending, startTransition] = useTransition();
 
   // Tab & mode state
-  const [activeTab, setActiveTab] = useState<"preppr" | "youtube" | "tandoor">("preppr");
+  const [activeTab, setActiveTab] = useState<"preppr" | "youtube" | "tandoor">(
+    initialUrl ? "youtube" : "preppr",
+  );
   const [tandoorMode, setTandoorMode] = useState<"file" | "server">("file");
 
-  // YouTube state
-  const [ytUrl, setYtUrl] = useState("");
+  // YouTube / Web URL state
+  const [ytUrl, setYtUrl] = useState(initialUrl || "");
+  const [sharedNotice, setSharedNotice] = useState(Boolean(initialUrl));
+  const hasClipboard = useSyncExternalStore(
+    emptySubscribe,
+    getClipboardSnapshot,
+    getClipboardServerSnapshot,
+  );
+
+  // Synchronize when initialUrl prop updates
+  const [prevInitialUrl, setPrevInitialUrl] = useState(initialUrl);
+  if (initialUrl !== prevInitialUrl) {
+    setPrevInitialUrl(initialUrl);
+    if (initialUrl) {
+      setYtUrl(initialUrl);
+      setActiveTab("youtube");
+      setSharedNotice(true);
+    }
+  }
+
+  const handlePasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      const extracted = extractUrlFromShareData(null, text);
+      if (extracted) {
+        setYtUrl(extracted);
+        setError(null);
+        setSharedNotice(true);
+      } else if (text.trim()) {
+        setYtUrl(text.trim());
+        setError(null);
+      }
+    } catch {
+      // Clipboard access denied or unsupported
+    }
+  };
 
   // Tandoor Server state
   const [serverUrl, setServerUrl] = useState("");
@@ -628,12 +684,63 @@ export function ImportClient({ locale, availableTags }: { locale: Locale; availa
             <p className="text-xs text-foreground/60">{t("youtubeDescription")}</p>
           </div>
 
+          {sharedNotice && (
+            <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              <span className="flex items-center gap-1.5">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="size-4"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                {t("sharedLinkDetected")}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSharedNotice(false)}
+                className="text-emerald-600/70 hover:text-emerald-600 dark:text-emerald-400/70 dark:hover:text-emerald-400 cursor-pointer"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           <div className="space-y-2 pt-2">
-            <Label htmlFor="yt-url">{t("urlLabel")}</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="yt-url">{t("urlLabel")}</Label>
+              {hasClipboard && (
+                <button
+                  type="button"
+                  onClick={handlePasteFromClipboard}
+                  className="text-xs font-medium text-foreground/60 hover:text-foreground flex items-center gap-1 transition cursor-pointer"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="size-3.5"
+                  >
+                    <path d="M7 3.5A1.5 1.5 0 018.5 2h3.879a1.5 1.5 0 011.06.44l3.122 3.12A1.5 1.5 0 0117 6.622V16.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 017 16.5v-13z" />
+                    <path d="M4 6.5A1.5 1.5 0 015.5 5H6v9.5A2.5 2.5 0 008.5 17H14v.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 014 17.5v-11z" />
+                  </svg>
+                  {t("pasteFromClipboard")}
+                </button>
+              )}
+            </div>
             <Input
               id="yt-url"
               value={ytUrl}
-              onChange={(e) => setYtUrl(e.target.value)}
+              onChange={(e) => {
+                setYtUrl(e.target.value);
+                if (sharedNotice) setSharedNotice(false);
+              }}
               placeholder={t("urlPlaceholder")}
               inputMode="url"
               autoCapitalize="off"

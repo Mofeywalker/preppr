@@ -57,5 +57,14 @@ export default function manifest(): MetadataRoute.Manifest {
         icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }],
       },
     ],
+    share_target: {
+      action: "/import",
+      method: "GET",
+      params: {
+        title: "title",
+        text: "text",
+        url: "url",
+      },
+    },
   };
 }

@@ -161,6 +161,8 @@
     "viewRecipes": "Go to recipes",
     "urlLabel": "Website or YouTube URL",
     "urlPlaceholder": "https://... (e.g. recipe blog or YouTube)",
+    "pasteFromClipboard": "Paste from clipboard",
+    "sharedLinkDetected": "Shared link inserted",
     "extract": "Import recipe",
     "extracting": "Importing…",
     "review": "Review & edit",
