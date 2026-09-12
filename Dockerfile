@@ -29,7 +29,7 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0
 
 # Consolidated single layer for OS packages, non-root user, and data directory
-RUN apk add --no-cache ffmpeg yt-dlp && \
+RUN apk add --no-cache ffmpeg yt-dlp su-exec && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs && \
     mkdir -p /data/uploads && chown -R nextjs:nodejs /data
@@ -41,8 +41,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/messages ./messages
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Copy entrypoint script to fix volume permissions before dropping to nextjs user
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/
+
 VOLUME /data
-USER nextjs
 
 EXPOSE 3000
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "server.js"]
