@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "de.mf1337.preppr.twa",
+      "sha256_cert_fingerprints": [
+        "B5:F0:A6:D0:4C:13:32:AF:B6:05:3E:B7:2B:95:9F:85:F1:0F:F2:4D:B8:1D:28:7F:20:C4:DA:05:27:CC:08:7B"
+      ]
+    }
+  }
+]

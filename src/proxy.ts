@@ -10,6 +10,7 @@ export default async function middleware(req: NextRequest) {
   if (
     pathname.startsWith("/uploads") ||
     pathname.startsWith("/icons") ||
+    pathname.startsWith("/.well-known") ||
     pathname === "/sw.js" ||
     pathname === "/offline.html" ||
     pathname === "/manifest.webmanifest" ||
