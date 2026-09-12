@@ -6,6 +6,7 @@ import {
   type RecipeInput,
 } from "@/lib/recipes";
 import { auth } from "@/lib/auth";
+import { rateLimit, rateLimitResponse, getClientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -38,8 +39,11 @@ const inputSchema: z.ZodType<RecipeInput> = z.object({
 
 export async function GET(req: NextRequest) {
   const session = await auth.api.getSession({ headers: req.headers });
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const filter = req.nextUrl.searchParams.get("filter") as "all" | "mine" | "shared" | null;
-  const recipes = await listRecipes(session?.user.id, filter ?? "all");
+  const recipes = await listRecipes(session.user.id, filter ?? "all");
   return Response.json(recipes);
 }
 

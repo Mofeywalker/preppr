@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     console.error("Export error:", err);
     return Response.json(
-      { error: "export-failed", detail: (err as Error).message },
+      { error: "export-failed" },
       { status: 500 },
     );
   }

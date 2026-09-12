@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { estimateRecipeNutrition } from "@/lib/ai";
 import { auth } from "@/lib/auth";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,10 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Rate limit: 20 nutrition estimates per minute per user
+  const rl = rateLimit(`nutrition:${session.user.id}`, 20, 60_000);
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterMs);
+
   if (!process.env.OPENROUTER_API_KEY) {
     return Response.json({ error: "ai-config" }, { status: 503 });
   }
@@ -44,7 +49,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("Failed to estimate recipe nutrition:", err);
     return Response.json(
-      { error: "server-error", detail: (err as Error).message },
+      { error: "server-error" },
       { status: 500 },
     );
   }

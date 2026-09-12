@@ -42,7 +42,7 @@ export async function GET(
   } catch (err) {
     console.error("Single recipe export error:", err);
     return Response.json(
-      { error: "export-failed", detail: (err as Error).message },
+      { error: "export-failed" },
       { status: 500 },
     );
   }

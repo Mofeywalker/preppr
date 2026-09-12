@@ -4,6 +4,27 @@ import { genericOAuth } from "better-auth/plugins";
 import { db, schema } from "@/db/client";
 import { claimOrphanRecipesForFirstUser } from "@/lib/migration-claim";
 import { headers } from "next/headers";
+import { randomBytes } from "node:crypto";
+
+// Ensure a secret is always available. If BETTER_AUTH_SECRET is not set,
+// generate a random one per process start. Sessions will NOT survive restarts
+// in that case, so we log a loud warning.
+let authSecret = process.env.BETTER_AUTH_SECRET;
+if (!authSecret) {
+  authSecret = randomBytes(32).toString("base64");
+  console.warn(
+    "\n" +
+      "╔══════════════════════════════════════════════════════════════╗\n" +
+      "║  ⚠️  BETTER_AUTH_SECRET is not set!                         ║\n" +
+      "║  A random secret has been generated for this process.       ║\n" +
+      "║  Sessions will NOT persist across server restarts.          ║\n" +
+      "║                                                             ║\n" +
+      "║  Generate a permanent secret:                               ║\n" +
+      '║    openssl rand -base64 32                                  ║\n' +
+      "║  Then add it to your .env file as BETTER_AUTH_SECRET=...    ║\n" +
+      "╚══════════════════════════════════════════════════════════════╝\n",
+  );
+}
 
 const plugins = [];
 
@@ -57,13 +78,11 @@ export const auth = betterAuth({
     process.env.BETTER_AUTH_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
     "http://localhost:3000",
-  secret:
-    process.env.BETTER_AUTH_SECRET ||
-    "preppr-default-secret-key-change-in-production-32-chars-long",
+  secret: authSecret,
   emailAndPassword: {
     enabled: !disableEmailAuth,
     disableSignUp: disableEmailSignUp,
-    minPasswordLength: 6,
+    minPasswordLength: 8,
     autoSignIn: true,
   },
   user: {

@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { validateExternalUrl } from "@/lib/ssrf";
 
 export interface ScrapedRecipePage {
   url: string;
@@ -73,6 +74,8 @@ function resolveUrl(relativeOrAbsolute: string, baseUrl: string): string | null 
 }
 
 export async function fetchWebpage(url: string): Promise<string> {
+  await validateExternalUrl(url);
+
   const response = await fetch(url, {
     headers: {
       "User-Agent":

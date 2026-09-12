@@ -3,6 +3,7 @@ import { getRecipe, updateImage } from "@/lib/recipes";
 import { generateRecipeImage, transformRecipeImage } from "@/lib/ai";
 import { saveUploadedImage, deleteUploadedImage, findUploadedImage } from "@/lib/storage";
 import { auth } from "@/lib/auth";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,10 @@ export async function POST(
   if (!session) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Rate limit: 5 image operations per minute per user
+  const rl = rateLimit(`recipe-image:${session.user.id}`, 5, 60_000);
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterMs);
 
   const { id } = await ctx.params;
   const recipe = await getRecipe(id, session.user.id);

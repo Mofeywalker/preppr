@@ -350,7 +350,10 @@ export async function updateRecipe(
     .get();
 
   if (!existing) throw new Error("Recipe not found");
-  if (existing.userId && userId && existing.userId !== userId) {
+  if (!userId) {
+    throw new Error("Unauthorized: User ID required");
+  }
+  if (existing.userId && existing.userId !== userId) {
     throw new Error("Unauthorized: Only the recipe owner can edit this recipe");
   }
 
@@ -411,7 +414,10 @@ export async function deleteRecipe(id: string, userId?: string): Promise<void> {
     .get();
 
   if (!existing) return;
-  if (existing.userId && userId && existing.userId !== userId) {
+  if (!userId) {
+    throw new Error("Unauthorized: User ID required");
+  }
+  if (existing.userId && existing.userId !== userId) {
     throw new Error("Unauthorized: Only the recipe owner can delete this recipe");
   }
 
@@ -430,7 +436,10 @@ export async function updateImage(
     .get();
 
   if (!existing) throw new Error("Recipe not found");
-  if (existing.userId && userId && existing.userId !== userId) {
+  if (!userId) {
+    throw new Error("Unauthorized: User ID required");
+  }
+  if (existing.userId && existing.userId !== userId) {
     throw new Error("Unauthorized: Only the recipe owner can update the image");
   }
 

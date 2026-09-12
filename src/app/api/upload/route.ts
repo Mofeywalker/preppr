@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { saveUploadedImage } from "@/lib/storage";
 import { auth } from "@/lib/auth";
 import { randomUUID } from "node:crypto";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,10 @@ export async function POST(req: NextRequest) {
   if (!session) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Rate limit: 20 uploads per minute per user
+  const rl = rateLimit(`upload:${session.user.id}`, 20, 60_000);
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterMs);
 
   const contentType = req.headers.get("content-type") ?? "";
   if (!contentType.includes("multipart/form-data")) {
@@ -37,6 +42,14 @@ export async function POST(req: NextRequest) {
   ) {
     return Response.json(
       { error: "Only image files are supported" },
+      { status: 400 },
+    );
+  }
+
+  // Block SVG uploads — they can contain embedded JavaScript (stored XSS)
+  if (ext === "svg" || file.type === "image/svg+xml") {
+    return Response.json(
+      { error: "SVG files are not supported for security reasons" },
       { status: 400 },
     );
   }

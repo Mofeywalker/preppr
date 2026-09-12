@@ -3,15 +3,22 @@ import { parseRecipeUpload } from "@/lib/archive";
 import { populateMissingNutrition } from "@/lib/ai";
 import type { Locale } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
+
+const MAX_IMPORT_SIZE = 50 * 1024 * 1024; // 50 MB
 
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: req.headers });
   if (!session) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Rate limit: 10 file imports per minute per user
+  const rl = rateLimit(`import-tandoor-file:${session.user.id}`, 10, 60_000);
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterMs);
 
   try {
     const formData = await req.formData();
@@ -20,6 +27,13 @@ export async function POST(req: NextRequest) {
 
     if (!(file instanceof File)) {
       return Response.json({ error: "no-file" }, { status: 400 });
+    }
+
+    if (file.size > MAX_IMPORT_SIZE) {
+      return Response.json(
+        { error: "file-too-large", detail: "Maximum file size is 50 MB" },
+        { status: 400 },
+      );
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());

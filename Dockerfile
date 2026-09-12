@@ -28,6 +28,10 @@ ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0
 
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/drizzle ./drizzle
@@ -37,8 +41,10 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/package-lock.json ./
 COPY --from=builder /app/node_modules ./node_modules
 
-RUN mkdir -p /data/uploads
+RUN mkdir -p /data/uploads && chown -R nextjs:nodejs /data
 VOLUME /data
+
+USER nextjs
 
 EXPOSE 3000
 CMD ["npm", "start"]

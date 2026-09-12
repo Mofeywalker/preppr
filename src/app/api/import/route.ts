@@ -22,6 +22,8 @@ import { saveUploadedImage } from "@/lib/storage";
 import type { Locale } from "@/i18n/routing";
 import { getInstanceLocale } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
+import { rateLimit, rateLimitResponse, getClientIp } from "@/lib/rate-limit";
+import { validateExternalUrl } from "@/lib/ssrf";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -37,6 +39,10 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Rate limit: 10 imports per minute per user
+  const rl = rateLimit(`import:${session.user.id}`, 10, 60_000);
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterMs);
+
   const parsed = bodySchema.safeParse(await req.json());
   if (!parsed.success) {
     return Response.json({ error: "invalid-url" }, { status: 400 });
@@ -44,12 +50,9 @@ export async function POST(req: NextRequest) {
   const { url } = parsed.data;
   const locale: Locale = parsed.data.locale || getInstanceLocale();
 
-  // Validate URL protocol
+  // Validate URL protocol and SSRF safety
   try {
-    const parsedUrl = new URL(url);
-    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
-      return Response.json({ error: "invalid-url" }, { status: 400 });
-    }
+    await validateExternalUrl(url);
   } catch {
     return Response.json({ error: "invalid-url" }, { status: 400 });
   }

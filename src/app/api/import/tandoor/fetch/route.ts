@@ -4,6 +4,7 @@ import { tandoorToRecipeInput, saveUploadedImage, type TandoorRecipe } from "@/l
 import { populateMissingNutrition } from "@/lib/ai";
 import { getInstanceLocale, type Locale } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -25,6 +26,10 @@ export async function POST(req: NextRequest) {
   if (!session) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Rate limit: 10 Tandoor fetches per minute per user
+  const rl = rateLimit(`tandoor-fetch:${session.user.id}`, 10, 60_000);
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterMs);
 
   try {
     const json = await req.json();
