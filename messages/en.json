@@ -72,7 +72,8 @@
     "uploadImage": "Upload picture",
     "changeImage": "Change picture",
     "uploadingImage": "Uploading…",
-    "moreActions": "More actions"
+    "moreActions": "More actions",
+    "printCard": "Print recipe card / PDF"
   },
   "RecipeForm": {
     "title": "Title",
@@ -221,5 +222,30 @@
     "installButton": "Install App",
     "iosSharePrompt": "Tap 'Share' in the Safari menu and select 'Add to Home Screen'.",
     "dismiss": "Dismiss"
+  },
+  "RecipeCard": {
+    "title": "Recipe Card",
+    "print": "Print / Save as PDF",
+    "back": "Back to recipe",
+    "servings": "Servings",
+    "layout": "Layout",
+    "layoutClassic": "Classic (2 pages)",
+    "layoutCompact": "Compact (1 page)",
+    "showImage": "Print photo",
+    "showNutrition": "Nutrition",
+    "pdfTip": "Tip: Select 'Save as PDF' as the destination in the print dialog to download this card as a PDF.",
+    "ingredientsTitle": "Ingredients",
+    "ingredientsFor": "Ingredients for {count, plural, =1 {1 serving} other {# servings}}",
+    "fromKitchen": "Utensils & Basics",
+    "stepByStep": "Step-by-step instructions",
+    "step": "Step {number}",
+    "bonAppetit": "Bon Appétit!",
+    "cookedWith": "Cooked with preppr",
+    "prepTime": "Prep",
+    "cookTime": "Cook",
+    "totalTime": "Total",
+    "nutritionPerServing": "Nutrition per serving",
+    "kitchenBasics": "Pots, pans, cutting board, knife & pantry basics (salt, pepper, oil)",
+    "min": "min"
   }
 }

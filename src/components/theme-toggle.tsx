@@ -93,12 +93,6 @@ export function ThemeToggle({ className }: { className?: string }) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
-  const mounted = React.useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
-
   // Close dropdown on outside click
   React.useEffect(() => {
     if (!open) return;
@@ -137,22 +131,6 @@ export function ThemeToggle({ className }: { className?: string }) {
     setOpen(false);
   };
 
-  // Render static placeholder during SSR / hydration to prevent flicker
-  if (!mounted) {
-    return (
-      <div className={cn("relative inline-block", className)}>
-        <button
-          type="button"
-          disabled
-          aria-label={t("toggle")}
-          className="flex size-8 items-center justify-center rounded-lg border border-border text-foreground/70 opacity-80"
-        >
-          <span className="size-4" />
-        </button>
-      </div>
-    );
-  }
-
   // Active icon based on user theme setting (or resolved if light/dark)
   const CurrentIcon =
     theme === "system"
@@ -169,6 +147,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         aria-label={t("toggle")}
         aria-haspopup="menu"
         aria-expanded={open}
+        suppressHydrationWarning
         className={cn(
           "flex size-8 items-center justify-center rounded-lg border border-border bg-background text-foreground/80 transition hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20 cursor-pointer",
           open && "bg-muted text-foreground ring-2 ring-foreground/20",

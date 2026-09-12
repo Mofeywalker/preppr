@@ -69,12 +69,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     getServerSnapshot,
   );
 
-  const isClient = React.useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
-
   const resolvedTheme: ResolvedTheme = React.useMemo(() => {
     if (theme === "dark") return "dark";
     if (theme === "light") return "light";
@@ -111,11 +105,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const value = React.useMemo(
     () => ({
-      theme: isClient ? theme : "system",
-      resolvedTheme: isClient ? resolvedTheme : "light",
+      theme,
+      resolvedTheme,
       setTheme,
     }),
-    [theme, resolvedTheme, isClient, setTheme],
+    [theme, resolvedTheme, setTheme],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

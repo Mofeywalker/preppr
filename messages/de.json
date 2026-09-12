@@ -72,7 +72,8 @@
     "uploadImage": "Bild hochladen",
     "changeImage": "Bild ändern",
     "uploadingImage": "Wird hochgeladen…",
-    "moreActions": "Weitere Aktionen"
+    "moreActions": "Weitere Aktionen",
+    "printCard": "Rezeptkarte drucken / PDF"
   },
   "RecipeForm": {
     "title": "Titel",
@@ -221,5 +222,30 @@
     "installButton": "App installieren",
     "iosSharePrompt": "Tippe im Safari-Menü auf „Teilen“ und wähle „Zum Home-Bildschirm“.",
     "dismiss": "Ausblenden"
+  },
+  "RecipeCard": {
+    "title": "Rezeptkarte",
+    "print": "Drucken / Als PDF speichern",
+    "back": "Zurück zum Rezept",
+    "servings": "Portionen",
+    "layout": "Layout",
+    "layoutClassic": "Klassisch (2 Seiten)",
+    "layoutCompact": "Kompakt (1 Seite)",
+    "showImage": "Foto drucken",
+    "showNutrition": "Nährwerte",
+    "pdfTip": "Tipp: Wähle im Druckdialog als Ziel „Als PDF speichern“, um die Karte herunterzuladen.",
+    "ingredientsTitle": "Zutaten",
+    "ingredientsFor": "Zutaten für {count, plural, =1 {1 Portion} other {# Portionen}}",
+    "fromKitchen": "Utensilien & Basics",
+    "stepByStep": "Schritt für Schritt Zubereitung",
+    "step": "Schritt {number}",
+    "bonAppetit": "Guten Appetit!",
+    "cookedWith": "Gekocht mit preppr",
+    "prepTime": "Vorbereitung",
+    "cookTime": "Kochzeit",
+    "totalTime": "Gesamtzeit",
+    "nutritionPerServing": "Nährwerte pro Portion",
+    "kitchenBasics": "Kochtopf, Pfanne, Schneidebrett sowie Basics (Salz, Pfeffer, Öl)",
+    "min": "Min."
   }
 }

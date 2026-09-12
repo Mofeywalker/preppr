@@ -180,6 +180,17 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
             </span>
           )}
 
+          <Link href={`/recipes/${recipe.id}/print?servings=${servings}`}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-emerald-700 dark:text-emerald-400 border-emerald-600/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer"
+            >
+              <PrinterIcon className="size-4" />
+              <span>{t("printCard")}</span>
+            </Button>
+          </Link>
+
           <a href={`/api/recipes/${recipe.id}/export`} download>
             <Button variant="outline" size="sm" className="gap-1.5">
               <DownloadIcon className="size-4" />
@@ -262,6 +273,16 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                 aria-orientation="vertical"
                 className="absolute right-0 mt-2 w-44 origin-top-right rounded-xl border border-border bg-background/95 backdrop-blur-md p-1 shadow-lg z-50 animate-in fade-in-50 zoom-in-95 duration-100"
               >
+                <Link
+                  href={`/recipes/${recipe.id}/print?servings=${servings}`}
+                  role="menuitem"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 transition cursor-pointer"
+                >
+                  <PrinterIcon className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span>{t("printCard")}</span>
+                </Link>
+
                 <a
                   href={`/api/recipes/${recipe.id}/export`}
                   download
@@ -675,6 +696,26 @@ function CopyIcon({ className }: { className?: string }) {
     >
       <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
       <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+    </svg>
+  );
+}
+
+function PrinterIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <polyline points="6 9 6 2 18 2 18 9" />
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+      <rect width="12" height="8" x="6" y="14" />
     </svg>
   );
 }
