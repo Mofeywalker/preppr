@@ -43,8 +43,8 @@ export function ImportClient({
   const [pending, startTransition] = useTransition();
 
   // Tab & mode state
-  const [activeTab, setActiveTab] = useState<"preppr" | "youtube" | "tandoor">(
-    initialUrl ? "youtube" : "preppr",
+  const [activeTab, setActiveTab] = useState<"youtube" | "preppr" | "tandoor">(
+    "youtube",
   );
   const [tandoorMode, setTandoorMode] = useState<"file" | "server">("file");
 
@@ -104,7 +104,7 @@ export function ImportClient({
   const [batchSuccessCount, setBatchSuccessCount] = useState<number | null>(null);
 
   // Reset form when changing tabs
-  const switchTab = (tab: "preppr" | "youtube" | "tandoor") => {
+  const switchTab = (tab: "youtube" | "preppr" | "tandoor") => {
     setActiveTab(tab);
     setError(null);
     setSingleResult(null);
@@ -378,18 +378,6 @@ export function ImportClient({
       <div className="flex rounded-xl border border-border bg-muted/30 p-1">
         <button
           type="button"
-          onClick={() => switchTab("preppr")}
-          className={cn(
-            "flex-1 rounded-lg py-2 text-sm font-medium transition cursor-pointer text-center",
-            activeTab === "preppr"
-              ? "bg-background text-foreground shadow-sm font-semibold"
-              : "text-foreground/60 hover:text-foreground",
-          )}
-        >
-          {t("tabPreppr")}
-        </button>
-        <button
-          type="button"
           onClick={() => switchTab("youtube")}
           className={cn(
             "flex-1 rounded-lg py-2 text-sm font-medium transition cursor-pointer text-center",
@@ -399,6 +387,18 @@ export function ImportClient({
           )}
         >
           {t("tabYoutube")}
+        </button>
+        <button
+          type="button"
+          onClick={() => switchTab("preppr")}
+          className={cn(
+            "flex-1 rounded-lg py-2 text-sm font-medium transition cursor-pointer text-center",
+            activeTab === "preppr"
+              ? "bg-background text-foreground shadow-sm font-semibold"
+              : "text-foreground/60 hover:text-foreground",
+          )}
+        >
+          {t("tabPreppr")}
         </button>
         <button
           type="button"
@@ -542,6 +542,86 @@ export function ImportClient({
         </div>
       )}
 
+      {/* YouTube Form */}
+      {activeTab === "youtube" && !batchRecipes && batchSuccessCount === null && (
+        <form onSubmit={onExtractYouTube} className="space-y-4 rounded-2xl border border-border bg-muted/10 p-6">
+          <div className="space-y-1.5">
+            <h2 className="text-base font-semibold text-foreground">{t("youtubeTitle")}</h2>
+            <p className="text-xs text-foreground/60">{t("youtubeDescription")}</p>
+          </div>
+
+          {sharedNotice && (
+            <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              <span className="flex items-center gap-1.5">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="size-4"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                {t("sharedLinkDetected")}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSharedNotice(false)}
+                className="text-emerald-600/70 hover:text-emerald-600 dark:text-emerald-400/70 dark:hover:text-emerald-400 cursor-pointer"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          <div className="space-y-2 pt-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="yt-url">{t("urlLabel")}</Label>
+              {hasClipboard && (
+                <button
+                  type="button"
+                  onClick={handlePasteFromClipboard}
+                  className="text-xs font-medium text-foreground/60 hover:text-foreground flex items-center gap-1 transition cursor-pointer"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="size-3.5"
+                  >
+                    <path d="M7 3.5A1.5 1.5 0 018.5 2h3.879a1.5 1.5 0 011.06.44l3.122 3.12A1.5 1.5 0 0117 6.622V16.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 017 16.5v-13z" />
+                    <path d="M4 6.5A1.5 1.5 0 015.5 5H6v9.5A2.5 2.5 0 008.5 17H14v.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 014 17.5v-11z" />
+                  </svg>
+                  {t("pasteFromClipboard")}
+                </button>
+              )}
+            </div>
+            <Input
+              id="yt-url"
+              value={ytUrl}
+              onChange={(e) => {
+                setYtUrl(e.target.value);
+                if (sharedNotice) setSharedNotice(false);
+              }}
+              placeholder={t("urlPlaceholder")}
+              inputMode="url"
+              autoCapitalize="off"
+              className="h-11 bg-background"
+            />
+          </div>
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+
+          <Button type="submit" className="w-full h-11 font-medium" disabled={pending || !ytUrl.trim()}>
+            {pending ? <Spinner /> : t("extract")}
+          </Button>
+        </form>
+      )}
+
       {/* Preppr Form */}
       {activeTab === "preppr" && !batchRecipes && batchSuccessCount === null && (
         <div className="space-y-6">
@@ -674,86 +754,6 @@ export function ImportClient({
             {error && <p className="text-sm text-red-600">{error}</p>}
           </div>
         </div>
-      )}
-
-      {/* YouTube Form */}
-      {activeTab === "youtube" && !batchRecipes && batchSuccessCount === null && (
-        <form onSubmit={onExtractYouTube} className="space-y-4 rounded-2xl border border-border bg-muted/10 p-6">
-          <div className="space-y-1.5">
-            <h2 className="text-base font-semibold text-foreground">{t("youtubeTitle")}</h2>
-            <p className="text-xs text-foreground/60">{t("youtubeDescription")}</p>
-          </div>
-
-          {sharedNotice && (
-            <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-              <span className="flex items-center gap-1.5">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  className="size-4"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                {t("sharedLinkDetected")}
-              </span>
-              <button
-                type="button"
-                onClick={() => setSharedNotice(false)}
-                className="text-emerald-600/70 hover:text-emerald-600 dark:text-emerald-400/70 dark:hover:text-emerald-400 cursor-pointer"
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-
-          <div className="space-y-2 pt-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="yt-url">{t("urlLabel")}</Label>
-              {hasClipboard && (
-                <button
-                  type="button"
-                  onClick={handlePasteFromClipboard}
-                  className="text-xs font-medium text-foreground/60 hover:text-foreground flex items-center gap-1 transition cursor-pointer"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    className="size-3.5"
-                  >
-                    <path d="M7 3.5A1.5 1.5 0 018.5 2h3.879a1.5 1.5 0 011.06.44l3.122 3.12A1.5 1.5 0 0117 6.622V16.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 017 16.5v-13z" />
-                    <path d="M4 6.5A1.5 1.5 0 015.5 5H6v9.5A2.5 2.5 0 008.5 17H14v.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 014 17.5v-11z" />
-                  </svg>
-                  {t("pasteFromClipboard")}
-                </button>
-              )}
-            </div>
-            <Input
-              id="yt-url"
-              value={ytUrl}
-              onChange={(e) => {
-                setYtUrl(e.target.value);
-                if (sharedNotice) setSharedNotice(false);
-              }}
-              placeholder={t("urlPlaceholder")}
-              inputMode="url"
-              autoCapitalize="off"
-              className="h-11 bg-background"
-            />
-          </div>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <Button type="submit" className="w-full h-11 font-medium" disabled={pending || !ytUrl.trim()}>
-            {pending ? <Spinner /> : t("extract")}
-          </Button>
-        </form>
       )}
 
       {/* Tandoor Form */}
