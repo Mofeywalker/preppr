@@ -75,16 +75,47 @@ export function ImportClient({
     }
   }
 
+  // Preppr mode & JSON paste state
+  const [prepprMode, setPrepprMode] = useState<"paste" | "file">("paste");
+  const [pastedJson, setPastedJson] = useState("");
+
+  const isPastedJsonValid = (() => {
+    const trimmed = pastedJson.trim();
+    if (!trimmed) return false;
+    let cleaned = trimmed;
+    if (cleaned.startsWith("```")) {
+      cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+    }
+    try {
+      const parsed = JSON.parse(cleaned);
+      return typeof parsed === "object" && parsed !== null;
+    } catch {
+      return false;
+    }
+  })();
+
   const handlePasteFromClipboard = async () => {
     try {
       const text = await navigator.clipboard.readText();
+      const trimmed = text.trim();
+      if (trimmed.startsWith("{") || trimmed.startsWith("[") || trimmed.startsWith("```json")) {
+        let cleaned = trimmed;
+        if (cleaned.startsWith("```")) {
+          cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+        }
+        setPastedJson(cleaned);
+        setActiveTab("preppr");
+        setPrepprMode("paste");
+        setError(null);
+        return;
+      }
       const extracted = extractUrlFromShareData(null, text);
       if (extracted) {
         setYtUrl(extracted);
         setError(null);
         setSharedNotice(true);
-      } else if (text.trim()) {
-        setYtUrl(text.trim());
+      } else if (trimmed) {
+        setYtUrl(trimmed);
         setError(null);
       }
     } catch {
@@ -319,6 +350,72 @@ export function ImportClient({
         }
       } catch {
         setError(activeTab === "preppr" ? t("errorPrepprFile") : t("errorTandoorFile"));
+      }
+    });
+  };
+
+  const handlePasteJsonFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text.trim()) {
+        let cleaned = text.trim();
+        if (cleaned.startsWith("```")) {
+          cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+        }
+        setPastedJson(cleaned);
+        setError(null);
+      }
+    } catch {
+      // Clipboard access denied or unsupported
+    }
+  };
+
+  const onImportJson = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pastedJson.trim()) {
+      setError(t("errorNoJson"));
+      return;
+    }
+
+    setError(null);
+    setSingleResult(null);
+    setBatchRecipes(null);
+    setBatchSuccessCount(null);
+
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/import/json", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ json: pastedJson, locale }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({ error: "generic" }));
+          setError(
+            data.error === "invalid-json"
+              ? t("errorInvalidJson")
+              : data.error === "no-recipes-found"
+                ? t("errorNoRecipes")
+                : t("errorPrepprFile"),
+          );
+          return;
+        }
+
+        const data = await res.json();
+        if (data.type === "single") {
+          setSingleResult({
+            recipe: data.recipe,
+            sourceType: data.recipe.sourceType || "manual",
+            sourceUrl: data.recipe.sourceUrl,
+          });
+        } else if (data.type === "batch") {
+          const list: RecipeInput[] = data.recipes;
+          setBatchRecipes(list);
+          setSelectedIndices(new Set(list.map((_, i) => i)));
+        }
+      } catch {
+        setError(t("errorPrepprFile"));
       }
     });
   };
@@ -1100,63 +1197,194 @@ export function ImportClient({
               <p className="text-xs sm:text-sm text-foreground/60">{t("importSectionDescription")}</p>
             </div>
 
-            <div className="pt-2">
-              <input
-                ref={prepprFileInputRef}
-                type="file"
-                accept=".zip,.json,application/zip,application/json"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) handleFileUpload(f);
-                }}
-              />
-
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDragging(true);
-                }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setIsDragging(false);
-                  const f = e.dataTransfer.files?.[0];
-                  if (f) handleFileUpload(f);
-                }}
-                onClick={() => prepprFileInputRef.current?.click()}
+            {/* Sub-mode selector: Paste JSON vs File Upload */}
+            <div className="flex rounded-lg border border-border bg-muted/20 p-1">
+              <button
+                type="button"
+                onClick={() => setPrepprMode("paste")}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition",
-                  isDragging
-                    ? "border-foreground bg-muted/30 scale-[1.01]"
-                    : "border-border hover:border-foreground/40 bg-background/50",
+                  "flex-1 rounded-md py-1.5 text-xs font-medium transition cursor-pointer text-center",
+                  prepprMode === "paste"
+                    ? "bg-background text-foreground shadow-xs font-semibold"
+                    : "text-foreground/60 hover:text-foreground",
                 )}
               >
-                <div className="flex size-12 items-center justify-center rounded-full bg-muted text-foreground/60">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={1.5}
-                    stroke="currentColor"
-                    className="size-6"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <p className="font-semibold text-sm text-foreground">
-                    {pending ? t("uploading") : t("prepprFileDropzone")}
-                  </p>
-                  <p className="text-xs text-foreground/50 mt-1">{t("prepprFileHint")}</p>
-                </div>
-                {pending && <Spinner />}
-              </div>
+                {t("prepprModePaste")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPrepprMode("file")}
+                className={cn(
+                  "flex-1 rounded-md py-1.5 text-xs font-medium transition cursor-pointer text-center",
+                  prepprMode === "file"
+                    ? "bg-background text-foreground shadow-xs font-semibold"
+                    : "text-foreground/60 hover:text-foreground",
+                )}
+              >
+                {t("prepprModeFile")}
+              </button>
             </div>
+
+            {prepprMode === "paste" ? (
+              <form onSubmit={onImportJson} className="space-y-3 pt-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="pasted-json" className="text-xs font-medium text-foreground/80">
+                      {t("pasteJsonLabel")}
+                    </Label>
+                    {pastedJson.trim() && (
+                      <span
+                        className={cn(
+                          "text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1",
+                          isPastedJsonValid
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                            : "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20",
+                        )}
+                      >
+                        {isPastedJsonValid ? (
+                          <>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="size-3">
+                              <path fillRule="evenodd" d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z" clipRule="evenodd" />
+                            </svg>
+                            {t("jsonValid")}
+                          </>
+                        ) : (
+                          <>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="size-3">
+                              <path fillRule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14Zm2.78-9.72a.75.75 0 0 0-1.06-1.06L8 5.94 6.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 7 5.22 8.72a.75.75 0 0 0 1.06 1.06L8 8.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L9.06 7l1.72-1.72Z" clipRule="evenodd" />
+                            </svg>
+                            {t("jsonInvalid")}
+                          </>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  {hasClipboard && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handlePasteJsonFromClipboard}
+                      className="h-8 gap-1.5 text-xs cursor-pointer"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="size-3.5"
+                      >
+                        <path d="M7 3.5A1.5 1.5 0 0 1 8.5 2h3.879a1.5 1.5 0 0 1 1.06.44l3.122 3.12A1.5 1.5 0 0 1 17 6.622V12.5a1.5 1.5 0 0 1-1.5 1.5h-1v-3.379a3 3 0 0 0-.879-2.121L10.5 5.379A3 3 0 0 0 8.379 4.5H7v-1Z" />
+                        <path d="M4.5 6A1.5 1.5 0 0 0 3 7.5v9A1.5 1.5 0 0 0 4.5 18h7a1.5 1.5 0 0 0 1.5-1.5v-5.879a1.5 1.5 0 0 0-.44-1.06L9.439 6.44A1.5 1.5 0 0 0 8.38 6H4.5Z" />
+                      </svg>
+                      {t("pasteFromClipboard")}
+                    </Button>
+                  )}
+                </div>
+
+                <textarea
+                  id="pasted-json"
+                  value={pastedJson}
+                  onChange={(e) => setPastedJson(e.target.value)}
+                  rows={9}
+                  placeholder={t("pasteJsonPlaceholder")}
+                  className={cn(
+                    "w-full rounded-xl border p-3 font-mono text-xs text-foreground placeholder:text-foreground/40 focus:outline-hidden resize-y transition",
+                    pastedJson.trim()
+                      ? isPastedJsonValid
+                        ? "border-emerald-500/40 bg-emerald-500/5 focus:border-emerald-500"
+                        : "border-red-500/40 bg-red-500/5 focus:border-red-500"
+                      : "border-border bg-background/50 focus:border-foreground/40",
+                  )}
+                />
+
+                <Button
+                  type="submit"
+                  className="w-full h-11 font-medium text-base gap-2 cursor-pointer"
+                  disabled={pending || !isPastedJsonValid}
+                >
+                  {pending ? (
+                    <>
+                      <Spinner />
+                      <span>{t("importingJson")}</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="size-5"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 1c3.866 0 7 3.134 7 7a6.977 6.977 0 0 1-1.636 4.485l4.343 4.343a1 1 0 0 1-1.414 1.414l-4.343-4.343A6.977 6.977 0 0 1 10 15a7 7 0 1 1 0-14Zm-5 7a5 5 0 1 0 10 0 5 5 0 0 0-10 0Z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      <span>{t("importJsonBtn")}</span>
+                    </>
+                  )}
+                </Button>
+              </form>
+            ) : (
+              <div className="pt-2">
+                <input
+                  ref={prepprFileInputRef}
+                  type="file"
+                  accept=".zip,.json,application/zip,application/json"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleFileUpload(f);
+                  }}
+                />
+
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    const f = e.dataTransfer.files?.[0];
+                    if (f) handleFileUpload(f);
+                  }}
+                  onClick={() => prepprFileInputRef.current?.click()}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition",
+                    isDragging
+                      ? "border-foreground bg-muted/30 scale-[1.01]"
+                      : "border-border hover:border-foreground/40 bg-background/50",
+                  )}
+                >
+                  <div className="flex size-12 items-center justify-center rounded-full bg-muted text-foreground/60">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.5}
+                      stroke="currentColor"
+                      className="size-6"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm text-foreground">
+                      {pending ? t("uploading") : t("prepprFileDropzone")}
+                    </p>
+                    <p className="text-xs text-foreground/50 mt-1">{t("prepprFileHint")}</p>
+                  </div>
+                  {pending && <Spinner />}
+                </div>
+              </div>
+            )}
 
             {error && <p className="text-sm text-red-600">{error}</p>}
           </div>

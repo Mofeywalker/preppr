@@ -236,8 +236,8 @@ export function tandoorToRecipeInput(
   const parsedServings = parseNumber(raw.servings);
   const servings = parsedServings && parsedServings > 0 ? Math.round(parsedServings) : 4;
 
-  const prepTimeMin = parseNumber(raw.working_time);
-  const cookTimeMin = parseNumber(raw.waiting_time);
+  const prepTimeMin = parseNumber(raw.working_time ?? (raw as any).prepTimeMin ?? (raw as any).prep_time_min);
+  const cookTimeMin = parseNumber(raw.waiting_time ?? (raw as any).cookTimeMin ?? (raw as any).cook_time_min);
   const nutrition = extractNutrition(raw.nutrition, raw.properties, raw.food_properties, servings);
 
   // Extract ingredients from steps and/or root
@@ -246,14 +246,14 @@ export function tandoorToRecipeInput(
   const addIngredientItem = (ing: TandoorIngredient) => {
     const name = extractIngredientName(ing);
     if (!name) return;
-    const quantity = ing.no_amount ? null : parseNumber(ing.amount);
+    const quantity = ing.no_amount ? null : parseNumber(ing.amount ?? (ing as any).quantity);
     const unit = extractUnit(ing);
     allIngredients.push({ name, quantity, unit });
   };
 
   if (raw.steps && Array.isArray(raw.steps)) {
     for (const step of raw.steps) {
-      if (step.ingredients && Array.isArray(step.ingredients)) {
+      if (typeof step === "object" && step && step.ingredients && Array.isArray(step.ingredients)) {
         for (const ing of step.ingredients) {
           addIngredientItem(ing);
         }
@@ -276,9 +276,19 @@ export function tandoorToRecipeInput(
   const steps: string[] = [];
   if (raw.steps && Array.isArray(raw.steps)) {
     // Sort steps by order if present
-    const sorted = [...raw.steps].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    const sorted = [...raw.steps].sort((a, b) => {
+      const orderA = typeof a === "object" && a ? a.order ?? 0 : 0;
+      const orderB = typeof b === "object" && b ? b.order ?? 0 : 0;
+      return orderA - orderB;
+    });
     for (const s of sorted) {
-      const text = (s.instruction || s.name || "").trim();
+      const item = s as unknown;
+      const text =
+        typeof item === "string"
+          ? item.trim()
+          : typeof item === "object" && item
+          ? ((item as TandoorStep).instruction || (item as TandoorStep).name || "").trim()
+          : "";
       if (text) {
         steps.push(text);
       }

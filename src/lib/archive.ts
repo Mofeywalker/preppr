@@ -155,23 +155,85 @@ export interface RawRecipeItem {
   keywords?: Array<{ name?: string } | string> | string[];
 }
 
+function parseIngredientString(str: string): { name: string; quantity: number | null; unit: string | null } {
+  const trimmed = str.trim();
+  const match = trimmed.match(/^([\d.,/]+)\s*([a-zA-ZäöüÄÖÜß°]+)?\s+(.+)$/);
+  if (match) {
+    const rawNum = match[1].replace(",", ".");
+    let quantity: number | null = null;
+    if (rawNum.includes("/")) {
+      const [n, d] = rawNum.split("/").map(Number);
+      if (d) quantity = n / d;
+    } else {
+      const parsed = parseFloat(rawNum);
+      if (!isNaN(parsed)) quantity = parsed;
+    }
+    const unit = match[2]?.trim() || null;
+    const name = match[3]?.trim() || "";
+    if (name) {
+      return { name, quantity, unit };
+    }
+  }
+  return { name: trimmed, quantity: null, unit: null };
+}
+
 function sanitizeRecipeInput(item: RawRecipeItem, fallbackLocale: Locale = getInstanceLocale()): RecipeInput {
   const title = (item.title || item.name || "Rezept").trim();
   const description = typeof item.description === "string" ? item.description.trim() || null : null;
   const language = item.language === "en" || item.language === "de" ? item.language : fallbackLocale;
   const servings = typeof item.servings === "number" && item.servings > 0 ? Math.round(item.servings) : 4;
-  const prepTimeMin = typeof item.prepTimeMin === "number" ? Math.round(item.prepTimeMin) : null;
-  const cookTimeMin = typeof item.cookTimeMin === "number" ? Math.round(item.cookTimeMin) : null;
+  const prepTimeMin =
+    typeof item.prepTimeMin === "number"
+      ? Math.round(item.prepTimeMin)
+      : typeof (item as any).prep_time_min === "number"
+      ? Math.round((item as any).prep_time_min)
+      : typeof (item as any).working_time === "number"
+      ? Math.round((item as any).working_time)
+      : null;
+  const cookTimeMin =
+    typeof item.cookTimeMin === "number"
+      ? Math.round(item.cookTimeMin)
+      : typeof (item as any).cook_time_min === "number"
+      ? Math.round((item as any).cook_time_min)
+      : typeof (item as any).waiting_time === "number"
+      ? Math.round((item as any).waiting_time)
+      : null;
 
   const rawIngredients = Array.isArray(item.ingredients) ? item.ingredients : [];
   const ingredients = rawIngredients.map((ing) => {
     if (typeof ing === "string") {
-      return { name: ing, quantity: null, unit: null };
+      return parseIngredientString(ing);
     }
+    const rawQty = ing.quantity !== undefined ? ing.quantity : (ing as any).amount;
+    let quantity: number | null = null;
+    if (typeof rawQty === "number" && !isNaN(rawQty)) {
+      quantity = rawQty;
+    } else if (typeof rawQty === "string" && rawQty.trim()) {
+      const cleanedQty = rawQty.trim().replace(",", ".");
+      if (cleanedQty.includes("/")) {
+        const [n, d] = cleanedQty.split("/").map(Number);
+        if (d) quantity = n / d;
+      } else {
+        const parsed = parseFloat(cleanedQty);
+        if (!isNaN(parsed)) quantity = parsed;
+      }
+    }
+
+    const rawUnit = ing.unit !== undefined ? ing.unit : (ing as any).unit_name;
+    let unit: string | null = null;
+    if (typeof rawUnit === "string") {
+      unit = rawUnit.trim() || null;
+    } else if (rawUnit && typeof rawUnit === "object" && "name" in rawUnit) {
+      unit = (rawUnit as any).name?.trim() || null;
+    }
+
+    let name = ing.name || (ing as any).food?.name || (ing as any).food || "Zutat";
+    if (typeof name !== "string") name = "Zutat";
+
     return {
-      name: ing.name || "Zutat",
-      quantity: typeof ing.quantity === "number" ? ing.quantity : null,
-      unit: typeof ing.unit === "string" ? ing.unit.trim() || null : null,
+      name: name.trim() || "Zutat",
+      quantity,
+      unit,
     };
   });
 
@@ -181,8 +243,14 @@ function sanitizeRecipeInput(item: RawRecipeItem, fallbackLocale: Locale = getIn
 
   const rawSteps = Array.isArray(item.steps) ? item.steps : [];
   const steps = rawSteps
-    .map((s) => (typeof s === "string" ? s : s?.text || s?.instruction || ""))
-    .filter((s: string) => s.trim().length > 0);
+    .map((s) => {
+      if (typeof s === "string") return s.trim();
+      if (typeof s === "object" && s) {
+        return (s.text || s.instruction || (s as any).name || "").trim();
+      }
+      return "";
+    })
+    .filter((s: string) => s.length > 0);
 
   if (steps.length === 0) {
     steps.push(description || title);
@@ -205,6 +273,46 @@ function sanitizeRecipeInput(item: RawRecipeItem, fallbackLocale: Locale = getIn
       .filter(Boolean);
   }
 
+  const nutritionObj = (item as any).nutrition || {};
+  const calories =
+    typeof item.calories === "number"
+      ? Math.round(item.calories)
+      : typeof nutritionObj.calories === "number"
+      ? Math.round(nutritionObj.calories)
+      : null;
+  const proteinG =
+    typeof item.proteinG === "number"
+      ? item.proteinG
+      : typeof nutritionObj.proteinG === "number"
+      ? nutritionObj.proteinG
+      : typeof (item as any).proteins === "number"
+      ? (item as any).proteins
+      : null;
+  const carbsG =
+    typeof item.carbsG === "number"
+      ? item.carbsG
+      : typeof nutritionObj.carbsG === "number"
+      ? nutritionObj.carbsG
+      : typeof (item as any).carbohydrates === "number"
+      ? (item as any).carbohydrates
+      : null;
+  const fatG =
+    typeof item.fatG === "number"
+      ? item.fatG
+      : typeof nutritionObj.fatG === "number"
+      ? nutritionObj.fatG
+      : typeof (item as any).fats === "number"
+      ? (item as any).fats
+      : null;
+  const fiberG =
+    typeof item.fiberG === "number"
+      ? item.fiberG
+      : typeof nutritionObj.fiberG === "number"
+      ? nutritionObj.fiberG
+      : typeof (item as any).fiber === "number"
+      ? (item as any).fiber
+      : null;
+
   return {
     sourceType:
       item.sourceType === "youtube" || item.sourceType === "tandoor" || item.sourceType === "website"
@@ -218,11 +326,11 @@ function sanitizeRecipeInput(item: RawRecipeItem, fallbackLocale: Locale = getIn
     prepTimeMin,
     cookTimeMin,
     imageUrl: item.imageUrl || null,
-    calories: typeof item.calories === "number" ? Math.round(item.calories) : null,
-    proteinG: typeof item.proteinG === "number" ? item.proteinG : null,
-    carbsG: typeof item.carbsG === "number" ? item.carbsG : null,
-    fatG: typeof item.fatG === "number" ? item.fatG : null,
-    fiberG: typeof item.fiberG === "number" ? item.fiberG : null,
+    calories,
+    proteinG,
+    carbsG,
+    fatG,
+    fiberG,
     ingredients,
     steps,
     tags,
@@ -362,11 +470,18 @@ export async function parseRecipeUpload(
     const jsonStr = buffer.toString("utf-8");
     const parsed = JSON.parse(jsonStr);
 
-    if (
-      parsed.generator === "preppr" ||
-      Array.isArray(parsed.recipes) ||
-      (Array.isArray(parsed) && parsed[0]?.title && Array.isArray(parsed[0]?.steps))
-    ) {
+    const isTandoor =
+      parsed &&
+      typeof parsed === "object" &&
+      !Array.isArray(parsed) &&
+      ("food_properties" in parsed ||
+        "servings_text" in parsed ||
+        (Array.isArray(parsed.steps) &&
+          parsed.steps.length > 0 &&
+          typeof parsed.steps[0] === "object" &&
+          "instruction" in parsed.steps[0]));
+
+    if (!isTandoor) {
       const list: RawRecipeItem[] = Array.isArray(parsed)
         ? parsed
         : Array.isArray(parsed.recipes)
