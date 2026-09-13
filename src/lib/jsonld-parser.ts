@@ -358,18 +358,18 @@ export function extractNutrition(nutritionObj: unknown): {
   fatG: number;
   fiberG: number | null;
 } {
-  const parseVal = (val: unknown): number => {
-    if (typeof val === "number" && !isNaN(val)) return Math.round(val);
-    if (typeof val === "string") {
+  const parseVal = (
+    val: unknown,
+    decimals = 0,
+    fallback: number | null = 0,
+  ): number | null => {
+    const factor = 10 ** decimals;
+    if (typeof val === "number" && !isNaN(val)) return Math.round(val * factor) / factor;
+    if (typeof val === "string" && val.trim()) {
       const match = val.replace(",", ".").match(/([0-9]+(?:\.[0-9]+)?)/);
-      if (match) return Math.round(parseFloat(match[1]));
+      if (match) return Math.round(parseFloat(match[1]) * factor) / factor;
     }
-    return 0;
-  };
-
-  const parseNullable = (val: unknown): number | null => {
-    const parsed = parseVal(val);
-    return parsed > 0 ? parsed : null;
+    return fallback;
   };
 
   if (!nutritionObj || typeof nutritionObj !== "object") {
@@ -383,13 +383,23 @@ export function extractNutrition(nutritionObj: unknown): {
   }
 
   const n = nutritionObj as Record<string, unknown>;
+  const rawFiber =
+    n.fiberContent ??
+    n.fibreContent ??
+    n.fiber ??
+    n.fibre ??
+    n.dietaryFiber ??
+    n.dietaryFiberContent ??
+    n.ballaststoffe ??
+    n.ballaststoffContent ??
+    n.ballaststoffgehalt;
 
   return {
-    calories: parseVal(n.calories),
-    proteinG: parseVal(n.proteinContent),
-    carbsG: parseVal(n.carbohydrateContent),
-    fatG: parseVal(n.fatContent),
-    fiberG: parseNullable(n.fiberContent),
+    calories: parseVal(n.calories) ?? 0,
+    proteinG: parseVal(n.proteinContent) ?? 0,
+    carbsG: parseVal(n.carbohydrateContent) ?? 0,
+    fatG: parseVal(n.fatContent) ?? 0,
+    fiberG: parseVal(rawFiber, 1, null),
   };
 }
 

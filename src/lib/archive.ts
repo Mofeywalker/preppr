@@ -4,8 +4,7 @@ import type { FullRecipe, RecipeInput } from "@/lib/recipes";
 import { parseTandoorZip, tandoorToRecipeInput, type TandoorRecipe } from "@/lib/tandoor";
 import { saveUploadedImage, findUploadedImage } from "@/lib/storage";
 import { getInstanceLocale, type Locale } from "@/i18n/routing";
-
-export { saveUploadedImage, saveUploadedImage as saveRecipeImage };
+import { parseIngredientLine } from "@/lib/jsonld-parser";
 
 export interface PrepprExportRecipe {
   id?: string;
@@ -141,7 +140,11 @@ export interface RawRecipeItem {
   description?: string | null;
   servings?: number;
   prepTimeMin?: number | null;
+  prep_time_min?: number | null;
+  working_time?: number | null;
   cookTimeMin?: number | null;
+  cook_time_min?: number | null;
+  waiting_time?: number | null;
   imageUrl?: string | null;
   imageFile?: string | null;
   calories?: number | null;
@@ -149,32 +152,23 @@ export interface RawRecipeItem {
   carbsG?: number | null;
   fatG?: number | null;
   fiberG?: number | null;
-  ingredients?: Array<{ name?: string; quantity?: number | null; unit?: string | null } | string>;
-  steps?: Array<{ text?: string; instruction?: string } | string>;
+  nutrition?: Record<string, unknown> | null;
+  nutritionInfo?: Record<string, unknown> | null;
+  ingredients?: Array<
+    | {
+        name?: string;
+        quantity?: number | string | null;
+        amount?: number | string | null;
+        unit?: string | null;
+        unit_name?: string | { name?: string } | null;
+        food?: string | { name?: string } | null;
+      }
+    | string
+  >;
+  steps?: Array<{ text?: string; instruction?: string; name?: string } | string>;
   tags?: string[];
   keywords?: Array<{ name?: string } | string> | string[];
-}
-
-function parseIngredientString(str: string): { name: string; quantity: number | null; unit: string | null } {
-  const trimmed = str.trim();
-  const match = trimmed.match(/^([\d.,/]+)\s*([a-zA-ZäöüÄÖÜß°]+)?\s+(.+)$/);
-  if (match) {
-    const rawNum = match[1].replace(",", ".");
-    let quantity: number | null = null;
-    if (rawNum.includes("/")) {
-      const [n, d] = rawNum.split("/").map(Number);
-      if (d) quantity = n / d;
-    } else {
-      const parsed = parseFloat(rawNum);
-      if (!isNaN(parsed)) quantity = parsed;
-    }
-    const unit = match[2]?.trim() || null;
-    const name = match[3]?.trim() || "";
-    if (name) {
-      return { name, quantity, unit };
-    }
-  }
-  return { name: trimmed, quantity: null, unit: null };
+  [key: string]: unknown;
 }
 
 function sanitizeRecipeInput(item: RawRecipeItem, fallbackLocale: Locale = getInstanceLocale()): RecipeInput {
@@ -182,29 +176,36 @@ function sanitizeRecipeInput(item: RawRecipeItem, fallbackLocale: Locale = getIn
   const description = typeof item.description === "string" ? item.description.trim() || null : null;
   const language = item.language === "en" || item.language === "de" ? item.language : fallbackLocale;
   const servings = typeof item.servings === "number" && item.servings > 0 ? Math.round(item.servings) : 4;
-  const prepTimeMin =
-    typeof item.prepTimeMin === "number"
-      ? Math.round(item.prepTimeMin)
-      : typeof (item as any).prep_time_min === "number"
-      ? Math.round((item as any).prep_time_min)
-      : typeof (item as any).working_time === "number"
-      ? Math.round((item as any).working_time)
-      : null;
-  const cookTimeMin =
-    typeof item.cookTimeMin === "number"
-      ? Math.round(item.cookTimeMin)
-      : typeof (item as any).cook_time_min === "number"
-      ? Math.round((item as any).cook_time_min)
-      : typeof (item as any).waiting_time === "number"
-      ? Math.round((item as any).waiting_time)
-      : null;
+
+  const rawItem = item as Record<string, unknown>;
+  const rawNutrition = item.nutrition || item.nutritionInfo;
+  const nutritionObj = (
+    typeof rawNutrition === "object" && rawNutrition !== null ? rawNutrition : {}
+  ) as Record<string, unknown>;
+
+  const findNumber = (...keys: string[]): number | null => {
+    for (const key of keys) {
+      const val = rawItem[key] ?? nutritionObj[key];
+      if (typeof val === "number" && !isNaN(val)) return val;
+      if (typeof val === "string" && val.trim()) {
+        const parsed = parseFloat(val.replace(",", "."));
+        if (!isNaN(parsed)) return parsed;
+      }
+    }
+    return null;
+  };
+
+  const rawPrep = findNumber("prepTimeMin", "prep_time_min", "working_time");
+  const prepTimeMin = rawPrep != null ? Math.round(rawPrep) : null;
+  const rawCook = findNumber("cookTimeMin", "cook_time_min", "waiting_time");
+  const cookTimeMin = rawCook != null ? Math.round(rawCook) : null;
 
   const rawIngredients = Array.isArray(item.ingredients) ? item.ingredients : [];
   const ingredients = rawIngredients.map((ing) => {
     if (typeof ing === "string") {
-      return parseIngredientString(ing);
+      return parseIngredientLine(ing);
     }
-    const rawQty = ing.quantity !== undefined ? ing.quantity : (ing as any).amount;
+    const rawQty = ing.quantity !== undefined ? ing.quantity : ing.amount;
     let quantity: number | null = null;
     if (typeof rawQty === "number" && !isNaN(rawQty)) {
       quantity = rawQty;
@@ -219,15 +220,21 @@ function sanitizeRecipeInput(item: RawRecipeItem, fallbackLocale: Locale = getIn
       }
     }
 
-    const rawUnit = ing.unit !== undefined ? ing.unit : (ing as any).unit_name;
+    const rawUnit = ing.unit !== undefined ? ing.unit : ing.unit_name;
     let unit: string | null = null;
     if (typeof rawUnit === "string") {
       unit = rawUnit.trim() || null;
     } else if (rawUnit && typeof rawUnit === "object" && "name" in rawUnit) {
-      unit = (rawUnit as any).name?.trim() || null;
+      unit = typeof rawUnit.name === "string" ? rawUnit.name.trim() || null : null;
     }
 
-    let name = ing.name || (ing as any).food?.name || (ing as any).food || "Zutat";
+    let name =
+      ing.name ||
+      (typeof ing.food === "object" && ing.food !== null && "name" in ing.food
+        ? (ing.food as { name: string }).name
+        : typeof ing.food === "string"
+        ? ing.food
+        : "Zutat");
     if (typeof name !== "string") name = "Zutat";
 
     return {
@@ -246,7 +253,7 @@ function sanitizeRecipeInput(item: RawRecipeItem, fallbackLocale: Locale = getIn
     .map((s) => {
       if (typeof s === "string") return s.trim();
       if (typeof s === "object" && s) {
-        return (s.text || s.instruction || (s as any).name || "").trim();
+        return (s.text || s.instruction || s.name || "").trim();
       }
       return "";
     })
@@ -273,45 +280,12 @@ function sanitizeRecipeInput(item: RawRecipeItem, fallbackLocale: Locale = getIn
       .filter(Boolean);
   }
 
-  const nutritionObj = (item as any).nutrition || {};
-  const calories =
-    typeof item.calories === "number"
-      ? Math.round(item.calories)
-      : typeof nutritionObj.calories === "number"
-      ? Math.round(nutritionObj.calories)
-      : null;
-  const proteinG =
-    typeof item.proteinG === "number"
-      ? item.proteinG
-      : typeof nutritionObj.proteinG === "number"
-      ? nutritionObj.proteinG
-      : typeof (item as any).proteins === "number"
-      ? (item as any).proteins
-      : null;
-  const carbsG =
-    typeof item.carbsG === "number"
-      ? item.carbsG
-      : typeof nutritionObj.carbsG === "number"
-      ? nutritionObj.carbsG
-      : typeof (item as any).carbohydrates === "number"
-      ? (item as any).carbohydrates
-      : null;
-  const fatG =
-    typeof item.fatG === "number"
-      ? item.fatG
-      : typeof nutritionObj.fatG === "number"
-      ? nutritionObj.fatG
-      : typeof (item as any).fats === "number"
-      ? (item as any).fats
-      : null;
-  const fiberG =
-    typeof item.fiberG === "number"
-      ? item.fiberG
-      : typeof nutritionObj.fiberG === "number"
-      ? nutritionObj.fiberG
-      : typeof (item as any).fiber === "number"
-      ? (item as any).fiber
-      : null;
+  const rawCalories = findNumber("calories", "kcal", "energy");
+  const calories = rawCalories != null ? Math.round(rawCalories) : null;
+  const proteinG = findNumber("proteinG", "protein", "proteins", "eiweiß", "eiweiss");
+  const carbsG = findNumber("carbsG", "carbohydrates", "carbohydrate", "carbs", "kohlenhydrate");
+  const fatG = findNumber("fatG", "fat", "fats", "fett");
+  const fiberG = findNumber("fiberG", "fiber", "fibre", "fiber_g", "dietaryFiber", "ballaststoffe");
 
   return {
     sourceType:

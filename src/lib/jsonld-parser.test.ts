@@ -170,12 +170,22 @@ describe("jsonld-parser", () => {
         proteinContent: "25 g",
         carbohydrateContent: "50g",
         fatContent: "15 grams",
+        fiberContent: "6.5 g",
       };
       const nut = extractNutrition(raw);
       expect(nut.calories).toBe(450);
       expect(nut.proteinG).toBe(25);
       expect(nut.carbsG).toBe(50);
       expect(nut.fatG).toBe(15);
+      expect(nut.fiberG).toBe(6.5);
+    });
+
+    it("extracts fiber from alternative keys (fibreContent, ballaststoffe, fiber)", () => {
+      expect(extractNutrition({ fibreContent: "4.2 g" }).fiberG).toBe(4.2);
+      expect(extractNutrition({ ballaststoffe: "5 g" }).fiberG).toBe(5);
+      expect(extractNutrition({ fiber: 3 }).fiberG).toBe(3);
+      expect(extractNutrition({ dietaryFiber: "2.8g" }).fiberG).toBe(2.8);
+      expect(extractNutrition({ fiberContent: "0 g" }).fiberG).toBe(0);
     });
 
     it("returns zeroed nutrition with null fiber if nutrition object is null or empty", () => {

@@ -9,6 +9,7 @@ export interface TandoorIngredient {
   food?: { name?: string | null; plural_name?: string | null } | string | null;
   unit?: { name?: string | null; plural_name?: string | null; description?: string | null } | string | null;
   amount?: number | string | null;
+  quantity?: number | string | null;
   note?: string | null;
   is_header?: boolean | null;
   no_amount?: boolean | null;
@@ -59,6 +60,10 @@ export interface TandoorRecipe {
   servings_text?: string | null;
   working_time?: number | string | null;
   waiting_time?: number | string | null;
+  prepTimeMin?: number | string | null;
+  prep_time_min?: number | string | null;
+  cookTimeMin?: number | string | null;
+  cook_time_min?: number | string | null;
   source_url?: string | null;
   image?: string | null;
   nutrition?: TandoorNutrition | null;
@@ -140,6 +145,20 @@ export function extractNutrition(
     if (fiber != null) fiberG = Math.round(fiber * 10) / 10;
   }
 
+  const applyProperty = (slug: string, name: string, val: number) => {
+    if (calories == null && (slug === "property-calories" || name.includes("calor") || name.includes("kalor") || name.includes("kcal") || name.includes("energi") || name.includes("energy"))) {
+      calories = Math.round(val);
+    } else if (proteinG == null && (slug === "property-proteins" || name.includes("protein") || name.includes("eiweiß") || name.includes("eiweiss"))) {
+      proteinG = Math.round(val * 10) / 10;
+    } else if (carbsG == null && (slug === "property-carbohydrates" || name.includes("carb") || name.includes("kohlenhydrat"))) {
+      carbsG = Math.round(val * 10) / 10;
+    } else if (fatG == null && (slug === "property-fats" || name.includes("fat") || name.includes("fett"))) {
+      fatG = Math.round(val * 10) / 10;
+    } else if (fiberG == null && (slug === "property-fiber" || name.includes("fiber") || name.includes("fibre") || name.includes("ballaststoff"))) {
+      fiberG = Math.round(val * 10) / 10;
+    }
+  };
+
   // 2. Check recipe properties array (e.g. from Tandoor properties)
   if (Array.isArray(properties) && properties.length > 0) {
     for (const prop of properties) {
@@ -148,19 +167,7 @@ export function extractNutrition(
       const slug = typeof pt === "object" ? (pt?.open_data_slug || "").toLowerCase() : "";
       const name = typeof pt === "object" ? (pt?.name || "").toLowerCase() : typeof pt === "string" ? pt.toLowerCase() : "";
       const val = parseNumber(prop.property_amount);
-      if (val == null) continue;
-
-      if (calories == null && (slug === "property-calories" || name.includes("calor") || name.includes("kalor") || name.includes("kcal") || name.includes("energi") || name.includes("energy"))) {
-        calories = Math.round(val);
-      } else if (proteinG == null && (slug === "property-proteins" || name.includes("protein") || name.includes("eiweiß") || name.includes("eiweiss"))) {
-        proteinG = Math.round(val * 10) / 10;
-      } else if (carbsG == null && (slug === "property-carbohydrates" || name.includes("carb") || name.includes("kohlenhydrat"))) {
-        carbsG = Math.round(val * 10) / 10;
-      } else if (fatG == null && (slug === "property-fats" || name.includes("fat") || name.includes("fett"))) {
-        fatG = Math.round(val * 10) / 10;
-      } else if (fiberG == null && (slug === "property-fiber" || name.includes("fiber") || name.includes("fibre") || name.includes("ballaststoff"))) {
-        fiberG = Math.round(val * 10) / 10;
-      }
+      if (val != null) applyProperty(slug, name, val);
     }
   }
 
@@ -172,20 +179,7 @@ export function extractNutrition(
       const slug = (fp.open_data_slug || "").toLowerCase();
       const name = (fp.name || "").toLowerCase();
       const rawTotal = parseNumber(fp.total_value);
-      if (rawTotal == null) continue;
-      const valPerServing = rawTotal / sFactor;
-
-      if (calories == null && (slug === "property-calories" || name.includes("calor") || name.includes("kalor") || name.includes("kcal") || name.includes("energi") || name.includes("energy"))) {
-        calories = Math.round(valPerServing);
-      } else if (proteinG == null && (slug === "property-proteins" || name.includes("protein") || name.includes("eiweiß") || name.includes("eiweiss"))) {
-        proteinG = Math.round(valPerServing * 10) / 10;
-      } else if (carbsG == null && (slug === "property-carbohydrates" || name.includes("carb") || name.includes("kohlenhydrat"))) {
-        carbsG = Math.round(valPerServing * 10) / 10;
-      } else if (fatG == null && (slug === "property-fats" || name.includes("fat") || name.includes("fett"))) {
-        fatG = Math.round(valPerServing * 10) / 10;
-      } else if (fiberG == null && (slug === "property-fiber" || name.includes("fiber") || name.includes("fibre") || name.includes("ballaststoff"))) {
-        fiberG = Math.round(valPerServing * 10) / 10;
-      }
+      if (rawTotal != null) applyProperty(slug, name, rawTotal / sFactor);
     }
   }
 
@@ -226,6 +220,9 @@ export function extractUnit(ing: TandoorIngredient): string | null {
   return null;
 }
 
+/**
+ * Converts a Tandoor recipe JSON structure to Preppr's RecipeInput format.
+ */
 export function tandoorToRecipeInput(
   raw: TandoorRecipe,
   locale: Locale = getInstanceLocale(),
@@ -236,8 +233,8 @@ export function tandoorToRecipeInput(
   const parsedServings = parseNumber(raw.servings);
   const servings = parsedServings && parsedServings > 0 ? Math.round(parsedServings) : 4;
 
-  const prepTimeMin = parseNumber(raw.working_time ?? (raw as any).prepTimeMin ?? (raw as any).prep_time_min);
-  const cookTimeMin = parseNumber(raw.waiting_time ?? (raw as any).cookTimeMin ?? (raw as any).cook_time_min);
+  const prepTimeMin = parseNumber(raw.working_time ?? raw.prepTimeMin ?? raw.prep_time_min);
+  const cookTimeMin = parseNumber(raw.waiting_time ?? raw.cookTimeMin ?? raw.cook_time_min);
   const nutrition = extractNutrition(raw.nutrition, raw.properties, raw.food_properties, servings);
 
   // Extract ingredients from steps and/or root
@@ -246,7 +243,7 @@ export function tandoorToRecipeInput(
   const addIngredientItem = (ing: TandoorIngredient) => {
     const name = extractIngredientName(ing);
     if (!name) return;
-    const quantity = ing.no_amount ? null : parseNumber(ing.amount ?? (ing as any).quantity);
+    const quantity = ing.no_amount ? null : parseNumber(ing.amount ?? ing.quantity);
     const unit = extractUnit(ing);
     allIngredients.push({ name, quantity, unit });
   };

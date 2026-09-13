@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { exportRecipesToZip, parsePrepprZip } from "./archive";
+import { exportRecipesToZip, parsePrepprZip, parseRecipeUpload } from "./archive";
 import type { FullRecipe } from "./recipes";
 
 describe("archive utilities", () => {
@@ -71,5 +71,19 @@ describe("archive utilities", () => {
   it("throws error when ZIP archive contains no recipes.json", async () => {
     const emptyZip = await (await import("jszip")).default().generateAsync({ type: "nodebuffer" });
     await expect(parsePrepprZip(emptyZip, "de")).rejects.toThrow("No recipes.json found in Preppr ZIP archive");
+  });
+
+  it("handles alternative fiber property names in JSON", async () => {
+    const jsonStr = JSON.stringify([
+      { title: "Test 1", ballaststoffe: 5 },
+      { title: "Test 2", fiber_g: 4.5 },
+      { title: "Test 3", fibre: 3.2 },
+      { title: "Test 4", nutrition: { ballaststoffe: 6 } },
+    ]);
+    const recipes = await parseRecipeUpload(Buffer.from(jsonStr), "recipes.json", "de");
+    expect(recipes[0].fiberG).toBe(5);
+    expect(recipes[1].fiberG).toBe(4.5);
+    expect(recipes[2].fiberG).toBe(3.2);
+    expect(recipes[3].fiberG).toBe(6);
   });
 });

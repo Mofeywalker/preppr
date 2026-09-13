@@ -43,11 +43,16 @@ export const extractSchema = z.object({
     .min(1),
   steps: z.array(z.string()).min(1),
   nutrition: z.object({
-    calories: z.number(),
-    proteinG: z.number(),
-    carbsG: z.number(),
-    fatG: z.number(),
-    fiberG: z.number().nullable(),
+    calories: z.number().describe("Total calories in kcal per single serving"),
+    proteinG: z.number().describe("Protein in grams per single serving"),
+    carbsG: z.number().describe("Carbohydrates in grams per single serving"),
+    fatG: z.number().describe("Fat in grams per single serving"),
+    fiberG: z
+      .number()
+      .nullable()
+      .describe(
+        "Dietary fiber in grams per single serving. Calculate or realistically estimate 0 or higher based on plants, vegetables, grains, legumes, or nuts. Do not return null.",
+      ),
   }),
 });
 
@@ -63,7 +68,7 @@ CRITICAL METRIC UNIT REQUIREMENT:
 You MUST ensure that the output recipe strictly uses METRIC units (e.g. g, kg, ml, l, cm, °C) and NEVER Imperial / US Customary units (cups, oz, lbs, fl oz, Fahrenheit). If the video or description mentions Imperial / US units, convert them into metric cooking equivalents (e.g. 1 cup flour ≈ 120-125 g, 1 stick butter ≈ 115 g, 1 cup liquid ≈ 240-250 ml, convert °F to °C).
 
 MANDATORY NUTRITION ESTIMATION:
-If nutritional values are not mentioned, you MUST calculate or realistically estimate the macro nutritional values per serving (calories, proteinG, carbsG, fatG, and fiberG in grams) based on the ingredients, quantities, and servings.
+If nutritional values are not mentioned, you MUST calculate or realistically estimate the macro nutritional values per serving (calories, proteinG, carbsG, fatG, and fiberG in grams) based on the ingredients, quantities, and servings. Never return 0 or null for calories, protein, carbs, fat, or fiber unless the dish genuinely contains none (e.g. pure water). Always provide a realistic estimate for fiberG (0 or higher in grams) based on vegetables, grains, legumes, nuts, seeds, or fruits.
 
 Extract ingredients with quantities and units. If a quantity can't be determined, leave it null but keep the unit.
 Return ONLY the structured recipe.`;
@@ -94,7 +99,7 @@ You MUST ensure that the output recipe strictly uses METRIC units (e.g. g, kg, m
    - NEVER output "cup", "cups", "oz", "ounce", "lb", "pound", "fl oz" as units.
 
 MANDATORY NUTRITION ESTIMATION:
-If nutritional values are not explicitly stated on the webpage or in the structured data, you MUST calculate or realistically estimate the macro nutritional values per serving (calories, proteinG, carbsG, fatG, and fiberG in grams) based on the ingredients, quantities, and number of servings. Never return 0 or null for calories, protein, carbs, or fat unless the dish genuinely contains none (e.g. pure water).
+If nutritional values are not explicitly stated on the webpage or in the structured data, you MUST calculate or realistically estimate the macro nutritional values per serving (calories, proteinG, carbsG, fatG, and fiberG in grams) based on the ingredients, quantities, and number of servings. Never return 0 or null for calories, protein, carbs, fat, or fiber unless the dish genuinely contains none (e.g. pure water). Always provide a realistic estimate for fiberG (0 or higher in grams) based on vegetables, grains, legumes, nuts, seeds, or fruits.
 
 Extract ingredients with quantities and units. If a quantity can't be determined, leave it null but keep the unit if applicable.
 Return ONLY the structured recipe.`;
@@ -116,7 +121,7 @@ You MUST ensure that the output recipe strictly uses METRIC units (e.g. g, kg, m
 If the handwritten note uses Imperial units or older customary units (cups, sticks of butter, etc.), convert them into metric cooking equivalents (e.g. 1 cup flour ≈ 120-125 g, 1 stick butter ≈ 115 g, 1 cup liquid ≈ 240-250 ml, convert °F to °C).
 
 MANDATORY NUTRITION ESTIMATION:
-Handwritten recipes virtually never contain nutritional data. You MUST calculate or realistically estimate the macro nutritional values per serving (calories, proteinG, carbsG, fatG, and fiberG in grams) based on the ingredients, quantities, and servings. Never return 0 or null for calories, protein, carbs, or fat unless the dish genuinely contains none.
+Handwritten recipes virtually never contain nutritional data. You MUST calculate or realistically estimate the macro nutritional values per serving (calories, proteinG, carbsG, fatG, and fiberG in grams) based on the ingredients, quantities, and servings. Never return 0 or null for calories, protein, carbs, fat, or fiber unless the dish genuinely contains none. Always provide a realistic estimate for fiberG (0 or higher in grams) based on plant ingredients, grains, vegetables, legumes, or fruits.
 
 Extract ingredients with quantities and units. If a quantity can't be determined, leave it null but keep the unit if applicable.
 Return ONLY the structured recipe.`;
@@ -288,7 +293,11 @@ export const nutritionEstimateSchema = z.object({
   proteinG: z.number().describe("Protein in grams per single serving"),
   carbsG: z.number().describe("Carbohydrates in grams per single serving"),
   fatG: z.number().describe("Fat in grams per single serving"),
-  fiberG: z.number().nullable().describe("Fiber in grams per single serving"),
+  fiberG: z
+    .number()
+    .describe(
+      "Dietary fiber in grams per single serving. Always provide a realistic non-negative estimate (0 or higher) based on vegetables, grains, legumes, nuts, seeds, and fruits; 0 if dish contains virtually no fiber.",
+    ),
 });
 
 export type EstimatedNutrition = z.infer<typeof nutritionEstimateSchema>;
@@ -302,7 +311,7 @@ export async function estimateRecipeNutrition(recipe: {
   proteinG: number;
   carbsG: number;
   fatG: number;
-  fiberG: number | null;
+  fiberG: number;
 }> {
   const ingList = recipe.ingredients
     .map((ing) => {
@@ -317,7 +326,8 @@ export async function estimateRecipeNutrition(recipe: {
     `Ingredients (total for the recipe):`,
     ingList || "- Not specified",
     "",
-    `Calculate or realistically estimate the macro nutritional values PER SINGLE SERVING (calories in kcal, protein, carbs, fat, and fiber in grams).`,
+    `Calculate or realistically estimate the macro nutritional values PER SINGLE SERVING (calories in kcal, protein, carbs, fat, and dietary fiber in grams).`,
+    `Always provide a realistic estimate for dietary fiber in grams (use 0 if the ingredients contain virtually no fiber, but do not return null).`,
     `Divide the total ingredient values by the number of servings (${recipe.servings || 1}).`,
   ].join("\n");
 
@@ -333,7 +343,7 @@ export async function estimateRecipeNutrition(recipe: {
     proteinG: Math.round(object.proteinG * 10) / 10,
     carbsG: Math.round(object.carbsG * 10) / 10,
     fatG: Math.round(object.fatG * 10) / 10,
-    fiberG: object.fiberG != null ? Math.round(object.fiberG * 10) / 10 : null,
+    fiberG: Math.round(object.fiberG * 10) / 10,
   };
 }
 
@@ -344,13 +354,17 @@ export async function populateMissingNutrition(
     return recipes;
   }
 
-  const hasNutrition = (r: RecipeInput) =>
-    (r.calories != null && r.calories > 0) ||
-    (r.proteinG != null && r.proteinG > 0) ||
-    (r.carbsG != null && r.carbsG > 0) ||
-    (r.fatG != null && r.fatG > 0);
+  const needsNutrition = (r: RecipeInput) => {
+    const hasBase =
+      (r.calories != null && r.calories > 0) ||
+      (r.proteinG != null && r.proteinG > 0) ||
+      (r.carbsG != null && r.carbsG > 0) ||
+      (r.fatG != null && r.fatG > 0);
+    const hasFiber = r.fiberG != null;
+    return (!hasBase || !hasFiber) && Boolean(r.ingredients && r.ingredients.length > 0);
+  };
 
-  const missing = recipes.filter((r) => !hasNutrition(r) && r.ingredients && r.ingredients.length > 0);
+  const missing = recipes.filter(needsNutrition);
   if (missing.length === 0) {
     return recipes;
   }
@@ -367,11 +381,21 @@ export async function populateMissingNutrition(
             servings: r.servings,
             ingredients: r.ingredients,
           });
-          r.calories = estimated.calories;
-          r.proteinG = estimated.proteinG;
-          r.carbsG = estimated.carbsG;
-          r.fatG = estimated.fatG;
-          r.fiberG = estimated.fiberG;
+          const hasBase =
+            (r.calories != null && r.calories > 0) ||
+            (r.proteinG != null && r.proteinG > 0) ||
+            (r.carbsG != null && r.carbsG > 0) ||
+            (r.fatG != null && r.fatG > 0);
+
+          if (!hasBase) {
+            r.calories = estimated.calories;
+            r.proteinG = estimated.proteinG;
+            r.carbsG = estimated.carbsG;
+            r.fatG = estimated.fatG;
+            r.fiberG = estimated.fiberG;
+          } else if (r.fiberG == null) {
+            r.fiberG = estimated.fiberG;
+          }
         } catch (err) {
           console.warn(`Could not auto-estimate nutrition for "${r.title}":`, err);
         }

@@ -1,6 +1,13 @@
 import { db, schema } from "@/db/client";
 import { eq, inArray, asc, desc, sql, or, and, isNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { z } from "zod";
+
+export const ingredientSchema = z.object({
+  name: z.string().min(1),
+  quantity: z.number().nullable().optional(),
+  unit: z.string().nullable().optional(),
+});
 
 export type RecipeInput = {
   sourceType: "manual" | "youtube" | "tandoor" | "website";
@@ -22,6 +29,27 @@ export type RecipeInput = {
   tags?: string[];
   visibility?: "private" | "shared";
 };
+
+export const recipeInputSchema: z.ZodType<RecipeInput> = z.object({
+  sourceType: z.enum(["manual", "youtube", "tandoor", "website"]),
+  sourceUrl: z.string().nullable().optional(),
+  language: z.enum(["de", "en"]),
+  title: z.string().min(1),
+  description: z.string().nullable().optional(),
+  servings: z.number().int().min(1).max(100),
+  prepTimeMin: z.number().int().nullable().optional(),
+  cookTimeMin: z.number().int().nullable().optional(),
+  imageUrl: z.string().nullable().optional(),
+  calories: z.number().nullable().optional(),
+  proteinG: z.number().nullable().optional(),
+  carbsG: z.number().nullable().optional(),
+  fatG: z.number().nullable().optional(),
+  fiberG: z.number().nullable().optional(),
+  ingredients: z.array(ingredientSchema).min(1),
+  steps: z.array(z.string().min(1)).min(1),
+  tags: z.array(z.string()).optional(),
+  visibility: z.enum(["private", "shared"]).optional(),
+});
 
 export type Recipe = schema.Recipe;
 export type RecipeWithTags = schema.Recipe & {
@@ -282,59 +310,7 @@ export async function createRecipe(
   input: RecipeInput,
   userId?: string,
 ): Promise<string> {
-  const id = randomUUID();
-  const now = Math.floor(Date.now() / 1000);
-
-  db.transaction((tx) => {
-    tx.insert(schema.recipes).values({
-      id,
-      userId: userId ?? null,
-      visibility: input.visibility ?? "shared",
-      sourceType: input.sourceType,
-      sourceUrl: input.sourceUrl ?? null,
-      language: input.language,
-      title: input.title,
-      description: input.description ?? null,
-      servings: input.servings,
-      prepTimeMin: input.prepTimeMin ?? null,
-      cookTimeMin: input.cookTimeMin ?? null,
-      imageUrl: input.imageUrl ?? null,
-      calories: input.calories ?? null,
-      proteinG: input.proteinG ?? null,
-      carbsG: input.carbsG ?? null,
-      fatG: input.fatG ?? null,
-      fiberG: input.fiberG ?? null,
-      createdAt: now,
-      updatedAt: now,
-    }).run();
-
-    input.ingredients.forEach((ing, i) => {
-      tx.insert(schema.ingredients)
-        .values({
-          id: randomUUID(),
-          recipeId: id,
-          name: ing.name,
-          quantity: ing.quantity ?? null,
-          unit: ing.unit ?? null,
-          order: i,
-        })
-        .run();
-    });
-
-    input.steps.forEach((text, i) => {
-      tx.insert(schema.steps)
-        .values({
-          id: randomUUID(),
-          recipeId: id,
-          order: i,
-          text,
-        })
-        .run();
-    });
-
-    syncRecipeTags(tx, id, input.tags);
-  });
-
+  const [id] = await createRecipesBatch([input], userId);
   return id;
 }
 

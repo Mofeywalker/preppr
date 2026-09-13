@@ -13,6 +13,7 @@ import {
   extractFromTranscript,
   extractFromAudio,
   extractFromWebpage,
+  estimateRecipeNutrition,
   processYouTubeThumbnail,
   type ExtractedRecipe,
 } from "@/lib/ai";
@@ -22,7 +23,7 @@ import { saveUploadedImage } from "@/lib/storage";
 import type { Locale } from "@/i18n/routing";
 import { getInstanceLocale } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
-import { rateLimit, rateLimitResponse, getClientIp } from "@/lib/rate-limit";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { validateExternalUrl } from "@/lib/ssrf";
 
 export const dynamic = "force-dynamic";
@@ -160,6 +161,37 @@ export async function POST(req: NextRequest) {
         return Response.json({ error: "ai-config" }, { status: 503 });
       }
       recipe = await extractFromWebpage(pageData, locale);
+    } else if (process.env.OPENROUTER_API_KEY && recipe.ingredients.length > 0) {
+      // If JSON-LD recipe is missing base nutrition or missing fiber, auto-estimate it
+      const hasBaseNutrition =
+        recipe.nutrition.calories > 0 ||
+        recipe.nutrition.proteinG > 0 ||
+        recipe.nutrition.carbsG > 0 ||
+        recipe.nutrition.fatG > 0;
+
+      if (!hasBaseNutrition) {
+        try {
+          const estimated = await estimateRecipeNutrition({
+            title: recipe.title,
+            servings: recipe.servings,
+            ingredients: recipe.ingredients,
+          });
+          recipe.nutrition = estimated;
+        } catch (err) {
+          console.warn("Failed to auto-estimate missing nutrition for JSON-LD recipe:", err);
+        }
+      } else if (recipe.nutrition.fiberG == null) {
+        try {
+          const estimated = await estimateRecipeNutrition({
+            title: recipe.title,
+            servings: recipe.servings,
+            ingredients: recipe.ingredients,
+          });
+          recipe.nutrition.fiberG = estimated.fiberG;
+        } catch (err) {
+          console.warn("Failed to auto-estimate missing fiber for JSON-LD recipe:", err);
+        }
+      }
     }
 
     let thumbnail: string | null = pageData.imageUrl;
