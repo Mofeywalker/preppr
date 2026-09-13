@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { PrintableRecipeCard } from "@/components/recipe-card/printable-recipe-card";
+import { RecipeShareDialog } from "@/components/recipe-share-dialog";
 import type { FullRecipe } from "@/lib/recipes";
 
 export function RecipePrintClient({
@@ -17,6 +18,7 @@ export function RecipePrintClient({
   autoPrint?: boolean;
 }) {
   const t = useTranslations("RecipeCard");
+  const tShare = useTranslations("ShareDialog");
 
   const [servings, setServings] = useState<number>(
     initialServings > 0 ? initialServings : recipe.servings || 2,
@@ -24,6 +26,7 @@ export function RecipePrintClient({
   const [layoutMode, setLayoutMode] = useState<"classic" | "compact">("classic");
   const [showImage, setShowImage] = useState<boolean>(!!recipe.imageUrl);
   const [showNutrition, setShowNutrition] = useState<boolean>(true);
+  const [shareDialogOpen, setShareDialogOpen] = useState<boolean>(false);
 
   useEffect(() => {
     if (autoPrint) {
@@ -70,8 +73,34 @@ export function RecipePrintClient({
             </div>
           </div>
 
-          {/* Main Action Button */}
+          {/* Main Action Buttons */}
           <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              onClick={() => setShareDialogOpen(true)}
+              variant="outline"
+              size="sm"
+              className="gap-1.5 cursor-pointer text-xs"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-3.5 text-[#16a34a]"
+              >
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+              </svg>
+              <span>{tShare("title")}</span>
+            </Button>
+
             <Button
               onClick={handlePrint}
               size="sm"
@@ -197,6 +226,13 @@ export function RecipePrintClient({
           showNutrition={showNutrition}
         />
       </div>
+
+      <RecipeShareDialog
+        open={shareDialogOpen}
+        onClose={() => setShareDialogOpen(false)}
+        recipe={recipe}
+        initialServings={servings}
+      />
     </div>
   );
 }

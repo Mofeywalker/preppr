@@ -4,6 +4,7 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import type { FullRecipe } from "@/lib/recipes";
 import { LogoIcon } from "@/components/logo";
+import { cn } from "@/lib/utils";
 
 interface PrintableRecipeCardProps {
   recipe: FullRecipe;
@@ -11,6 +12,7 @@ interface PrintableRecipeCardProps {
   layoutMode: "classic" | "compact";
   showImage: boolean;
   showNutrition: boolean;
+  exportMode?: boolean;
 }
 
 function fmt(n: number): string {
@@ -81,6 +83,7 @@ export function PrintableRecipeCard({
   layoutMode,
   showImage,
   showNutrition,
+  exportMode = false,
 }: PrintableRecipeCardProps) {
   const t = useTranslations("RecipeCard");
   const scale = recipe.servings > 0 ? servings / recipe.servings : 1;
@@ -90,180 +93,200 @@ export function PrintableRecipeCard({
 
   if (layoutMode === "compact") {
     return (
-      <div className="din-a4-page w-full max-w-[210mm] min-h-[297mm] mx-auto bg-white text-neutral-900 print:text-black font-sans print:border-none border border-neutral-200 rounded-2xl p-6 sm:p-8 shadow-sm flex flex-col justify-between print:rounded-none">
-        {/* Top Header */}
-        <div className="flex items-center justify-between border-b-2 border-[#16a34a] pb-3 mb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="flex items-center justify-center size-8 rounded-lg bg-[#16a34a] text-white">
-              <LogoIcon size={20} className="text-white" />
+      <div
+        className={cn(
+          "w-full max-w-[210mm] mx-auto bg-white text-neutral-900 border border-neutral-200 rounded-2xl p-6 sm:p-7 shadow-sm flex flex-col",
+          exportMode
+            ? "min-h-0 space-y-5"
+            : "din-a4-page min-h-[297mm] justify-between print:rounded-none print:border-none print:shadow-none"
+        )}
+        style={{
+          fontFamily:
+            'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        }}
+      >
+        <div className="space-y-4 flex-1">
+          {/* Top Header */}
+          <div className="flex items-center justify-between border-b-2 border-[#16a34a] pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="flex items-center justify-center size-8 rounded-lg bg-[#16a34a] text-white shadow-xs">
+                <LogoIcon size={20} className="text-white" />
+              </div>
+              <div>
+                <span className="text-lg font-black tracking-tight text-neutral-900 block leading-none">
+                  preppr
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#16a34a]">
+                  {t("title")}
+                </span>
+              </div>
             </div>
-            <div>
-              <span className="text-lg font-black tracking-tight text-neutral-900 block leading-none">
-                preppr
-              </span>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-[#16a34a]">
-                {t("title")}
+
+            <div className="flex items-center gap-2 text-xs font-semibold shrink-0">
+              {totalTime > 0 && (
+                <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-neutral-700 whitespace-nowrap">
+                  ⏱️ {totalTime} {t("min")}
+                </span>
+              )}
+              <span className="rounded-full bg-emerald-50 text-[#16a34a] border border-emerald-200 px-2.5 py-1 whitespace-nowrap">
+                👥 {servings} {t("servings")}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs font-semibold">
-            {totalTime > 0 && (
-              <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-neutral-700">
-                ⏱️ {totalTime} {t("min")}
-              </span>
+          {/* Compact Title + Hero Row */}
+          <div className="flex gap-4 items-start">
+            {showImage && recipe.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={recipe.imageUrl}
+                alt={recipe.title}
+                className="w-36 h-24 sm:w-44 sm:h-28 object-cover rounded-xl border border-neutral-200 shrink-0"
+              />
             )}
-            <span className="rounded-full bg-emerald-50 text-[#16a34a] border border-emerald-200 px-2.5 py-1">
-              👥 {servings} {t("servings")}
-            </span>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight leading-snug">
+                {recipe.title}
+              </h1>
+              {recipe.description && (
+                <p className="text-xs text-neutral-600 mt-1.5 leading-relaxed">
+                  {recipe.description}
+                </p>
+              )}
+              {recipe.tags && recipe.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {recipe.tags.slice(0, 4).map((tag) => (
+                    <span
+                      key={tag}
+                      className="text-[10px] font-medium bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-md"
+                    >
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Compact Title + Hero Row */}
-        <div className="flex gap-4 items-start mb-4">
-          {showImage && recipe.imageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={recipe.imageUrl}
-              alt={recipe.title}
-              className="w-36 h-24 sm:w-44 sm:h-28 object-cover rounded-xl border border-neutral-200 shrink-0"
-            />
-          )}
-          <div className="flex-1">
-            <h1 className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight leading-snug">
-              {recipe.title}
-            </h1>
-            {recipe.description && (
-              <p className="text-xs text-neutral-600 mt-1 line-clamp-2 leading-relaxed">
-                {recipe.description}
-              </p>
+          {/* 2-Column Compact Layout: Left = Ingredients & Nutrition, Right = Steps */}
+          <div
+            className={cn(
+              "grid gap-5 items-start",
+              exportMode ? "grid-cols-12" : "grid-cols-1 md:grid-cols-12",
             )}
-            {recipe.tags && recipe.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {recipe.tags.slice(0, 4).map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-[10px] font-medium bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-md"
-                  >
-                    #{tag}
+          >
+            {/* Left Column: Ingredients & Nutrition */}
+            <div className={cn("space-y-4", exportMode ? "col-span-5" : "md:col-span-5")}>
+              <div className="border border-neutral-200 rounded-xl overflow-hidden shadow-2xs">
+                <div className="bg-[#16a34a] text-white px-3 py-1.5 flex items-center justify-between text-xs font-bold">
+                  <span>{t("ingredientsTitle")}</span>
+                  <span className="text-[11px] opacity-90 font-normal whitespace-nowrap">
+                    {t("ingredientsFor", { count: servings })}
                   </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 2-Column Compact Layout: Left = Ingredients & Nutrition, Right = Steps */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
-          {/* Left Column: Ingredients */}
-          <div className="md:col-span-5 space-y-4">
-            <div className="border border-neutral-200 rounded-xl overflow-hidden">
-              <div className="bg-[#16a34a] text-white px-3 py-1.5 flex items-center justify-between text-xs font-bold">
-                <span>{t("ingredientsTitle")}</span>
-                <span className="text-[11px] opacity-90 font-normal">
-                  {t("ingredientsFor", { count: servings })}
-                </span>
-              </div>
-              <div className="divide-y divide-neutral-100 p-1 text-xs">
-                {recipe.ingredients.map((ing) => (
-                  <div
-                    key={ing.id}
-                    className="flex items-center justify-between gap-2 py-1.5 px-2 hover:bg-neutral-50"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="size-3.5 rounded border border-neutral-400 inline-block shrink-0" />
-                      <span className="font-medium text-neutral-800">{ing.name}</span>
+                </div>
+                <div className="divide-y divide-neutral-100 p-1 text-xs">
+                  {recipe.ingredients.map((ing) => (
+                    <div
+                      key={ing.id}
+                      className="flex items-center justify-between gap-2 py-1.5 px-2 hover:bg-neutral-50"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="size-3.5 rounded border border-neutral-400 inline-block shrink-0" />
+                        <span className="font-medium text-neutral-800 truncate">{ing.name}</span>
+                      </div>
+                      <span className="font-mono text-neutral-600 shrink-0 text-[11px]">
+                        {ing.quantity != null ? fmt(ing.quantity * scale) : ""}{" "}
+                        {ing.unit ?? ""}
+                      </span>
                     </div>
-                    <span className="font-mono text-neutral-600 shrink-0 text-[11px]">
-                      {ing.quantity != null ? fmt(ing.quantity * scale) : ""}{" "}
-                      {ing.unit ?? ""}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Kitchen basics */}
-            <div className="border border-neutral-200 rounded-xl p-2.5 bg-neutral-50/70 text-[11px] space-y-1">
-              <span className="font-bold text-neutral-800 block">
-                🥄 {t("fromKitchen")}
-              </span>
-              <p className="text-neutral-600 leading-snug">{t("kitchenBasics")}</p>
-            </div>
-
-            {/* Nutrition */}
-            {showNutrition && (
-              <div className="border border-neutral-200 rounded-xl p-2.5 text-[11px] space-y-1.5 bg-white">
-                <span className="font-bold text-neutral-800 block text-xs">
-                  🥗 {t("nutritionPerServing")}
-                </span>
-                <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-                  <div className="bg-neutral-50 p-1.5 rounded-lg border border-neutral-100 flex flex-col justify-center">
-                    <span className="text-neutral-500 font-medium">Kalorien</span>
-                    <span className="font-bold text-neutral-900 whitespace-nowrap text-xs mt-0.5">
-                      {recipe.calories ? `${recipe.calories} kcal` : "–"}
-                    </span>
-                  </div>
-                  <div className="bg-neutral-50 p-1.5 rounded-lg border border-neutral-100 flex flex-col justify-center">
-                    <span className="text-neutral-500 font-medium">Protein</span>
-                    <span className="font-bold text-neutral-900 whitespace-nowrap text-xs mt-0.5">
-                      {recipe.proteinG ? `${recipe.proteinG} g` : "–"}
-                    </span>
-                  </div>
-                  <div className="bg-neutral-50 p-1.5 rounded-lg border border-neutral-100 flex flex-col justify-center">
-                    <span className="text-neutral-500 font-medium truncate">Kohlenhydrate</span>
-                    <span className="font-bold text-neutral-900 whitespace-nowrap text-xs mt-0.5">
-                      {recipe.carbsG ? `${recipe.carbsG} g` : "–"}
-                    </span>
-                  </div>
-                  <div className="bg-neutral-50 p-1.5 rounded-lg border border-neutral-100 flex flex-col justify-center">
-                    <span className="text-neutral-500 font-medium">Fett</span>
-                    <span className="font-bold text-neutral-900 whitespace-nowrap text-xs mt-0.5">
-                      {recipe.fatG ? `${recipe.fatG} g` : "–"}
-                    </span>
-                  </div>
+                  ))}
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* Right Column: Steps */}
-          <div className="md:col-span-7 space-y-2.5">
-            <h2 className="text-sm font-black text-neutral-900 uppercase tracking-wider flex items-center gap-2">
-              <span>{t("stepByStep")}</span>
-              <span className="text-xs font-normal text-neutral-500">
-                ({recipe.steps.length} Schritte)
-              </span>
-            </h2>
+              {/* Kitchen basics */}
+              <div className="border border-neutral-200 rounded-xl p-2.5 bg-neutral-50/70 text-[11px] space-y-1">
+                <span className="font-bold text-neutral-800 block">
+                  🥄 {t("fromKitchen")}
+                </span>
+                <p className="text-neutral-600 leading-snug">{t("kitchenBasics")}</p>
+              </div>
 
-            <div className="space-y-2">
-              {recipe.steps.map((step, idx) => {
-                const { title, body } = parseStepText(step.text, idx);
-                return (
-                  <div
-                    key={step.id}
-                    className="flex gap-2.5 p-2 rounded-xl border border-neutral-200 bg-neutral-50/40 break-inside-avoid text-xs"
-                  >
-                    <span className="size-5 rounded-full bg-[#16a34a] text-white font-bold flex items-center justify-center shrink-0 text-[10px] mt-0.5">
-                      {idx + 1}
-                    </span>
-                    <div className="flex-1 leading-snug">
-                      {title && (
-                        <strong className="block font-bold text-neutral-900 mb-0.5">
-                          {title}
-                        </strong>
-                      )}
-                      <span className="text-neutral-700 whitespace-pre-line">{body}</span>
+              {/* Nutrition */}
+              {showNutrition && (
+                <div className="border border-neutral-200 rounded-xl p-2.5 text-[11px] space-y-1.5 bg-white shadow-2xs">
+                  <span className="font-bold text-neutral-800 block text-xs">
+                    🥗 {t("nutritionPerServing")}
+                  </span>
+                  <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                    <div className="bg-neutral-50 p-1.5 rounded-lg border border-neutral-100 flex flex-col justify-center">
+                      <span className="text-neutral-500 font-medium">Kalorien</span>
+                      <span className="font-bold text-neutral-900 whitespace-nowrap text-xs mt-0.5">
+                        {recipe.calories ? `${recipe.calories} kcal` : "–"}
+                      </span>
+                    </div>
+                    <div className="bg-neutral-50 p-1.5 rounded-lg border border-neutral-100 flex flex-col justify-center">
+                      <span className="text-neutral-500 font-medium">Protein</span>
+                      <span className="font-bold text-neutral-900 whitespace-nowrap text-xs mt-0.5">
+                        {recipe.proteinG ? `${recipe.proteinG} g` : "–"}
+                      </span>
+                    </div>
+                    <div className="bg-neutral-50 p-1.5 rounded-lg border border-neutral-100 flex flex-col justify-center">
+                      <span className="text-neutral-500 font-medium truncate">Kohlenhydrate</span>
+                      <span className="font-bold text-neutral-900 whitespace-nowrap text-xs mt-0.5">
+                        {recipe.carbsG ? `${recipe.carbsG} g` : "–"}
+                      </span>
+                    </div>
+                    <div className="bg-neutral-50 p-1.5 rounded-lg border border-neutral-100 flex flex-col justify-center">
+                      <span className="text-neutral-500 font-medium">Fett</span>
+                      <span className="font-bold text-neutral-900 whitespace-nowrap text-xs mt-0.5">
+                        {recipe.fatG ? `${recipe.fatG} g` : "–"}
+                      </span>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              )}
+            </div>
+
+            {/* Right Column: Steps */}
+            <div className={cn("space-y-2.5", exportMode ? "col-span-7" : "md:col-span-7")}>
+              <div className="flex items-center justify-between pb-1.5 border-b border-neutral-200">
+                <h2 className="text-xs font-bold text-neutral-900 uppercase tracking-wider">
+                  {t("stepByStep")}
+                </h2>
+                <span className="text-[11px] font-semibold text-[#16a34a] bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full whitespace-nowrap">
+                  {recipe.steps.length} Schritte
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {recipe.steps.map((step, idx) => {
+                  const { title, body } = parseStepText(step.text, idx);
+                  return (
+                    <div
+                      key={step.id}
+                      className="flex gap-2.5 p-2.5 rounded-xl border border-neutral-200 bg-neutral-50/40 break-inside-avoid text-xs"
+                    >
+                      <span className="size-5.5 rounded-full bg-[#16a34a] text-white font-bold flex items-center justify-center shrink-0 text-[11px] leading-none mt-0.5 shadow-2xs">
+                        {idx + 1}
+                      </span>
+                      <div className="flex-1 leading-snug">
+                        {title && (
+                          <strong className="block font-bold text-neutral-900 mb-0.5">
+                            {title}
+                          </strong>
+                        )}
+                        <span className="text-neutral-700 whitespace-pre-line">{body}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="mt-5 pt-3 border-t border-neutral-200 flex items-center justify-between text-[11px] text-neutral-500">
+        <div className="mt-5 pt-3 border-t border-neutral-200 flex items-center justify-between text-[11px] text-neutral-500 shrink-0">
           <span>{t("cookedWith")}</span>
           <span className="font-bold text-[#16a34a]">{t("bonAppetit")}</span>
         </div>
@@ -277,7 +300,13 @@ export function PrintableRecipeCard({
       {/* ========================================================================= */}
       {/* PAGE 1: Front Side (Cover, Hero, Info, Ingredients, Nutrition)           */}
       {/* ========================================================================= */}
-      <div className="din-a4-page w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white border border-neutral-200 rounded-2xl p-7 sm:p-9 shadow-sm print:border-none print:shadow-none print:rounded-none break-after-page">
+      <div
+        className="din-a4-page w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white border border-neutral-200 rounded-2xl p-7 sm:p-9 shadow-sm print:border-none print:shadow-none print:rounded-none break-after-page"
+        style={{
+          fontFamily:
+            'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        }}
+      >
         {/* Header Bar */}
         <div>
           <div className="flex items-center justify-between border-b-2 border-[#16a34a] pb-3 mb-5">
@@ -511,7 +540,13 @@ export function PrintableRecipeCard({
       {/* ========================================================================= */}
       {/* PAGE 2: Back Side (Step-by-Step Instructions)                            */}
       {/* ========================================================================= */}
-      <div className="din-a4-page w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white border border-neutral-200 rounded-2xl p-7 sm:p-9 shadow-sm print:border-none print:shadow-none print:rounded-none print:p-0">
+      <div
+        className="din-a4-page w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white border border-neutral-200 rounded-2xl p-7 sm:p-9 shadow-sm print:border-none print:shadow-none print:rounded-none print:p-0"
+        style={{
+          fontFamily:
+            'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        }}
+      >
         {/* Header Bar */}
         <div>
           <div className="flex items-center justify-between border-b-2 border-[#16a34a] pb-3 mb-6">

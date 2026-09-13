@@ -91,7 +91,8 @@
     "unmarkCooked": "Remove tried & tested status",
     "markingCooked": "Saving…",
     "cookedSuccess": "Recipe marked as tried & tested!",
-    "unmarkedCookedSuccess": "Removed tried & tested status!"
+    "unmarkedCookedSuccess": "Removed tried & tested status!",
+    "share": "Share"
   },
   "RecipeForm": {
     "title": "Title",
@@ -304,5 +305,34 @@
     "nutritionPerServing": "Nutrition per serving",
     "kitchenBasics": "Pots, pans, cutting board, knife & pantry basics (salt, pepper, oil)",
     "min": "min"
+  },
+  "ShareDialog": {
+    "title": "Share recipe",
+    "subtitle": "Share the recipe card directly or send the link.",
+    "tabCard": "Recipe card",
+    "tabLink": "Share link",
+    "tabText": "As text",
+    "cardSubtitle": "Generate a complete image of the recipe card – perfect for recipients without app access.",
+    "shareCard": "Share recipe card",
+    "downloadImage": "Save as image (PNG)",
+    "copyImage": "Copy image",
+    "imageCopied": "Image copied to clipboard! ✓",
+    "imageCopyFailed": "Could not copy image",
+    "generatingImage": "Rendering recipe card…",
+    "servings": "Servings",
+    "showImage": "Include photo",
+    "showNutrition": "Include nutrition",
+    "printOrPdf": "Print / Save as PDF",
+    "linkSubtitle": "Share the direct web link to this recipe.",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied! ✓",
+    "shareLink": "Share link",
+    "noAccessNotice": "Note: People without access to this preppr instance cannot open the web link. Use the recipe card option to share the recipe as an image instead.",
+    "privateNotice": "This recipe is private. Others cannot open the web link unless visibility is set to shared. However, the recipe card image always works!",
+    "textSubtitle": "Copy ingredients and instructions as formatted text for WhatsApp, notes, or emails.",
+    "copyText": "Copy text",
+    "textCopied": "Text copied! ✓",
+    "shareText": "Share text",
+    "close": "Close"
   }
 }

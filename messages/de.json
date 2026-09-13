@@ -91,7 +91,8 @@
     "unmarkCooked": "Erprobt-Status entfernen",
     "markingCooked": "Wird gespeichert…",
     "cookedSuccess": "Rezept als erprobt markiert!",
-    "unmarkedCookedSuccess": "Erprobt-Status entfernt!"
+    "unmarkedCookedSuccess": "Erprobt-Status entfernt!",
+    "share": "Teilen"
   },
   "RecipeForm": {
     "title": "Titel",
@@ -304,5 +305,34 @@
     "nutritionPerServing": "Nährwerte pro Portion",
     "kitchenBasics": "Kochtopf, Pfanne, Schneidebrett sowie Basics (Salz, Pfeffer, Öl)",
     "min": "Min."
+  },
+  "ShareDialog": {
+    "title": "Rezept teilen",
+    "subtitle": "Teile das Rezept direkt als Rezeptkarte oder versende den Link.",
+    "tabCard": "Rezeptkarte",
+    "tabLink": "Link teilen",
+    "tabText": "Als Text",
+    "cardSubtitle": "Erzeuge ein vollständiges Bild des Rezepts – ideal für Empfänger ohne App-Zugang.",
+    "shareCard": "Rezeptkarte teilen",
+    "downloadImage": "Als Bild speichern (PNG)",
+    "copyImage": "Bild kopieren",
+    "imageCopied": "Bild in Zwischenablage kopiert! ✓",
+    "imageCopyFailed": "Bild konnte nicht kopiert werden",
+    "generatingImage": "Rezeptkarte wird gerendert…",
+    "servings": "Portionen",
+    "showImage": "Foto einblenden",
+    "showNutrition": "Nährwerte anzeigen",
+    "printOrPdf": "Drucken / Als PDF",
+    "linkSubtitle": "Teile den direkten Link zum Rezept.",
+    "copyLink": "Link kopieren",
+    "linkCopied": "Link kopiert! ✓",
+    "shareLink": "Link teilen",
+    "noAccessNotice": "Hinweis: Personen ohne Zugriff auf diese preppr-Instanz können den Weblink nicht aufrufen. Nutze die Rezeptkarte, um das Rezept als Bild zu versenden.",
+    "privateNotice": "Dieses Rezept ist privat. Andere können den Weblink erst öffnen, wenn die Sichtbarkeit auf „Mit Haushalt geteilt“ gestellt ist. Die Rezeptkarte als Bild funktioniert aber immer!",
+    "textSubtitle": "Kopiere Zutaten und Zubereitung als formatierten Text für WhatsApp, Notizen oder E-Mails.",
+    "copyText": "Text kopieren",
+    "textCopied": "Text kopiert! ✓",
+    "shareText": "Text teilen",
+    "close": "Schließen"
   }
 }

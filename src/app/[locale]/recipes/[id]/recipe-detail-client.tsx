@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/inputs";
 import { Spinner } from "@/components/ui/spinner";
 import { ConfirmDialog } from "@/components/ui/dialog";
+import { RecipeShareDialog } from "@/components/recipe-share-dialog";
 import { cn } from "@/lib/utils";
 import type { FullRecipe } from "@/lib/recipes";
 
@@ -35,6 +36,7 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
   const [forking, setForking] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -243,6 +245,17 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
             <span>{isCooked ? t("cookedBadge") : t("markCooked")}</span>
           </button>
 
+          {/* Desktop Share button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShareDialogOpen(true)}
+            className="gap-1.5 text-foreground hover:bg-muted cursor-pointer"
+          >
+            <ShareIcon className="size-4 text-[#16a34a]" />
+            <span>{t("share")}</span>
+          </Button>
+
           <Link href={`/recipes/${recipe.id}/print?servings=${servings}`}>
             <Button
               variant="outline"
@@ -318,6 +331,17 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
             )}
           </button>
 
+          {/* Mobile Share button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShareDialogOpen(true)}
+            aria-label={t("share")}
+            className="size-9 p-0 flex items-center justify-center cursor-pointer shrink-0"
+          >
+            <ShareIcon className="size-4 text-[#16a34a]" />
+          </Button>
+
           {!recipe.isOwner ? (
             <Button
               variant="default"
@@ -370,6 +394,19 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                 >
                   <span className="text-sm">{isCooked ? "✓" : "🍳"}</span>
                   <span>{isCooked ? t("unmarkCooked") : t("markCooked")}</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setShareDialogOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition cursor-pointer text-left"
+                >
+                  <ShareIcon className="size-4 shrink-0 text-[#16a34a]" />
+                  <span>{t("share")}</span>
                 </button>
 
                 <Link
@@ -725,6 +762,13 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
         variant="danger"
         isPending={isDeleting}
       />
+
+      <RecipeShareDialog
+        open={shareDialogOpen}
+        onClose={() => setShareDialogOpen(false)}
+        recipe={recipe}
+        initialServings={servings}
+      />
     </div>
   );
 }
@@ -883,6 +927,28 @@ function PrinterIcon({ className }: { className?: string }) {
       <polyline points="6 9 6 2 18 2 18 9" />
       <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
       <rect width="12" height="8" x="6" y="14" />
+    </svg>
+  );
+}
+
+function ShareIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
     </svg>
   );
 }
