@@ -6,6 +6,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/inputs";
 import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 import type { FullRecipe } from "@/lib/recipes";
 
 function fmt(n: number): string {
@@ -20,6 +21,8 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
   const [pending, startTransition] = useTransition();
 
   const [servings, setServings] = useState(recipe.servings);
+  const [isCooked, setIsCooked] = useState(recipe.isCooked ?? false);
+  const [toggleCookedLoading, setToggleCookedLoading] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
@@ -62,6 +65,28 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
   }
 
   const scale = servings / recipe.servings;
+
+  const onToggleCooked = async () => {
+    const nextState = !isCooked;
+    setIsCooked(nextState);
+    setToggleCookedLoading(true);
+    try {
+      const res = await fetch(`/api/recipes/${recipe.id}/cooked`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isCooked: nextState }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setIsCooked(data.isCooked);
+      router.refresh();
+    } catch {
+      setIsCooked(!nextState);
+      alert(t("generic", { defaultValue: "Failed to update status" }));
+    } finally {
+      setToggleCookedLoading(false);
+    }
+  };
 
   const onDelete = () => {
     if (!confirm(t("deleteConfirm"))) return;
@@ -184,6 +209,29 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
             </span>
           )}
 
+          {/* Cooked & Approved button (desktop) */}
+          <button
+            type="button"
+            onClick={onToggleCooked}
+            disabled={toggleCookedLoading}
+            title={isCooked ? t("unmarkCooked") : t("markCooked")}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition cursor-pointer border",
+              isCooked
+                ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/25"
+                : "border-input bg-background text-foreground/70 hover:bg-muted hover:text-foreground",
+            )}
+          >
+            {toggleCookedLoading ? (
+              <Spinner />
+            ) : isCooked ? (
+              <span className="font-bold text-emerald-600 dark:text-emerald-400">✓</span>
+            ) : (
+              <span>🍳</span>
+            )}
+            <span>{isCooked ? t("cookedBadge") : t("markCooked")}</span>
+          </button>
+
           <Link href={`/recipes/${recipe.id}/print?servings=${servings}`}>
             <Button
               variant="outline"
@@ -237,6 +285,28 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
 
         {/* Mobile actions (< sm) */}
         <div className="flex sm:hidden items-center gap-2">
+          {/* Mobile Cooked toggle */}
+          <button
+            type="button"
+            onClick={onToggleCooked}
+            disabled={toggleCookedLoading}
+            aria-label={isCooked ? t("unmarkCooked") : t("markCooked")}
+            className={cn(
+              "inline-flex items-center justify-center size-9 rounded-lg border transition cursor-pointer shrink-0 text-sm",
+              isCooked
+                ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
+                : "border-input bg-background text-foreground/70 hover:bg-muted",
+            )}
+          >
+            {toggleCookedLoading ? (
+              <Spinner />
+            ) : isCooked ? (
+              <span className="font-bold">✓</span>
+            ) : (
+              <span>🍳</span>
+            )}
+          </button>
+
           {!recipe.isOwner ? (
             <Button
               variant="default"
@@ -275,8 +345,22 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
               <div
                 role="menu"
                 aria-orientation="vertical"
-                className="absolute right-0 mt-2 w-44 origin-top-right rounded-xl border border-border bg-background/95 backdrop-blur-md p-1 shadow-lg z-50 animate-in fade-in-50 zoom-in-95 duration-100"
+                className="absolute right-0 mt-2 w-48 origin-top-right rounded-xl border border-border bg-background/95 backdrop-blur-md p-1 shadow-lg z-50 animate-in fade-in-50 zoom-in-95 duration-100"
               >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onToggleCooked();
+                  }}
+                  disabled={toggleCookedLoading}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition cursor-pointer text-left"
+                >
+                  <span className="text-sm">{isCooked ? "✓" : "🍳"}</span>
+                  <span>{isCooked ? t("unmarkCooked") : t("markCooked")}</span>
+                </button>
+
                 <Link
                   href={`/recipes/${recipe.id}/print?servings=${servings}`}
                   role="menuitem"
@@ -485,6 +569,44 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
         {/* Right Column: Title, Metadata, Ingredients, Steps */}
         <div className="lg:col-span-7 space-y-8">
           <div>
+            {/* Cooked & Approved Status Banner */}
+            {isCooked ? (
+              <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 border border-emerald-500/25 px-3.5 py-2.5 text-emerald-900 dark:text-emerald-300 mb-3.5">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-bold shadow-xs">
+                    ✓
+                  </span>
+                  <div>
+                    <p className="text-xs sm:text-sm font-semibold leading-tight">{t("cookedBadge")}</p>
+                    <p className="text-[11px] sm:text-xs text-emerald-700/80 dark:text-emerald-400/80 leading-tight mt-0.5">
+                      {t("cookedHint")}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={onToggleCooked}
+                  disabled={toggleCookedLoading}
+                  className="text-xs font-medium text-emerald-700 dark:text-emerald-400 underline hover:opacity-80 transition cursor-pointer shrink-0 ml-2"
+                >
+                  {t("unmarkCooked")}
+                </button>
+              </div>
+            ) : (
+              <div className="mb-3.5">
+                <button
+                  type="button"
+                  onClick={onToggleCooked}
+                  disabled={toggleCookedLoading}
+                  className="inline-flex items-center gap-2 rounded-xl border border-dashed border-border/80 bg-muted/20 hover:bg-muted/50 px-3.5 py-2 text-xs font-medium text-foreground/70 hover:text-foreground transition cursor-pointer"
+                >
+                  {toggleCookedLoading ? <Spinner /> : <span>🍳</span>}
+                  <span>{t("markCooked")}</span>
+                  <span className="text-[11px] text-foreground/40 hidden sm:inline">• {t("cookedHint")}</span>
+                </button>
+              </div>
+            )}
+
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">
               {recipe.title}
             </h1>

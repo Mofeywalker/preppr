@@ -28,6 +28,7 @@ export type RecipeInput = {
   steps: string[];
   tags?: string[];
   visibility?: "private" | "shared";
+  isCooked?: boolean;
 };
 
 export const recipeInputSchema: z.ZodType<RecipeInput> = z.object({
@@ -49,6 +50,7 @@ export const recipeInputSchema: z.ZodType<RecipeInput> = z.object({
   steps: z.array(z.string().min(1)).min(1),
   tags: z.array(z.string()).optional(),
   visibility: z.enum(["private", "shared"]).optional(),
+  isCooked: z.boolean().optional(),
 });
 
 export type Recipe = schema.Recipe;
@@ -350,6 +352,7 @@ export async function updateRecipe(
         fatG: input.fatG ?? null,
         fiberG: input.fiberG ?? null,
         visibility: input.visibility ?? existing.visibility,
+        isCooked: input.isCooked ?? existing.isCooked,
         updatedAt: now,
       })
       .where(eq(schema.recipes.id, id))
@@ -457,6 +460,7 @@ export async function forkRecipe(
       steps: recipe.steps.map((s) => s.text),
       tags: recipe.tags,
       visibility: "shared",
+      isCooked: recipe.isCooked,
     },
     userId,
   );
@@ -494,6 +498,7 @@ export async function createRecipesBatch(
         carbsG: input.carbsG ?? null,
         fatG: input.fatG ?? null,
         fiberG: input.fiberG ?? null,
+        isCooked: input.isCooked ?? false,
         createdAt: now,
         updatedAt: now,
       }).run();
@@ -536,4 +541,34 @@ export async function listAllTags(): Promise<string[]> {
     .orderBy(asc(schema.tags.name));
   return rows.map((r) => r.name);
 }
+
+export async function toggleRecipeCooked(
+  id: string,
+  userId?: string,
+  forceState?: boolean,
+): Promise<{ isCooked: boolean }> {
+  const existing = await db
+    .select()
+    .from(schema.recipes)
+    .where(eq(schema.recipes.id, id))
+    .get();
+
+  if (!existing) throw new Error("Recipe not found");
+
+  const isOwner = !existing.userId || (!!userId && existing.userId === userId);
+  if (!isOwner && existing.visibility !== "shared") {
+    throw new Error("Unauthorized: You do not have access to this recipe");
+  }
+
+  const newState = forceState !== undefined ? forceState : !existing.isCooked;
+  const now = Math.floor(Date.now() / 1000);
+
+  db.update(schema.recipes)
+    .set({ isCooked: newState, updatedAt: now })
+    .where(eq(schema.recipes.id, id))
+    .run();
+
+  return { isCooked: newState };
+}
+
 

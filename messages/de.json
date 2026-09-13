@@ -42,7 +42,13 @@
     "viewGrid": "Kartenansicht",
     "viewList": "Listenansicht",
     "caloriesShort": "kcal",
-    "searchShortcut": "Drücke / zum Suchen"
+    "searchShortcut": "Drücke / zum Suchen",
+    "filterCooked": "Erprobt",
+    "filterCookedAll": "Alle Gerichte",
+    "sortCookedFirst": "Erprobte zuerst",
+    "cookedBadge": "Erprobt",
+    "cookedBadgeLong": "Erprobt & lecker",
+    "cookedBadgeAria": "Dieses Gericht wurde bereits gekocht und für gut befunden"
   },
   "RecipeDetail": {
     "ingredients": "Zutaten",
@@ -74,7 +80,14 @@
     "changeImage": "Bild ändern",
     "uploadingImage": "Wird hochgeladen…",
     "moreActions": "Weitere Aktionen",
-    "printCard": "Rezeptkarte drucken / PDF"
+    "printCard": "Rezeptkarte drucken / PDF",
+    "cookedBadge": "Erprobt & lecker",
+    "cookedHint": "Mindestens 1x gekocht & für gut befunden",
+    "markCooked": "Als erprobt markieren",
+    "unmarkCooked": "Erprobt-Status entfernen",
+    "markingCooked": "Wird gespeichert…",
+    "cookedSuccess": "Rezept als erprobt markiert!",
+    "unmarkedCookedSuccess": "Erprobt-Status entfernt!"
   },
   "RecipeForm": {
     "title": "Titel",
@@ -124,7 +137,9 @@
     "refetchPhotoError": "Foto konnte nicht neu generiert werden",
     "recreatePhotoError": "Foto konnte nicht neu generiert werden",
     "refetchPhotoHint": "Nimmt das aktuelle Bild als Basis und wandelt es per KI in ein appetitliches 16:9 Food-Foto um, mit vollem Fokus auf das Essen.",
-    "recreatePhotoHint": "Nimmt das aktuelle Bild als Basis und wandelt es per KI in ein appetitliches 16:9 Food-Foto um, mit vollem Fokus auf das Essen."
+    "recreatePhotoHint": "Nimmt das aktuelle Bild als Basis und wandelt es per KI in ein appetitliches 16:9 Food-Foto um, mit vollem Fokus auf das Essen.",
+    "isCooked": "Bereits gekocht & für gut befunden (Erprobt)",
+    "isCookedDescription": "Zeigt an, dass dieses Rezept schon mindestens einmal erfolgreich zubereitet wurde und geschmeckt hat."
   },
   "Import": {
     "title": "Rezepte importieren & exportieren",

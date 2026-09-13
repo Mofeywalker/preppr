@@ -33,6 +33,7 @@ describe("archive utilities", () => {
     ],
     tags: ["Dessert", "Kuchen"],
     isOwner: true,
+    isCooked: true,
   };
 
   it("exports recipes to a valid ZIP buffer and parses it back", async () => {
@@ -62,6 +63,7 @@ describe("archive utilities", () => {
     ]);
     expect(imported.tags).toEqual(["Dessert", "Kuchen"]);
     expect(imported.calories).toBe(450);
+    expect(imported.isCooked).toBe(true);
     expect(imported.proteinG).toBe(6);
     expect(imported.carbsG).toBe(50);
     expect(imported.fatG).toBe(25);

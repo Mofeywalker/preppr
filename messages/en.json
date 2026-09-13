@@ -42,7 +42,13 @@
     "viewGrid": "Grid view",
     "viewList": "List view",
     "caloriesShort": "kcal",
-    "searchShortcut": "Press / to search"
+    "searchShortcut": "Press / to search",
+    "filterCooked": "Tried & Tested",
+    "filterCookedAll": "All dishes",
+    "sortCookedFirst": "Tried & tested first",
+    "cookedBadge": "Tried & Tested",
+    "cookedBadgeLong": "Tried & Tested",
+    "cookedBadgeAria": "This dish has been cooked and approved"
   },
   "RecipeDetail": {
     "ingredients": "Ingredients",
@@ -74,7 +80,14 @@
     "changeImage": "Change picture",
     "uploadingImage": "Uploading…",
     "moreActions": "More actions",
-    "printCard": "Print recipe card / PDF"
+    "printCard": "Print recipe card / PDF",
+    "cookedBadge": "Tried & Tested",
+    "cookedHint": "Cooked at least once and approved",
+    "markCooked": "Mark as tried & tested",
+    "unmarkCooked": "Remove tried & tested status",
+    "markingCooked": "Saving…",
+    "cookedSuccess": "Recipe marked as tried & tested!",
+    "unmarkedCookedSuccess": "Removed tried & tested status!"
   },
   "RecipeForm": {
     "title": "Title",
@@ -124,7 +137,9 @@
     "refetchPhotoError": "Failed to re-create photo",
     "recreatePhotoError": "Failed to re-create photo",
     "refetchPhotoHint": "Transforms the current picture into an appetizing 16:9 food photograph using AI, keeping the focus strictly on the food.",
-    "recreatePhotoHint": "Transforms the current picture into an appetizing 16:9 food photograph using AI, keeping the focus strictly on the food."
+    "recreatePhotoHint": "Transforms the current picture into an appetizing 16:9 food photograph using AI, keeping the focus strictly on the food.",
+    "isCooked": "Already cooked & approved (Tried & Tested)",
+    "isCookedDescription": "Marks that this recipe has already been cooked at least once and turned out great."
   },
   "Import": {
     "title": "Import & Export recipes",

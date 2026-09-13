@@ -11,6 +11,7 @@ import Fuse from "fuse.js";
 type SortOption =
   | "newest"
   | "oldest"
+  | "cooked-first"
   | "title-asc"
   | "title-desc"
   | "time-asc"
@@ -36,6 +37,7 @@ export function RecipeListClient({
   const [filter, setFilter] = useState<"all" | "mine" | "shared">(initialFilter);
   const [q, setQ] = useState(initialQuery);
   const [selectedTags, setSelectedTags] = useState<string[]>(initialTags);
+  const [onlyCooked, setOnlyCooked] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
@@ -80,6 +82,10 @@ export function RecipeListClient({
     return Array.from(counts.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => a.name.localeCompare(b.name));
+  }, [recipes]);
+
+  const cookedCount = useMemo(() => {
+    return recipes.filter((r) => r.isCooked).length;
   }, [recipes]);
 
   // Sync to URL via window.history.replaceState without triggering Next.js server transitions/flicker
@@ -169,6 +175,7 @@ export function RecipeListClient({
   const clearAllFilters = () => {
     setQ("");
     setSelectedTags([]);
+    setOnlyCooked(false);
   };
 
   const filteredAndSorted = useMemo(() => {
@@ -179,6 +186,11 @@ export function RecipeListClient({
       result = result.filter((r) => r.isOwner);
     } else if (filter === "shared") {
       result = result.filter((r) => r.visibility === "shared" && !r.isOwner);
+    }
+
+    // Filter by cooked status
+    if (onlyCooked) {
+      result = result.filter((r) => r.isCooked);
     }
 
     // Filter by selected tags (AND conjunction: must match all selected tags)
@@ -215,6 +227,12 @@ export function RecipeListClient({
       case "oldest":
         sorted.sort((a, b) => a.createdAt - b.createdAt);
         break;
+      case "cooked-first":
+        sorted.sort((a, b) => {
+          if (a.isCooked !== b.isCooked) return (b.isCooked ? 1 : 0) - (a.isCooked ? 1 : 0);
+          return b.createdAt - a.createdAt;
+        });
+        break;
       case "title-asc":
         sorted.sort((a, b) => a.title.localeCompare(b.title));
         break;
@@ -234,11 +252,12 @@ export function RecipeListClient({
     }
 
     return sorted;
-  }, [q, recipes, selectedTags, sortBy, filter]);
+  }, [q, recipes, selectedTags, sortBy, filter, onlyCooked]);
 
   const sortOptions: Array<{ value: SortOption; label: string }> = [
     { value: "newest", label: t("sortNewest") },
     { value: "oldest", label: t("sortOldest") },
+    { value: "cooked-first", label: t("sortCookedFirst") },
     { value: "title-asc", label: t("sortTitleAsc") },
     { value: "title-desc", label: t("sortTitleDesc") },
     { value: "time-asc", label: t("sortTimeAsc") },
@@ -592,21 +611,51 @@ export function RecipeListClient({
         </div>
       </div>
 
-      {/* Horizontal Tag Filter Bar with smooth scroll */}
-      {allTagsWithCount.length > 0 && (
+      {/* Horizontal Tag & Cooked Filter Bar with smooth scroll */}
+      {(allTagsWithCount.length > 0 || cookedCount > 0) && (
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 scroll-smooth">
           <button
             type="button"
-            onClick={() => setSelectedTags([])}
+            onClick={() => {
+              setSelectedTags([]);
+              setOnlyCooked(false);
+            }}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition shrink-0 cursor-pointer",
-              selectedTags.length === 0
+              selectedTags.length === 0 && !onlyCooked
                 ? "bg-foreground text-background shadow-xs"
                 : "bg-muted text-foreground/70 hover:bg-muted/80 hover:text-foreground",
             )}
           >
             {t("allTags")}
           </button>
+
+          {cookedCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setOnlyCooked((prev) => !prev)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition shrink-0 cursor-pointer border",
+                onlyCooked
+                  ? "bg-emerald-600 text-white border-emerald-600 shadow-xs dark:bg-emerald-500"
+                  : "border-emerald-600/30 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20",
+              )}
+            >
+              <span>{onlyCooked ? "✓" : "🍳"}</span>
+              <span>{t("filterCooked")}</span>
+              <span
+                className={cn(
+                  "text-[10px] rounded-full px-1.5 py-0.5 leading-none",
+                  onlyCooked
+                    ? "bg-white/20 text-white"
+                    : "bg-emerald-700/10 dark:bg-emerald-400/20 text-emerald-800 dark:text-emerald-300",
+                )}
+              >
+                {cookedCount}
+              </span>
+            </button>
+          )}
+
           {allTagsWithCount.map(({ name, count }) => {
             const isSelected = selectedTags.includes(name);
             return (
@@ -635,10 +684,10 @@ export function RecipeListClient({
               </button>
             );
           })}
-          {selectedTags.length > 0 && (
+          {(selectedTags.length > 0 || onlyCooked) && (
             <button
               type="button"
-              onClick={() => setSelectedTags([])}
+              onClick={clearAllFilters}
               className="text-xs text-foreground/60 hover:text-foreground underline ml-1 shrink-0 cursor-pointer"
             >
               {t("clearFilters")}
@@ -663,11 +712,11 @@ export function RecipeListClient({
             </svg>
           </div>
           <p className="font-medium text-foreground/80">
-            {q.trim() || selectedTags.length > 0
+            {q.trim() || selectedTags.length > 0 || onlyCooked
               ? t("noFilteredResults")
               : t("empty")}
           </p>
-          {q.trim() || selectedTags.length > 0 ? (
+          {q.trim() || selectedTags.length > 0 || onlyCooked ? (
             <button
               type="button"
               onClick={clearAllFilters}
@@ -747,6 +796,17 @@ export function RecipeListClient({
                         />
                       )}
                       <span>{r.authorName ? `${r.authorName}` : tSharing("sharedBadge")}</span>
+                    </div>
+                  )}
+
+                  {/* Cooked & Approved Badge */}
+                  {r.isCooked && (
+                    <div
+                      className="absolute bottom-2.5 left-2.5 z-10 flex items-center gap-1 rounded-full bg-emerald-600/90 text-white backdrop-blur-xs px-2 py-0.5 text-[10px] font-semibold shadow-xs border border-emerald-400/30"
+                      title={t("cookedBadgeLong")}
+                    >
+                      <span className="font-bold">✓</span>
+                      <span>{t("cookedBadge")}</span>
                     </div>
                   )}
                 </div>
@@ -901,6 +961,15 @@ export function RecipeListClient({
                             />
                           )}
                           <span>{r.authorName ? `${r.authorName}` : tSharing("sharedBadge")}</span>
+                        </span>
+                      )}
+                      {r.isCooked && (
+                        <span
+                          className="shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-semibold"
+                          title={t("cookedBadgeLong")}
+                        >
+                          <span className="font-bold">✓</span>
+                          <span>{t("cookedBadge")}</span>
                         </span>
                       )}
                     </h2>

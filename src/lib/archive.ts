@@ -26,6 +26,7 @@ export interface PrepprExportRecipe {
   ingredients: { name: string; quantity?: number | null; unit?: string | null }[];
   steps: string[];
   tags?: string[];
+  isCooked?: boolean;
 }
 
 export interface PrepprExportManifest {
@@ -111,6 +112,7 @@ export async function exportRecipesToZip(recipes: FullRecipe[]): Promise<Buffer>
       })),
       steps: recipe.steps.map((st) => st.text),
       tags: recipe.tags,
+      isCooked: recipe.isCooked,
     });
   }
 
@@ -308,6 +310,7 @@ function sanitizeRecipeInput(item: RawRecipeItem, fallbackLocale: Locale = getIn
     ingredients,
     steps,
     tags,
+    isCooked: typeof item.isCooked === "boolean" ? item.isCooked : false,
   };
 }
 

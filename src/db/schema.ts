@@ -70,6 +70,7 @@ export const recipes = sqliteTable("recipes", {
   carbsG: real("carbs_g"),
   fatG: real("fat_g"),
   fiberG: real("fiber_g"),
+  isCooked: integer("is_cooked", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at").notNull().default(sql`(unixepoch())`),
   updatedAt: integer("updated_at").notNull().default(sql`(unixepoch())`),
 });

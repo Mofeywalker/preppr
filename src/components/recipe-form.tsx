@@ -26,6 +26,7 @@ export type RecipeFormInitial = {
   steps?: string[];
   tags?: string[];
   visibility?: "private" | "shared";
+  isCooked?: boolean;
 };
 
 type IngField = { name: string; quantity: string; unit: string };
@@ -62,6 +63,7 @@ export function recipeFormInitialFromFull(r: FullRecipe): RecipeFormInitial {
     steps: r.steps.map((s) => s.text),
     tags: r.tags ?? [],
     visibility: r.visibility,
+    isCooked: r.isCooked,
   };
 }
 
@@ -97,6 +99,7 @@ export function RecipeForm({
   const [visibility, setVisibility] = useState<"private" | "shared">(
     init?.visibility ?? "shared",
   );
+  const [isCooked, setIsCooked] = useState<boolean>(init?.isCooked ?? false);
   const [servings, setServings] = useState(String(init?.servings ?? 4));
   const [prepTime, setPrepTime] = useState(
     init?.prepTimeMin == null ? "" : String(init.prepTimeMin),
@@ -327,6 +330,7 @@ export function RecipeForm({
         })),
       steps: stepList.map((s) => s.trim()).filter(Boolean),
       tags,
+      isCooked,
     };
 
     startTransition(async () => {
@@ -434,6 +438,30 @@ export function RecipeForm({
                   onChange={(e) => setCookTime(e.target.value)}
                   className="bg-background"
                 />
+              </div>
+            </div>
+
+            {/* Cooked & Approved Toggle */}
+            <div className="flex items-start gap-3 rounded-xl border border-border bg-background p-3.5 transition hover:border-foreground/30">
+              <input
+                id="isCooked"
+                type="checkbox"
+                checked={isCooked}
+                onChange={(e) => setIsCooked(e.target.checked)}
+                className="mt-0.5 size-4 rounded border-input text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
+              />
+              <div className="space-y-0.5 select-none">
+                <Label htmlFor="isCooked" className="font-medium cursor-pointer flex items-center gap-1.5">
+                  <span>{t("isCooked")}</span>
+                  {isCooked && (
+                    <span className="inline-flex items-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-semibold">
+                      ✓
+                    </span>
+                  )}
+                </Label>
+                <p className="text-xs text-foreground/60 leading-normal">
+                  {t("isCookedDescription")}
+                </p>
               </div>
             </div>
 

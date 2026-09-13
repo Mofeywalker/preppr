@@ -15,6 +15,7 @@ const {
   deleteRecipe,
   forkRecipe,
   listAllTags,
+  toggleRecipeCooked,
 } = await import("./recipes");
 
 describe("recipe database operations", () => {
@@ -183,6 +184,45 @@ describe("recipe database operations", () => {
     expect(tags).toContain("Schwäbisch");
     expect(tags).toContain("Vegetarisch");
     expect(tags).toContain("Italienisch");
+  });
+
+  it("creates and toggles isCooked status", async () => {
+    const id = await createRecipe(
+      {
+        sourceType: "manual",
+        language: "de",
+        title: "Test Lasagne",
+        servings: 4,
+        ingredients: [{ name: "Nudeln", quantity: 500, unit: "g" }],
+        steps: ["Schichten und backen."],
+        isCooked: false,
+      },
+      userId,
+    );
+
+    let recipe = await getRecipe(id, userId);
+    expect(recipe?.isCooked).toBe(false);
+
+    // Toggle to true
+    const result1 = await toggleRecipeCooked(id, userId);
+    expect(result1.isCooked).toBe(true);
+
+    recipe = await getRecipe(id, userId);
+    expect(recipe?.isCooked).toBe(true);
+
+    // Toggle back to false
+    const result2 = await toggleRecipeCooked(id, userId);
+    expect(result2.isCooked).toBe(false);
+
+    recipe = await getRecipe(id, userId);
+    expect(recipe?.isCooked).toBe(false);
+
+    // Force to true
+    const result3 = await toggleRecipeCooked(id, userId, true);
+    expect(result3.isCooked).toBe(true);
+
+    recipe = await getRecipe(id, userId);
+    expect(recipe?.isCooked).toBe(true);
   });
 
   it("deletes a recipe and cascaded relations", async () => {
