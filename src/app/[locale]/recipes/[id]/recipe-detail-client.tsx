@@ -6,6 +6,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/inputs";
 import { Spinner } from "@/components/ui/spinner";
+import { ConfirmDialog } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { FullRecipe } from "@/lib/recipes";
 
@@ -33,6 +34,9 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
   const [prevRecipeImageUrl, setPrevRecipeImageUrl] = useState(recipe.imageUrl);
   const [forking, setForking] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -82,18 +86,25 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
       router.refresh();
     } catch {
       setIsCooked(!nextState);
-      alert(t("generic", { defaultValue: "Failed to update status" }));
+      setActionError(t("generic", { defaultValue: "Failed to update status" }));
     } finally {
       setToggleCookedLoading(false);
     }
   };
 
-  const onDelete = () => {
-    if (!confirm(t("deleteConfirm"))) return;
-    startTransition(async () => {
-      await fetch(`/api/recipes/${recipe.id}`, { method: "DELETE" });
-      router.push("/");
-    });
+  const handleDeleteConfirm = async () => {
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/recipes/${recipe.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      startTransition(() => {
+        router.push("/");
+      });
+    } catch {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setActionError(t("deleteError", { defaultValue: "Failed to delete recipe" }));
+    }
   };
 
   const onFork = async () => {
@@ -107,7 +118,7 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
       router.push(`/recipes/${data.id}`);
       router.refresh();
     } catch {
-      alert("Failed to copy recipe");
+      setActionError("Failed to copy recipe");
     } finally {
       setForking(false);
     }
@@ -272,11 +283,11 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={onDelete}
-                disabled={pending}
-                className="gap-1.5"
+                onClick={() => setDeleteDialogOpen(true)}
+                disabled={isDeleting}
+                className="gap-1.5 cursor-pointer"
               >
-                {pending ? <Spinner /> : <TrashIcon className="size-4" />}
+                {isDeleting ? <Spinner /> : <TrashIcon className="size-4" />}
                 <span>{t("delete")}</span>
               </Button>
             </>
@@ -388,16 +399,12 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                     role="menuitem"
                     onClick={() => {
                       setMenuOpen(false);
-                      onDelete();
+                      setDeleteDialogOpen(true);
                     }}
-                    disabled={pending}
+                    disabled={isDeleting}
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-500/10 transition cursor-pointer text-left"
                   >
-                    {pending ? (
-                      <Spinner />
-                    ) : (
-                      <TrashIcon className="size-4 shrink-0 text-red-600" />
-                    )}
+                    <TrashIcon className="size-4 shrink-0 text-red-600" />
                     <span>{t("delete")}</span>
                   </button>
                 )}
@@ -510,6 +517,19 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
           </div>
           {uploadError && <p className="text-xs text-red-600">{uploadError}</p>}
           {genError && <p className="text-xs text-red-600">{genError}</p>}
+          {actionError && (
+            <div className="flex items-center justify-between rounded-xl bg-red-500/10 border border-red-500/20 px-3 py-2 text-xs text-red-600 dark:text-red-400">
+              <span>{actionError}</span>
+              <button
+                type="button"
+                onClick={() => setActionError(null)}
+                className="font-bold ml-2 cursor-pointer hover:opacity-70 text-sm leading-none"
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
+            </div>
+          )}
 
           {/* Servings Adjuster */}
           <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 p-3.5">
@@ -684,6 +704,27 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
           </section>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onClose={() => {
+          if (!isDeleting) setDeleteDialogOpen(false);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title={t("deleteConfirmTitle", { defaultValue: t("deleteConfirm") })}
+        description={t("deleteConfirmDesc", {
+          defaultValue:
+            "Möchtest du dieses Rezept wirklich unwiderruflich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+        })}
+        confirmText={
+          isDeleting
+            ? t("deleting", { defaultValue: "Wird gelöscht…" })
+            : t("delete")
+        }
+        cancelText={t("cancel", { defaultValue: "Abbrechen" })}
+        variant="danger"
+        isPending={isDeleting}
+      />
     </div>
   );
 }
