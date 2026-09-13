@@ -114,6 +114,19 @@ describe("jsonld-parser", () => {
       expect(res.name).toBe("Salz und frisch gemahlener Pfeffer");
     });
 
+    it("normalizes Prise abbreviations (pr, pr.)", () => {
+      expect(parseIngredientLine("1 Pr. Salz")).toEqual({
+        quantity: 1,
+        unit: "Prise",
+        name: "Salz",
+      });
+      expect(parseIngredientLine("2 pr Pfeffer")).toEqual({
+        quantity: 2,
+        unit: "Prise",
+        name: "Pfeffer",
+      });
+    });
+
     it("strips bullet points and HTML tags", () => {
       const res = parseIngredientLine("- <b>2</b> EL Butter");
       expect(res.quantity).toBe(2);
@@ -254,6 +267,35 @@ describe("jsonld-parser", () => {
           recipeIngredient: ["1 Ei"],
         })
       ).toBeNull();
+    });
+
+    it("returns null if all ingredients lack quantities and no domIngredients provided", () => {
+      const jsonLd = {
+        name: "Frischkäse-Sahnecreme",
+        recipeIngredient: ["Frischkäse", "Puderzucker", "Sahne"],
+        recipeInstructions: ["Alles verrühren."],
+      };
+      // Missing quantities should cause parseJsonLdRecipe to return null so it falls back to AI
+      expect(parseJsonLdRecipe(jsonLd)).toBeNull();
+    });
+
+    it("uses domIngredients when JSON-LD ingredients have no quantities", () => {
+      const jsonLd = {
+        name: "Frischkäse-Sahnecreme",
+        recipeYield: "4",
+        prepTime: "PT10M",
+        recipeIngredient: ["Frischkäse", "Puderzucker", "Sahne"],
+        recipeInstructions: ["Alles verrühren."],
+      };
+      const domIngredients = ["250 g Frischkäse", "40 g Puderzucker", "200 g Sahne"];
+
+      const result = parseJsonLdRecipe(jsonLd, "de", domIngredients);
+      expect(result).not.toBeNull();
+      expect(result?.ingredients).toEqual([
+        { name: "Frischkäse", quantity: 250, unit: "g" },
+        { name: "Puderzucker", quantity: 40, unit: "g" },
+        { name: "Sahne", quantity: 200, unit: "g" },
+      ]);
     });
   });
 });

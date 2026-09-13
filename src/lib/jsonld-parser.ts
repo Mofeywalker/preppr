@@ -118,6 +118,8 @@ const UNIT_NORMALIZATION: Record<string, string> = {
   zentiliter: "cl",
   prise: "Prise",
   prisen: "Prise",
+  "pr.": "Prise",
+  pr: "Prise",
   messerspitze: "Msp.",
   msp: "Msp.",
   "msp.": "Msp.",
@@ -253,7 +255,8 @@ export function parseIngredientLine(rawLine: string): {
 
   for (const knownUnit of KNOWN_UNITS) {
     // Check if word starts with unit followed by non-alpha character or space
-    const regex = new RegExp(`^${knownUnit}(?:\\.|\\b)`, "i");
+    const escapedUnit = knownUnit.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`^${escapedUnit}(?:\\.|\\b)`, "i");
     const unitMatch = lowerRemaining.match(regex);
     if (unitMatch) {
       unit = UNIT_NORMALIZATION[knownUnit] || knownUnit;
@@ -410,6 +413,7 @@ export function extractNutrition(nutritionObj: unknown): {
 export function parseJsonLdRecipe(
   jsonLd: Record<string, unknown>,
   fallbackLocale: Locale = "de",
+  domIngredients?: string[],
 ): ExtractedRecipe | null {
   try {
     // 1. Title
@@ -425,14 +429,29 @@ export function parseJsonLdRecipe(
         ? jsonLd.ingredients
         : [];
 
-    const ingredients: { name: string; quantity: number | null; unit: string | null }[] = [];
+    let ingredients: { name: string; quantity: number | null; unit: string | null }[] = [];
     for (const raw of rawIngredients) {
       if (typeof raw === "string" && raw.trim()) {
         ingredients.push(parseIngredientLine(raw));
       }
     }
 
-    if (ingredients.length === 0) {
+    // Check if JSON-LD provided meaningful quantities
+    const jsonLdHasQuantities = ingredients.some((i) => i.quantity !== null);
+
+    // If JSON-LD ingredients are missing or have no quantities at all, try DOM ingredients
+    if (!jsonLdHasQuantities && domIngredients && domIngredients.length > 0) {
+      const parsedDom = domIngredients
+        .map((raw) => parseIngredientLine(raw))
+        .filter((i) => Boolean(i.name));
+      if (parsedDom.some((i) => i.quantity !== null)) {
+        ingredients = parsedDom;
+      }
+    }
+
+    // If still no ingredients or not a single ingredient has a quantity, consider direct parse incomplete
+    // (return null to fall back to AI which can extract quantities from the page text)
+    if (ingredients.length === 0 || !ingredients.some((i) => i.quantity !== null)) {
       return null;
     }
 

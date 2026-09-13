@@ -8,6 +8,7 @@ export interface ScrapedRecipePage {
   imageUrl: string | null;
   jsonLdRecipe: Record<string, unknown> | null;
   textContent: string;
+  domIngredients: string[];
 }
 
 function findRecipesInJsonLd(obj: unknown, results: Record<string, unknown>[]): void {
@@ -208,7 +209,10 @@ export async function scrapeRecipeUrl(url: string): Promise<ScrapedRecipePage> {
 
   const imageUrl = rawImageUrl ? resolveUrl(rawImageUrl, url) : null;
 
-  // 5. Clean DOM to extract readable text content
+  // 5. Extract ingredients from DOM (before stripping script/styles/containers)
+  const domIngredients = extractDomIngredients($);
+
+  // 6. Clean DOM to extract readable text content
   $("script, style, noscript, svg, nav, footer, header, form, iframe, aside").remove();
   $('.advertisement, [id*="ad-"], [class*="ad-"], [class*="social-share"]').remove();
 
@@ -248,5 +252,75 @@ export async function scrapeRecipeUrl(url: string): Promise<ScrapedRecipePage> {
     imageUrl,
     jsonLdRecipe,
     textContent,
+    domIngredients,
   };
+}
+
+export function extractDomIngredients($: cheerio.CheerioAPI): string[] {
+  const ingredients: string[] = [];
+
+  // 1. Sallys Blog / Shop Studio recipe container
+  const sallyContainer = $(".shop-studio-recipes-recipe-detail-tabs-description-ingredients").first();
+  if (sallyContainer.length > 0) {
+    sallyContainer
+      .find(".shop-studio-recipes-recipe-detail-tabs-description-ingredients__content__ingredient-list__ingredient")
+      .each((_, el) => {
+        const q = $(el)
+          .find(".shop-studio-recipes-recipe-detail-tabs-description-ingredients__content__ingredient-list__ingredient__quantity")
+          .text()
+          .trim();
+        const t = $(el)
+          .find(".shop-studio-recipes-recipe-detail-tabs-description-ingredients__content__ingredient-list__ingredient__title")
+          .text()
+          .trim();
+        if (q && t) {
+          ingredients.push(`${q} ${t}`);
+        } else if (t) {
+          ingredients.push(t);
+        } else {
+          const text = $(el).text().trim().replace(/\s+/g, " ");
+          if (text) ingredients.push(text);
+        }
+      });
+    if (ingredients.length > 0) return ingredients;
+  }
+
+  // 2. Microdata itemprop="recipeIngredient" or itemprop="ingredients"
+  const microdata = $('[itemprop="recipeIngredient"], [itemprop="ingredients"]');
+  if (microdata.length > 0) {
+    microdata.each((_, el) => {
+      const text = $(el).text().trim().replace(/\s+/g, " ");
+      if (text) ingredients.push(text);
+    });
+    if (ingredients.length > 0) return ingredients;
+  }
+
+  // 3. WP Recipe Maker
+  const wprm = $(".wprm-recipe-ingredient");
+  if (wprm.length > 0) {
+    wprm.each((_, el) => {
+      const amount = $(el).find(".wprm-recipe-ingredient-amount").text().trim();
+      const unit = $(el).find(".wprm-recipe-ingredient-unit").text().trim();
+      const name = $(el).find(".wprm-recipe-ingredient-name").text().trim();
+      const line = [amount, unit, name].filter(Boolean).join(" ");
+      if (line) ingredients.push(line);
+      else {
+        const text = $(el).text().trim().replace(/\s+/g, " ");
+        if (text) ingredients.push(text);
+      }
+    });
+    if (ingredients.length > 0) return ingredients;
+  }
+
+  // 4. Tasty Recipes
+  const tasty = $(".tasty-recipes-ingredients li, .tasty-recipe-ingredients li");
+  if (tasty.length > 0) {
+    tasty.each((_, el) => {
+      const text = $(el).text().trim().replace(/\s+/g, " ");
+      if (text) ingredients.push(text);
+    });
+    if (ingredients.length > 0) return ingredients;
+  }
+
+  return ingredients;
 }
