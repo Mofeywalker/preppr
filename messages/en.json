@@ -103,6 +103,8 @@
     "addTag": "Add",
     "tagPlaceholder": "Type tag and press Enter…",
     "suggestedTags": "Existing tags",
+    "showMoreTags": "more",
+    "showLessTags": "Show fewer",
     "language": "Language",
     "servings": "Servings",
     "prepTime": "Prep time (min)",

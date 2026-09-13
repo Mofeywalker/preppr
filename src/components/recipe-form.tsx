@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef, useTransition } from "react";
+import { useState, useRef, useTransition, useMemo, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label, Select } from "@/components/ui/inputs";
 import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 import type { Locale } from "@/i18n/routing";
 import type { FullRecipe } from "@/lib/recipes";
 
@@ -127,7 +128,27 @@ export function RecipeForm({
   );
   const [tags, setTags] = useState<string[]>(init?.tags ?? []);
   const [tagInput, setTagInput] = useState("");
+  const [isTagInputFocused, setIsTagInputFocused] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [showAllAvailableTags, setShowAllAvailableTags] = useState(false);
+  const tagContainerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        tagContainerRef.current &&
+        !tagContainerRef.current.contains(event.target as Node)
+      ) {
+        setIsTagInputFocused(false);
+        setSelectedSuggestionIndex(-1);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const [refetchingPhoto, setRefetchingPhoto] = useState(false);
   const [refetchPhotoSuccess, setRefetchPhotoSuccess] = useState(false);
@@ -278,13 +299,41 @@ export function RecipeForm({
   const addIng = () => setIngs((l) => [...l, { name: "", quantity: "", unit: "" }]);
   const addStep = () => setStepList((l) => [...l, ""]);
 
+  const unselectedTags = useMemo(() => {
+    if (!availableTags) return [];
+    return availableTags.filter(
+      (at) => !tags.some((t) => t.toLowerCase() === at.toLowerCase()),
+    );
+  }, [availableTags, tags]);
+
+  const matchingSuggestions = useMemo(() => {
+    const query = tagInput.trim().toLowerCase();
+    if (!query) return [];
+    return unselectedTags
+      .filter((at) => at.toLowerCase().includes(query))
+      .sort((a, b) => {
+        const aStarts = a.toLowerCase().startsWith(query);
+        const bStarts = b.toLowerCase().startsWith(query);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        return a.localeCompare(b);
+      })
+      .slice(0, 8);
+  }, [unselectedTags, tagInput]);
+
   const handleAddTag = (tagToAdd?: string) => {
-    const name = (tagToAdd ?? tagInput).trim();
-    if (!name) return;
+    const raw = (tagToAdd ?? tagInput).trim();
+    if (!raw) return;
+    const matchedExisting = unselectedTags.find(
+      (at) => at.toLowerCase() === raw.toLowerCase(),
+    );
+    const name = matchedExisting ?? raw;
     if (!tags.some((t) => t.toLowerCase() === name.toLowerCase())) {
       setTags((prev) => [...prev, name]);
     }
     setTagInput("");
+    setSelectedSuggestionIndex(-1);
+    setIsTagInputFocused(false);
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
@@ -292,9 +341,45 @@ export function RecipeForm({
   };
 
   const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" || e.key === ",") {
+    if (e.key === "ArrowDown") {
+      if (matchingSuggestions.length > 0) {
+        e.preventDefault();
+        setIsTagInputFocused(true);
+        setSelectedSuggestionIndex((prev) =>
+          prev < matchingSuggestions.length - 1 ? prev + 1 : 0,
+        );
+      }
+    } else if (e.key === "ArrowUp") {
+      if (matchingSuggestions.length > 0) {
+        e.preventDefault();
+        setIsTagInputFocused(true);
+        setSelectedSuggestionIndex((prev) =>
+          prev > 0 ? prev - 1 : matchingSuggestions.length - 1,
+        );
+      }
+    } else if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
-      handleAddTag();
+      if (
+        isTagInputFocused &&
+        selectedSuggestionIndex >= 0 &&
+        selectedSuggestionIndex < matchingSuggestions.length
+      ) {
+        handleAddTag(matchingSuggestions[selectedSuggestionIndex]);
+      } else {
+        handleAddTag();
+      }
+    } else if (e.key === "Tab") {
+      if (
+        isTagInputFocused &&
+        selectedSuggestionIndex >= 0 &&
+        selectedSuggestionIndex < matchingSuggestions.length
+      ) {
+        e.preventDefault();
+        handleAddTag(matchingSuggestions[selectedSuggestionIndex]);
+      }
+    } else if (e.key === "Escape") {
+      setIsTagInputFocused(false);
+      setSelectedSuggestionIndex(-1);
     }
   };
 
@@ -642,23 +727,65 @@ export function RecipeForm({
               <p className="text-xs text-foreground/60">{t("tagsDescription")}</p>
             </div>
 
-            <div className="flex gap-2">
-              <Input
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleTagKeyDown}
-                placeholder={t("tagPlaceholder")}
-                className="bg-background"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleAddTag()}
-                disabled={!tagInput.trim()}
-                className="shrink-0"
-              >
-                + {t("addTag")}
-              </Button>
+            <div ref={tagContainerRef} className="relative">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    value={tagInput}
+                    onChange={(e) => {
+                      setTagInput(e.target.value);
+                      setSelectedSuggestionIndex(-1);
+                      setIsTagInputFocused(true);
+                    }}
+                    onFocus={() => setIsTagInputFocused(true)}
+                    onKeyDown={handleTagKeyDown}
+                    placeholder={t("tagPlaceholder")}
+                    className="bg-background"
+                    autoComplete="off"
+                  />
+                  {isTagInputFocused && matchingSuggestions.length > 0 && (
+                    <ul
+                      role="listbox"
+                      className="absolute left-0 right-0 top-full mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-border bg-background/95 backdrop-blur-md p-1 shadow-lg z-50 animate-in fade-in-50 zoom-in-95 duration-100 divide-y divide-border/30"
+                    >
+                      {matchingSuggestions.map((suggestion, idx) => {
+                        const isSelected = idx === selectedSuggestionIndex;
+                        return (
+                          <li
+                            key={suggestion}
+                            role="option"
+                            aria-selected={isSelected}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleAddTag(suggestion);
+                            }}
+                            className={cn(
+                              "flex items-center justify-between px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors",
+                              isSelected
+                                ? "bg-accent text-accent-foreground font-medium"
+                                : "text-foreground hover:bg-muted/80",
+                            )}
+                          >
+                            <span>{suggestion}</span>
+                            <span className="text-xs text-foreground/40 font-normal">
+                              + {t("addTag")}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleAddTag()}
+                  disabled={!tagInput.trim()}
+                  className="shrink-0"
+                >
+                  + {t("addTag")}
+                </Button>
+              </div>
             </div>
 
             {tags.length > 0 && (
@@ -682,30 +809,41 @@ export function RecipeForm({
               </div>
             )}
 
-            {availableTags &&
-              availableTags.filter((at) => !tags.some((t) => t.toLowerCase() === at.toLowerCase()))
-                .length > 0 && (
-                <div className="pt-2 border-t border-border/50">
-                  <span className="text-xs font-medium text-foreground/50 block mb-1.5">
+            {unselectedTags.length > 0 && (
+              <div className="pt-2 border-t border-border/50">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-medium text-foreground/50">
                     {t("suggestedTags")}:
                   </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {availableTags
-                      .filter((at) => !tags.some((t) => t.toLowerCase() === at.toLowerCase()))
-                      .slice(0, 10)
-                      .map((at) => (
-                        <button
-                          key={at}
-                          type="button"
-                          onClick={() => handleAddTag(at)}
-                          className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-xs text-foreground/70 hover:text-foreground hover:border-foreground/40 transition cursor-pointer"
-                        >
-                          + {at}
-                        </button>
-                      ))}
-                  </div>
+                  {unselectedTags.length > 12 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllAvailableTags((prev) => !prev)}
+                      className="text-xs text-foreground/60 hover:text-foreground transition cursor-pointer font-medium"
+                    >
+                      {showAllAvailableTags
+                        ? t("showLessTags")
+                        : `+ ${unselectedTags.length - 12} ${t("showMoreTags")}`}
+                    </button>
+                  )}
                 </div>
-              )}
+                <div className="flex flex-wrap gap-1.5">
+                  {(showAllAvailableTags
+                    ? unselectedTags
+                    : unselectedTags.slice(0, 12)
+                  ).map((at) => (
+                    <button
+                      key={at}
+                      type="button"
+                      onClick={() => handleAddTag(at)}
+                      className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-xs text-foreground/70 hover:text-foreground hover:border-foreground/40 transition cursor-pointer"
+                    >
+                      + {at}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="rounded-2xl border border-border bg-muted/10 p-5 space-y-4">
