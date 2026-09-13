@@ -138,6 +138,7 @@ export function RecipeForm({
   const [uploadPhotoError, setUploadPhotoError] = useState<string | null>(null);
   const [estimatingNutrition, setEstimatingNutrition] = useState(false);
   const [nutritionNotice, setNutritionNotice] = useState<string | null>(null);
+  const [showUrlInput, setShowUrlInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -467,7 +468,7 @@ export function RecipeForm({
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label htmlFor="imageUrl">{t("imageUrl")}</Label>
+                <Label>{t("photo")}</Label>
                 {imageUrl && (
                   <button
                     type="button"
@@ -594,17 +595,38 @@ export function RecipeForm({
                 </p>
               )}
 
-              <Input
-                id="imageUrl"
-                value={imageUrl}
-                onChange={(e) => {
-                  setImageUrl(e.target.value);
-                  setRefetchPhotoSuccess(false);
-                  setUploadPhotoSuccess(false);
-                }}
-                placeholder="https://…"
-                className="bg-background"
-              />
+              {showUrlInput ? (
+                <div className="space-y-1.5 pt-1">
+                  <Input
+                    id="imageUrl"
+                    value={imageUrl}
+                    onChange={(e) => {
+                      setImageUrl(e.target.value);
+                      setRefetchPhotoSuccess(false);
+                      setUploadPhotoSuccess(false);
+                    }}
+                    placeholder="https://…"
+                    className="bg-background"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowUrlInput(false)}
+                    className="text-[11px] text-foreground/50 hover:text-foreground underline cursor-pointer"
+                  >
+                    {t("cancel")}
+                  </button>
+                </div>
+              ) : (
+                <div className="pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowUrlInput(true)}
+                    className="text-xs text-foreground/50 hover:text-foreground/80 underline cursor-pointer"
+                  >
+                    {t("editUrl")}
+                  </button>
+                </div>
+              )}
 
               {mode === "edit" && recipeId && (
                 <p className="text-xs text-foreground/60">
