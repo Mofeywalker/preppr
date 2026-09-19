@@ -1,13 +1,3 @@
-<!-- BEGIN:nextjs-agent-rules -->
-
-# This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
-
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
-
-<!-- END:nextjs-agent-rules -->
-
 # Session Verification & CI Parity Rules
 
 Before completing any session, wrapping up user tasks, or committing and pushing code changes, you MUST always run the exact same verification checks as the GitHub Actions CI pipeline:
@@ -27,4 +17,3 @@ npm run verify
 - **Zero Regressions**: Never finish a session or report a task as complete if any of these checks fail. If a check fails, investigate and fix the root cause before proceeding.
 - **Test Isolation**: E2E tests use port 3005 and `.test-e2e.db`. Never let tests mutate `dev.db`.
 - **Clean Up**: Ensure temporary `.test-e2e.db*` files are removed after test runs.
-
