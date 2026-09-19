@@ -125,7 +125,6 @@ async function main() {
   const total = results?.stats?.expected ?? 0;
   const unexpected = results?.stats?.unexpected ?? 0;
   const flaky = results?.stats?.flaky ?? 0;
-  const skipped = results?.stats?.skipped ?? 0;
 
   if (unexpected === 0 && screenshots.length === 0) {
     md += `> ✅ **All E2E tests passed successfully!** (${total} passed)\n\n`;

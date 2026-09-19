@@ -15,6 +15,36 @@ function fmt(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, "");
 }
 
+function useDropdownMenu() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  return { open, setOpen, ref };
+}
+
 export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
   const t = useTranslations("RecipeDetail");
   const tForm = useTranslations("Recipes");
@@ -34,35 +64,12 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
   const [imageUrl, setImageUrl] = useState(recipe.imageUrl);
   const [prevRecipeImageUrl, setPrevRecipeImageUrl] = useState(recipe.imageUrl);
   const [forking, setForking] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const desktopMenu = useDropdownMenu();
+  const mobileMenu = useDropdownMenu();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setMenuOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [menuOpen]);
 
   if (recipe.imageUrl !== prevRecipeImageUrl) {
     setPrevRecipeImageUrl(recipe.imageUrl);
@@ -186,25 +193,25 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
     <div className="space-y-6">
       {/* Top navigation & action buttons */}
       <div className="flex items-center justify-between border-b border-border/60 pb-4 gap-3">
-        <Link
-          href="/"
-          className="text-sm font-medium text-foreground/60 hover:text-foreground transition inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-        >
-          <ChevronLeftIcon className="size-4" />
-          <span>{t("back")}</span>
-        </Link>
+        {/* Left: Navigation & Recipe Context / Metadata */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Link
+            href="/"
+            className="text-sm font-medium text-foreground/60 hover:text-foreground transition inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap"
+          >
+            <ChevronLeftIcon className="size-4" />
+            <span>{t("back")}</span>
+          </Link>
 
-        {/* Desktop buttons (sm and above) */}
-        <div className="hidden sm:flex items-center gap-2">
           {/* Visibility / Author status badge */}
           {recipe.isOwner ? (
-            <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground/70">
+            <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground/70 truncate">
               {recipe.visibility === "shared"
                 ? tSharing("visibilityShared")
                 : tSharing("visibilityPrivate")}
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary truncate">
               {recipe.authorImage && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -214,126 +221,120 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                   referrerPolicy="no-referrer"
                 />
               )}
-              <span>
+              <span className="truncate">
                 {recipe.authorName
                   ? tSharing("sharedBy", { name: recipe.authorName })
                   : tSharing("sharedBadge")}
               </span>
             </span>
           )}
+        </div>
 
-          {/* Cooked & Approved button (desktop) */}
-          <button
-            type="button"
-            onClick={onToggleCooked}
-            disabled={toggleCookedLoading}
-            title={isCooked ? t("unmarkCooked") : t("markCooked")}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition cursor-pointer border",
-              isCooked
-                ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/25"
-                : "border-input bg-background text-foreground/70 hover:bg-muted hover:text-foreground",
-            )}
-          >
-            {toggleCookedLoading ? (
-              <Spinner />
-            ) : isCooked ? (
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">✓</span>
-            ) : (
-              <span>🍳</span>
-            )}
-            <span>{isCooked ? t("cookedBadge") : t("markCooked")}</span>
-          </button>
+        {/* Right: Desktop actions (sm and above) */}
+        <div className="hidden sm:flex items-center gap-2 shrink-0">
+          {/* Print button */}
+          <Link href={`/recipes/${recipe.id}/print?servings=${servings}`}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-foreground hover:bg-muted cursor-pointer"
+            >
+              <PrinterIcon className="size-4 text-muted-foreground" />
+              <span>{t("print")}</span>
+            </Button>
+          </Link>
 
-          {/* Desktop Share button */}
+          {/* Share button */}
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShareDialogOpen(true)}
             className="gap-1.5 text-foreground hover:bg-muted cursor-pointer"
           >
-            <ShareIcon className="size-4 text-[#16a34a]" />
+            <ShareIcon className="size-4 text-muted-foreground" />
             <span>{t("share")}</span>
           </Button>
 
-          <Link href={`/recipes/${recipe.id}/print?servings=${servings}`}>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-emerald-700 dark:text-emerald-400 border-emerald-600/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer"
-            >
-              <PrinterIcon className="size-4" />
-              <span>{t("printCard")}</span>
-            </Button>
-          </Link>
-
-          <a href={`/api/recipes/${recipe.id}/export`} download>
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <DownloadIcon className="size-4" />
-              <span>{t("export")}</span>
-            </Button>
-          </a>
-
+          {/* Edit button (for users who can edit) */}
           {recipe.canEdit && (
             <Link href={`/recipes/${recipe.id}/edit`}>
-              <Button variant="outline" size="sm" className="gap-1.5">
-                <PencilIcon className="size-4" />
+              <Button variant="outline" size="sm" className="gap-1.5 cursor-pointer">
+                <PencilIcon className="size-4 text-muted-foreground" />
                 <span>{t("edit")}</span>
               </Button>
             </Link>
           )}
 
+          {/* Fork / Save button (Primary CTA for non-owners) */}
           {!recipe.isOwner && (
             <Button
-              variant={recipe.canEdit ? "outline" : "default"}
+              variant="default"
               size="sm"
               onClick={onFork}
               disabled={forking}
-              className="gap-1.5"
+              className="gap-1.5 cursor-pointer"
             >
-              <CopyIcon className="size-4" />
+              {forking ? <Spinner /> : <CopyIcon className="size-4" />}
               <span>{forking ? tSharing("forking") : tSharing("fork")}</span>
             </Button>
           )}
 
-          {recipe.isOwner && (
+          {/* Desktop Overflow Menu (...) */}
+          <div ref={desktopMenu.ref} className="relative inline-block">
             <Button
-              variant="destructive"
+              variant="outline"
               size="sm"
-              onClick={() => setDeleteDialogOpen(true)}
-              disabled={isDeleting}
-              className="gap-1.5 cursor-pointer"
+              onClick={() => desktopMenu.setOpen((prev) => !prev)}
+              aria-label={t("moreActions")}
+              aria-haspopup="menu"
+              aria-expanded={desktopMenu.open}
+              className="size-9 p-0 cursor-pointer text-muted-foreground hover:text-foreground"
             >
-              {isDeleting ? <Spinner /> : <TrashIcon className="size-4" />}
-              <span>{t("delete")}</span>
+              <MoreHorizontalIcon className="size-4" />
             </Button>
-          )}
+
+            {desktopMenu.open && (
+              <div
+                role="menu"
+                aria-orientation="vertical"
+                className="absolute right-0 mt-2 w-48 origin-top-right rounded-xl border border-border bg-background/95 backdrop-blur-md p-1 shadow-lg z-50 animate-in fade-in-50 zoom-in-95 duration-100"
+              >
+                <a
+                  href={`/api/recipes/${recipe.id}/export`}
+                  download
+                  role="menuitem"
+                  onClick={() => desktopMenu.setOpen(false)}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition cursor-pointer"
+                >
+                  <DownloadIcon className="size-4 shrink-0 text-muted-foreground" />
+                  <span>{t("export")}</span>
+                </a>
+
+                {recipe.isOwner && (
+                  <>
+                    <div className="my-1 border-t border-border/60" role="separator" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        desktopMenu.setOpen(false);
+                        setDeleteDialogOpen(true);
+                      }}
+                      disabled={isDeleting}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-500/10 transition cursor-pointer text-left"
+                    >
+                      <TrashIcon className="size-4 shrink-0 text-red-600" />
+                      <span>{t("delete")}</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Mobile actions (< sm) */}
-        <div className="flex sm:hidden items-center gap-2">
-          {/* Mobile Cooked toggle */}
-          <button
-            type="button"
-            onClick={onToggleCooked}
-            disabled={toggleCookedLoading}
-            aria-label={isCooked ? t("unmarkCooked") : t("markCooked")}
-            className={cn(
-              "inline-flex items-center justify-center size-9 rounded-lg border transition cursor-pointer shrink-0 text-sm",
-              isCooked
-                ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
-                : "border-input bg-background text-foreground/70 hover:bg-muted",
-            )}
-          >
-            {toggleCookedLoading ? (
-              <Spinner />
-            ) : isCooked ? (
-              <span className="font-bold">✓</span>
-            ) : (
-              <span>🍳</span>
-            )}
-          </button>
-
+        {/* Right: Mobile actions (< sm) */}
+        <div className="flex sm:hidden items-center gap-2 shrink-0">
           {/* Mobile Share button */}
           <Button
             variant="outline"
@@ -342,13 +343,14 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
             aria-label={t("share")}
             className="size-9 p-0 flex items-center justify-center cursor-pointer shrink-0"
           >
-            <ShareIcon className="size-4 text-[#16a34a]" />
+            <ShareIcon className="size-4 text-muted-foreground" />
           </Button>
 
+          {/* Mobile Edit / Fork */}
           {recipe.canEdit ? (
             <Link href={`/recipes/${recipe.id}/edit`}>
-              <Button variant="outline" size="sm" className="gap-1.5 h-9">
-                <PencilIcon className="size-3.5" />
+              <Button variant="outline" size="sm" className="gap-1.5 h-9 cursor-pointer">
+                <PencilIcon className="size-3.5 text-muted-foreground" />
                 <span>{t("edit")}</span>
               </Button>
             </Link>
@@ -358,111 +360,71 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
               size="sm"
               onClick={onFork}
               disabled={forking}
-              className="gap-1.5 h-9"
+              className="gap-1.5 h-9 cursor-pointer"
             >
               <CopyIcon className="size-3.5" />
               <span>{forking ? tSharing("forking") : tSharing("fork")}</span>
             </Button>
           )}
 
-          {/* Overflow Menu */}
-          <div ref={menuRef} className="relative inline-block">
+          {/* Mobile Overflow Menu */}
+          <div ref={mobileMenu.ref} className="relative inline-block">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setMenuOpen((prev) => !prev)}
+              onClick={() => mobileMenu.setOpen((prev) => !prev)}
               aria-label={t("moreActions")}
               aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              className="size-9 p-0"
+              aria-expanded={mobileMenu.open}
+              className="size-9 p-0 cursor-pointer text-muted-foreground hover:text-foreground"
             >
               <MoreHorizontalIcon className="size-4" />
             </Button>
 
-            {menuOpen && (
+            {mobileMenu.open && (
               <div
                 role="menu"
                 aria-orientation="vertical"
                 className="absolute right-0 mt-2 w-48 origin-top-right rounded-xl border border-border bg-background/95 backdrop-blur-md p-1 shadow-lg z-50 animate-in fade-in-50 zoom-in-95 duration-100"
               >
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onToggleCooked();
-                  }}
-                  disabled={toggleCookedLoading}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition cursor-pointer text-left"
-                >
-                  <span className="text-sm">{isCooked ? "✓" : "🍳"}</span>
-                  <span>{isCooked ? t("unmarkCooked") : t("markCooked")}</span>
-                </button>
-
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setShareDialogOpen(true);
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition cursor-pointer text-left"
-                >
-                  <ShareIcon className="size-4 shrink-0 text-[#16a34a]" />
-                  <span>{t("share")}</span>
-                </button>
-
                 <Link
                   href={`/recipes/${recipe.id}/print?servings=${servings}`}
                   role="menuitem"
-                  onClick={() => setMenuOpen(false)}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 transition cursor-pointer"
+                  onClick={() => mobileMenu.setOpen(false)}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition cursor-pointer"
                 >
-                  <PrinterIcon className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                  <span>{t("printCard")}</span>
+                  <PrinterIcon className="size-4 shrink-0 text-muted-foreground" />
+                  <span>{t("print")}</span>
                 </Link>
 
                 <a
                   href={`/api/recipes/${recipe.id}/export`}
                   download
                   role="menuitem"
-                  onClick={() => setMenuOpen(false)}
+                  onClick={() => mobileMenu.setOpen(false)}
                   className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition cursor-pointer"
                 >
-                  <DownloadIcon className="size-4 shrink-0 text-foreground/70" />
+                  <DownloadIcon className="size-4 shrink-0 text-muted-foreground" />
                   <span>{t("export")}</span>
                 </a>
 
-                {!recipe.isOwner && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onFork();
-                    }}
-                    disabled={forking}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition cursor-pointer text-left"
-                  >
-                    <CopyIcon className="size-4 shrink-0 text-foreground/70" />
-                    <span>{forking ? tSharing("forking") : tSharing("fork")}</span>
-                  </button>
-                )}
-
                 {recipe.isOwner && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setDeleteDialogOpen(true);
-                    }}
-                    disabled={isDeleting}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-500/10 transition cursor-pointer text-left"
-                  >
-                    <TrashIcon className="size-4 shrink-0 text-red-600" />
-                    <span>{t("delete")}</span>
-                  </button>
+                  <>
+                    <div className="my-1 border-t border-border/60" role="separator" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        mobileMenu.setOpen(false);
+                        setDeleteDialogOpen(true);
+                      }}
+                      disabled={isDeleting}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-500/10 transition cursor-pointer text-left"
+                    >
+                      <TrashIcon className="size-4 shrink-0 text-red-600" />
+                      <span>{t("delete")}</span>
+                    </button>
+                  </>
                 )}
               </div>
             )}

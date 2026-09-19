@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { usePathname, useRouter, Link } from "@/i18n/navigation";
+import { usePathname, Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { authClient, useSession } from "@/lib/auth-client";
@@ -28,7 +28,6 @@ const navItems = [
 
 export function Navbar() {
   const pathname = usePathname();
-  const router = useRouter();
   const tNav = useTranslations("Nav");
   const tAuth = useTranslations("Auth");
   const { data: session } = useSession();
