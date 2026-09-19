@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- base: native build tools for compiling native addons (better-sqlite3) ----
-FROM node:22-alpine AS base
+FROM node:25-alpine AS base
 ENV NPM_CONFIG_UPDATE_NOTIFIER=false
 RUN apk add --no-cache python3 make g++
 
@@ -20,7 +20,7 @@ COPY . .
 RUN npm run build
 
 # ---- runner: minimal production runtime image ----
-FROM node:22-alpine AS runner
+FROM node:25-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production \
