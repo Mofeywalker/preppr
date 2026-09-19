@@ -39,7 +39,7 @@ export const extractSchema = z.object({
         name: z.string(),
         quantity: z.number().nullable(),
         unit: z.string().nullable(),
-        section: z.string().nullable().optional(),
+        section: z.string().nullable(),
       }),
     )
     .min(1),

@@ -482,7 +482,7 @@ export function parseJsonLdRecipe(
       name: string;
       quantity: number | null;
       unit: string | null;
-      section?: string | null;
+      section: string | null;
     }[] = [];
 
     for (const raw of rawIngredients) {
@@ -511,7 +511,7 @@ export function parseJsonLdRecipe(
         name: string;
         quantity: number | null;
         unit: string | null;
-        section?: string | null;
+        section: string | null;
       }[] = [];
 
       for (const raw of domIngredients) {
@@ -549,7 +549,7 @@ export function parseJsonLdRecipe(
       // Parse all DOM entries once for comparison
       const parsedDomEntries = domSectionedIngredients.map((entry) => ({
         ...parseIngredientLine(entry.raw),
-        section: entry.section,
+        section: entry.section ?? null,
       }));
 
       // Build a compound key lookup: "qty|name" -> [section, ...] (stack per key)
@@ -565,7 +565,7 @@ export function parseJsonLdRecipe(
           const domKey = domEntry.name.toLowerCase().trim();
           if (ingKey === domKey || ingKey.includes(domKey) || domKey.includes(ingKey)) {
             domIdx++;
-            return { ...ing, section: domEntry.section };
+            return { ...ing, section: domEntry.section ?? null };
           }
         }
         return ing;
