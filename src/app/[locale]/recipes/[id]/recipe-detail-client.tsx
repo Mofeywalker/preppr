@@ -20,7 +20,7 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
   const tForm = useTranslations("Recipes");
   const tSharing = useTranslations("Sharing");
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   const [servings, setServings] = useState(recipe.servings);
   const [isCooked, setIsCooked] = useState(recipe.isCooked ?? false);

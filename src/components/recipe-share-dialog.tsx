@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { toBlob } from "html-to-image";
 import { Dialog } from "@/components/ui/dialog";
@@ -69,6 +69,8 @@ function triggerDownload(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+const emptySubscribe = () => () => {};
+
 export function RecipeShareDialog({
   open,
   onClose,
@@ -80,6 +82,15 @@ export function RecipeShareDialog({
   const [servings, setServings] = useState<number>(
     initialServings && initialServings > 0 ? initialServings : recipe.servings || 4,
   );
+  const [prevInitialServings, setPrevInitialServings] = useState<number | undefined>(initialServings);
+
+  if (initialServings !== prevInitialServings) {
+    setPrevInitialServings(initialServings);
+    if (initialServings && initialServings > 0) {
+      setServings(initialServings);
+    }
+  }
+
   const [showImage, setShowImage] = useState<boolean>(!!recipe.imageUrl);
   const [showNutrition, setShowNutrition] = useState<boolean>(true);
 
@@ -89,20 +100,13 @@ export function RecipeShareDialog({
   const [copiedText, setCopiedText] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const [shareUrl, setShareUrl] = useState<string>("");
+  const origin = useSyncExternalStore(
+    emptySubscribe,
+    () => window.location.origin,
+    () => "",
+  );
+  const shareUrl = origin ? `${origin}/recipes/${recipe.id}` : "";
   const cardRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setShareUrl(`${window.location.origin}/recipes/${recipe.id}`);
-    }
-  }, [recipe.id]);
-
-  useEffect(() => {
-    if (initialServings && initialServings > 0) {
-      setServings(initialServings);
-    }
-  }, [initialServings]);
 
   const canNativeShareFiles =
     typeof navigator !== "undefined" &&
