@@ -47,13 +47,16 @@ test.describe("Interactive Recipe Features", () => {
     await expect(cookedToggleBtn).toBeVisible();
     await cookedToggleBtn.click();
 
-    // Verification button "✓ Erprobt & lecker" appears
-    const cookedActiveBtn = page.getByRole("button", { name: "✓ Erprobt & lecker" });
-    await expect(cookedActiveBtn).toBeVisible();
+    // Verification banner with "Erprobt & lecker" appears
+    await expect(page.getByText("Erprobt & lecker").first()).toBeVisible();
 
-    // Toggle off
-    await cookedActiveBtn.click();
-    await expect(cookedActiveBtn).not.toBeVisible();
+    // Toggle off via "Erprobt-Status entfernen"
+    const unmarkBtn = page.locator('button:has-text("Erprobt-Status entfernen"):visible').first();
+    await expect(unmarkBtn).toBeVisible();
+    await unmarkBtn.click();
+
+    // "Als erprobt markieren" button reappears
+    await expect(page.locator('button:has-text("Als erprobt markieren"):visible').first()).toBeVisible();
 
     // 4. Test Printable Recipe Card
     const printLink = page.locator('a[href*="/print"]:visible').first();

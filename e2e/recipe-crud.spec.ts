@@ -82,8 +82,10 @@ test.describe("Recipe Lifecycle (CRUD)", () => {
     await page.waitForURL(/\/recipes\/[a-zA-Z0-9_-]+$/);
     await expect(page.locator("h1")).toContainText(updatedTitle);
 
-    // 6. Delete recipe
-    const deleteBtn = page.locator('button:has-text("Löschen"):visible');
+    // 6. Delete recipe (via overflow menu)
+    const overflowBtn = page.locator('button[aria-label="Weitere Aktionen"], button[aria-label="More actions"]').first();
+    await overflowBtn.click();
+    const deleteBtn = page.locator('button[role="menuitem"]:has-text("Löschen")');
     await deleteBtn.click();
 
     // Confirm dialog
