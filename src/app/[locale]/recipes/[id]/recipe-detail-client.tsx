@@ -852,7 +852,7 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                     className="rounded-xl border border-border overflow-hidden bg-card/40 shadow-2xs"
                   >
                     {hasSections && (
-                      <div className="sticky top-14 sm:top-16 z-10 px-4 py-2 bg-muted/80 backdrop-blur-md border-b border-border flex items-center justify-between">
+                      <div className="px-4 py-2.5 bg-muted/40 border-b border-border flex items-center justify-between">
                         <h3
                           data-testid="ingredient-section-header"
                           className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-2"
