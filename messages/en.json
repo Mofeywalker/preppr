@@ -93,7 +93,11 @@
     "markingCooked": "Saving…",
     "cookedSuccess": "Recipe marked as tried & tested!",
     "unmarkedCookedSuccess": "Removed tried & tested status!",
-    "share": "Share"
+    "share": "Share",
+    "viewBySection": "By section",
+    "viewConsolidated": "Consolidated list",
+    "sectionDefault": "Ingredients",
+    "breakdown": "Breakdown"
   },
   "RecipeForm": {
     "title": "Title",
@@ -115,6 +119,11 @@
     "quantity": "Amount",
     "unit": "Unit",
     "addIngredient": "Add ingredient",
+    "addSection": "Add section",
+    "sectionName": "Section name",
+    "sectionPlaceholder": "e.g. Dough, Streusel, Filling",
+    "removeSection": "Remove section",
+    "defaultSection": "Main ingredients",
     "steps": "Steps",
     "stepText": "Step",
     "addStep": "Add step",

@@ -251,6 +251,7 @@ describe("jsonld-parser", () => {
         quantity: 400,
         unit: "g",
         name: "Spaghetti",
+        section: null,
       });
       expect(result?.steps).toEqual([
         "Wasser zum Kochen bringen.",
@@ -292,10 +293,126 @@ describe("jsonld-parser", () => {
       const result = parseJsonLdRecipe(jsonLd, "de", domIngredients);
       expect(result).not.toBeNull();
       expect(result?.ingredients).toEqual([
-        { name: "Frischkäse", quantity: 250, unit: "g" },
-        { name: "Puderzucker", quantity: 40, unit: "g" },
-        { name: "Sahne", quantity: 200, unit: "g" },
+        { name: "Frischkäse", quantity: 250, unit: "g", section: null },
+        { name: "Puderzucker", quantity: 40, unit: "g", section: null },
+        { name: "Sahne", quantity: 200, unit: "g", section: null },
       ]);
+    });
+
+    it("correctly extracts sections from recipe ingredients (e.g. Teig & Streusel)", () => {
+      const jsonLd = {
+        name: "Himbeer-Muffins mit Streuseln",
+        recipeYield: "12 Muffins",
+        recipeIngredient: [
+          "Für den Teig:",
+          "250 g Mehl",
+          "160 g Zucker",
+          "80 g Butter",
+          "1 Ei",
+          "Für die Streusel:",
+          "100 g Mehl",
+          "80 g Zucker",
+          "60 g Butter",
+        ],
+        recipeInstructions: [
+          "Teig anrühren und in Förmchen füllen.",
+          "Streusel darauf verteilen und backen.",
+        ],
+      };
+
+      const result = parseJsonLdRecipe(jsonLd);
+      expect(result).not.toBeNull();
+      // Section headers should NOT be extracted as ingredients
+      expect(result?.ingredients).toHaveLength(7);
+      expect(result?.ingredients[0]).toEqual({
+        name: "Mehl",
+        quantity: 250,
+        unit: "g",
+        section: "Teig",
+      });
+      expect(result?.ingredients[1]).toEqual({
+        name: "Zucker",
+        quantity: 160,
+        unit: "g",
+        section: "Teig",
+      });
+      expect(result?.ingredients[2]).toEqual({
+        name: "Butter",
+        quantity: 80,
+        unit: "g",
+        section: "Teig",
+      });
+      expect(result?.ingredients[3]).toEqual({
+        name: "Ei",
+        quantity: 1,
+        unit: null,
+        section: "Teig",
+      });
+      expect(result?.ingredients[4]).toEqual({
+        name: "Mehl",
+        quantity: 100,
+        unit: "g",
+        section: "Streusel",
+      });
+      expect(result?.ingredients[5]).toEqual({
+        name: "Zucker",
+        quantity: 80,
+        unit: "g",
+        section: "Streusel",
+      });
+      expect(result?.ingredients[6]).toEqual({
+        name: "Butter",
+        quantity: 60,
+        unit: "g",
+        section: "Streusel",
+      });
+    });
+
+    it("overlays sections from domSectionedIngredients when JSON-LD has no sections (Chefkoch case)", () => {
+      // Chefkoch: JSON-LD has a flat list with correct quantities but no sections.
+      // DOM has per-section tables with section names.
+      const jsonLd = {
+        name: "Himbeer-Muffins mit Streuseln",
+        recipeYield: "12",
+        recipeIngredient: [
+          "250 g Mehl",
+          "160 g Zucker",
+          "80 g Butter, weiche",
+          "150 g Himbeeren",
+          "60 g Butter, flüssige",
+          "100 g Mehl",
+          "80 g Zucker",
+        ],
+        recipeInstructions: [
+          "Teig anrühren.",
+          "Streusel verkneten und backen.",
+        ],
+      };
+
+      const domSectionedIngredients = [
+        { section: "Teig", raw: "250 g Mehl" },
+        { section: "Teig", raw: "160 g Zucker" },
+        { section: "Teig", raw: "80 g Butter, weiche" },
+        { section: "Teig", raw: "150 g Himbeeren" },
+        { section: "Streusel", raw: "60 g Butter, flüssige" },
+        { section: "Streusel", raw: "100 g Mehl" },
+        { section: "Streusel", raw: "80 g Zucker" },
+      ];
+
+      const result = parseJsonLdRecipe(jsonLd, "de", undefined, domSectionedIngredients);
+      expect(result).not.toBeNull();
+      expect(result?.ingredients).toHaveLength(7);
+
+      // Teig ingredients get "Teig" section
+      expect(result?.ingredients[0]).toMatchObject({ name: "Mehl", quantity: 250, section: "Teig" });
+      expect(result?.ingredients[1]).toMatchObject({ name: "Zucker", quantity: 160, section: "Teig" });
+      expect(result?.ingredients[2]).toMatchObject({ name: "Butter, weiche", quantity: 80, section: "Teig" });
+      expect(result?.ingredients[3]).toMatchObject({ name: "Himbeeren", quantity: 150, section: "Teig" });
+
+      // Streusel ingredients get "Streusel" section
+      expect(result?.ingredients[4]).toMatchObject({ name: "Butter, flüssige", quantity: 60, section: "Streusel" });
+      expect(result?.ingredients[5]).toMatchObject({ name: "Mehl", quantity: 100, section: "Streusel" });
+      expect(result?.ingredients[6]).toMatchObject({ name: "Zucker", quantity: 80, section: "Streusel" });
     });
   });
 });

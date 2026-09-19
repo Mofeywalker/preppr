@@ -38,6 +38,7 @@ export const extractSchema = z.object({
         name: z.string(),
         quantity: z.number().nullable(),
         unit: z.string().nullable(),
+        section: z.string().nullable().optional(),
       }),
     )
     .min(1),
@@ -70,7 +71,7 @@ You MUST ensure that the output recipe strictly uses METRIC units (e.g. g, kg, m
 MANDATORY NUTRITION ESTIMATION:
 If nutritional values are not mentioned, you MUST calculate or realistically estimate the macro nutritional values per serving (calories, proteinG, carbsG, fatG, and fiberG in grams) based on the ingredients, quantities, and servings. Never return 0 or null for calories, protein, carbs, fat, or fiber unless the dish genuinely contains none (e.g. pure water). Always provide a realistic estimate for fiberG (0 or higher in grams) based on vegetables, grains, legumes, nuts, seeds, or fruits.
 
-Extract ingredients with quantities and units. If a quantity can't be determined, leave it null but keep the unit.
+Extract ingredients with quantities, units, and logical component sections if present (e.g. 'Teig', 'Streusel', 'Füllung', 'Sauce', 'Topping', 'Dressing'). If an ingredient belongs to a specific component, set 'section' accordingly (or null for general ingredients).
 Return ONLY the structured recipe.`;
 }
 
@@ -101,7 +102,7 @@ You MUST ensure that the output recipe strictly uses METRIC units (e.g. g, kg, m
 MANDATORY NUTRITION ESTIMATION:
 If nutritional values are not explicitly stated on the webpage or in the structured data, you MUST calculate or realistically estimate the macro nutritional values per serving (calories, proteinG, carbsG, fatG, and fiberG in grams) based on the ingredients, quantities, and number of servings. Never return 0 or null for calories, protein, carbs, fat, or fiber unless the dish genuinely contains none (e.g. pure water). Always provide a realistic estimate for fiberG (0 or higher in grams) based on vegetables, grains, legumes, nuts, seeds, or fruits.
 
-Extract ingredients with quantities and units. If a quantity can't be determined, leave it null but keep the unit if applicable.
+Extract ingredients with quantities, units, and logical component sections if present (e.g. 'Teig', 'Streusel', 'Füllung', 'Sauce', 'Topping', 'Dressing'). If an ingredient belongs to a specific component, set 'section' accordingly (or null for general ingredients).
 Return ONLY the structured recipe.`;
 }
 

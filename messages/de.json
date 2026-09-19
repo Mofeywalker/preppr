@@ -93,7 +93,11 @@
     "markingCooked": "Wird gespeichert…",
     "cookedSuccess": "Rezept als erprobt markiert!",
     "unmarkedCookedSuccess": "Erprobt-Status entfernt!",
-    "share": "Teilen"
+    "share": "Teilen",
+    "viewBySection": "Nach Abschnitten",
+    "viewConsolidated": "Gesamtliste",
+    "sectionDefault": "Zutaten",
+    "breakdown": "Aufteilung"
   },
   "RecipeForm": {
     "title": "Titel",
@@ -115,6 +119,11 @@
     "quantity": "Menge",
     "unit": "Einheit",
     "addIngredient": "Zutat hinzufügen",
+    "addSection": "Abschnitt hinzufügen",
+    "sectionName": "Abschnittsname",
+    "sectionPlaceholder": "z. B. Teig, Streusel, Füllung",
+    "removeSection": "Abschnitt entfernen",
+    "defaultSection": "Hauptzutaten",
     "steps": "Schritte",
     "stepText": "Schritt",
     "addStep": "Schritt hinzufügen",

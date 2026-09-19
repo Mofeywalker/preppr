@@ -83,6 +83,7 @@ export const ingredients = sqliteTable("ingredients", {
   name: text("name").notNull(),
   quantity: real("quantity"),
   unit: text("unit"),
+  section: text("section"),
   order: integer("order").notNull(),
 });
 

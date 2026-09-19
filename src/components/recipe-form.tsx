@@ -23,23 +23,78 @@ export type RecipeFormInitial = {
   carbsG?: number | null;
   fatG?: number | null;
   fiberG?: number | null;
-  ingredients?: { name: string; quantity?: number | null; unit?: string | null }[];
+  ingredients?: { name: string; quantity?: number | null; unit?: string | null; section?: string | null }[];
   steps?: string[];
   tags?: string[];
   visibility?: "private" | "shared";
   isCooked?: boolean;
 };
 
-type IngField = { name: string; quantity: string; unit: string };
+type SectionItem = { id: string; name: string };
+type IngField = {
+  id: string;
+  name: string;
+  quantity: string;
+  unit: string;
+  sectionId: string;
+};
 
-function toIngFields(
-  list: RecipeFormInitial["ingredients"] = [],
-): IngField[] {
-  return list.map((i) => ({
-    name: i.name,
-    quantity: i.quantity == null ? "" : String(i.quantity),
-    unit: i.unit ?? "",
-  }));
+let nextIdCounter = 1;
+function genId(prefix = "id") {
+  return `${prefix}_${Date.now()}_${nextIdCounter++}_${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function initSectionsAndIngs(list: RecipeFormInitial["ingredients"] = []): {
+  sections: SectionItem[];
+  ings: IngField[];
+} {
+  const effectiveList =
+    list && list.length > 0
+      ? list
+      : [{ name: "", quantity: null, unit: "", section: null }];
+
+  const distinctNames = Array.from(
+    new Set(
+      effectiveList
+        .map((i) => i.section?.trim())
+        .filter((s): s is string => Boolean(s)),
+    ),
+  );
+
+  if (distinctNames.length === 0) {
+    return {
+      sections: [],
+      ings: effectiveList.map((i) => ({
+        id: genId("ing"),
+        name: i.name,
+        quantity: i.quantity == null ? "" : String(i.quantity),
+        unit: i.unit ?? "",
+        sectionId: "",
+      })),
+    };
+  }
+
+  const secMap = new Map<string, string>();
+  const sections: SectionItem[] = distinctNames.map((name) => {
+    const id = genId("sec");
+    secMap.set(name, id);
+    return { id, name };
+  });
+
+  const firstSecId = sections[0].id;
+  const ings: IngField[] = effectiveList.map((i) => {
+    const trimmed = i.section?.trim();
+    const sectionId = (trimmed && secMap.get(trimmed)) || firstSecId;
+    return {
+      id: genId("ing"),
+      name: i.name,
+      quantity: i.quantity == null ? "" : String(i.quantity),
+      unit: i.unit ?? "",
+      sectionId,
+    };
+  });
+
+  return { sections, ings };
 }
 
 export function recipeFormInitialFromFull(r: FullRecipe): RecipeFormInitial {
@@ -60,6 +115,7 @@ export function recipeFormInitialFromFull(r: FullRecipe): RecipeFormInitial {
       name: i.name,
       quantity: i.quantity,
       unit: i.unit,
+      section: i.section,
     })),
     steps: r.steps.map((s) => s.text),
     tags: r.tags ?? [],
@@ -109,7 +165,9 @@ export function RecipeForm({
     init?.cookTimeMin == null ? "" : String(init.cookTimeMin),
   );
   const [imageUrl, setImageUrl] = useState(init?.imageUrl ?? "");
-  const [ings, setIngs] = useState<IngField[]>(toIngFields(init?.ingredients));
+  const [initialData] = useState(() => initSectionsAndIngs(init?.ingredients));
+  const [sections, setSections] = useState<SectionItem[]>(initialData.sections);
+  const [ings, setIngs] = useState<IngField[]>(initialData.ings);
   const [stepList, setStepList] = useState<string[]>(init?.steps ?? [""]);
   const [calories, setCalories] = useState(
     init?.calories == null ? "" : String(init.calories),
@@ -296,7 +354,97 @@ export function RecipeForm({
   const num = (s: string): number | null =>
     s.trim() === "" ? null : Number(s);
 
-  const addIng = () => setIngs((l) => [...l, { name: "", quantity: "", unit: "" }]);
+  const addSection = () => {
+    if (sections.length === 0) {
+      const sec1Id = genId("sec");
+      const sec2Id = genId("sec");
+      setSections([
+        { id: sec1Id, name: "" },
+        { id: sec2Id, name: "" },
+      ]);
+      setIngs((current) => {
+        const base =
+          current.length > 0
+            ? current
+            : [
+                {
+                  id: genId("ing"),
+                  name: "",
+                  quantity: "",
+                  unit: "",
+                  sectionId: "",
+                },
+              ];
+        const updated = base.map((ing) => ({ ...ing, sectionId: sec1Id }));
+        return [
+          ...updated,
+          {
+            id: genId("ing"),
+            name: "",
+            quantity: "",
+            unit: "",
+            sectionId: sec2Id,
+          },
+        ];
+      });
+    } else {
+      const newSecId = genId("sec");
+      setSections((prev) => [...prev, { id: newSecId, name: "" }]);
+      setIngs((current) => [
+        ...current,
+        {
+          id: genId("ing"),
+          name: "",
+          quantity: "",
+          unit: "",
+          sectionId: newSecId,
+        },
+      ]);
+    }
+  };
+
+  const updateSectionName = (secId: string, newName: string) => {
+    setSections((prev) =>
+      prev.map((s) => (s.id === secId ? { ...s, name: newName } : s)),
+    );
+  };
+
+  const removeSection = (secId: string) => {
+    setSections((prev) => {
+      const remaining = prev.filter((s) => s.id !== secId);
+      if (remaining.length <= 1) {
+        setIngs((current) =>
+          current
+            .filter((ing) => ing.sectionId !== secId)
+            .map((ing) => ({ ...ing, sectionId: "" })),
+        );
+        return [];
+      }
+      setIngs((current) => current.filter((ing) => ing.sectionId !== secId));
+      return remaining;
+    });
+  };
+
+  const addIng = (sectionId = "") =>
+    setIngs((l) => [
+      ...l,
+      { id: genId("ing"), name: "", quantity: "", unit: "", sectionId },
+    ]);
+
+  const updateIng = (
+    id: string,
+    field: "name" | "quantity" | "unit",
+    val: string,
+  ) => {
+    setIngs((l) =>
+      l.map((x) => (x.id === id ? { ...x, [field]: val } : x)),
+    );
+  };
+
+  const removeIng = (id: string) => {
+    setIngs((l) => l.filter((x) => x.id !== id));
+  };
+
   const addStep = () => setStepList((l) => [...l, ""]);
 
   const unselectedTags = useMemo(() => {
@@ -409,11 +557,15 @@ export function RecipeForm({
       fiberG: num(fiber),
       ingredients: ings
         .filter((i) => i.name.trim())
-        .map((i) => ({
-          name: i.name.trim(),
-          quantity: i.quantity.trim() === "" ? null : Number(i.quantity),
-          unit: i.unit.trim() || null,
-        })),
+        .map((i) => {
+          const sec = sections.find((s) => s.id === i.sectionId);
+          return {
+            name: i.name.trim(),
+            quantity: i.quantity.trim() === "" ? null : Number(i.quantity),
+            unit: i.unit.trim() || null,
+            section: sec ? sec.name.trim() || null : null,
+          };
+        }),
       steps: stepList.map((s) => s.trim()).filter(Boolean),
       tags,
       isCooked,
@@ -888,64 +1040,171 @@ export function RecipeForm({
 
         {/* Right Column: Ingredients & Steps */}
         <div className="lg:col-span-6 space-y-6">
-          <div className="rounded-2xl border border-border bg-muted/10 p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-base font-semibold tracking-tight text-foreground">
-                {t("ingredients")}
-              </Label>
-              <Button type="button" variant="outline" size="sm" onClick={addIng}>
-                + {t("addIngredient")}
-              </Button>
-            </div>
-            <div className="space-y-2">
-              {ings.map((ing, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <Input
-                    className="flex-1 bg-background"
-                    placeholder={t("ingredientName")}
-                    value={ing.name}
-                    onChange={(e) =>
-                      setIngs((l) =>
-                        l.map((x, idx) => (idx === i ? { ...x, name: e.target.value } : x)),
-                      )
-                    }
-                  />
-                  <Input
-                    className="w-20 bg-background"
-                    type="number"
-                    placeholder={t("quantity")}
-                    value={ing.quantity}
-                    onChange={(e) =>
-                      setIngs((l) =>
-                        l.map((x, idx) =>
-                          idx === i ? { ...x, quantity: e.target.value } : x,
-                        ),
-                      )
-                    }
-                  />
-                  <Input
-                    className="w-20 bg-background"
-                    placeholder={t("unit")}
-                    value={ing.unit}
-                    onChange={(e) =>
-                      setIngs((l) =>
-                        l.map((x, idx) => (idx === i ? { ...x, unit: e.target.value } : x)),
-                      )
-                    }
-                  />
+          {sections.length === 0 ? (
+            <div className="rounded-2xl border border-border bg-muted/10 p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold tracking-tight text-foreground">
+                  {t("ingredients")}
+                </Label>
+                <div className="flex items-center gap-2">
                   <Button
                     type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIngs((l) => l.filter((_, idx) => idx !== i))}
-                    className="shrink-0 text-foreground/60 hover:text-red-600"
+                    variant="outline"
+                    size="sm"
+                    data-testid="add-section-btn"
+                    onClick={addSection}
                   >
-                    ×
+                    + {t("addSection")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addIng("")}
+                  >
+                    + {t("addIngredient")}
                   </Button>
                 </div>
-              ))}
+              </div>
+              <div className="space-y-2">
+                {ings.map((ing) => (
+                  <div key={ing.id} className="flex items-center gap-2">
+                    <Input
+                      className="flex-1 bg-background"
+                      placeholder={t("ingredientName")}
+                      value={ing.name}
+                      onChange={(e) => updateIng(ing.id, "name", e.target.value)}
+                    />
+                    <Input
+                      className="w-20 bg-background"
+                      type="number"
+                      placeholder={t("quantity")}
+                      value={ing.quantity}
+                      onChange={(e) => updateIng(ing.id, "quantity", e.target.value)}
+                    />
+                    <Input
+                      className="w-20 bg-background"
+                      placeholder={t("unit")}
+                      value={ing.unit}
+                      onChange={(e) => updateIng(ing.id, "unit", e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeIng(ing.id)}
+                      className="shrink-0 text-foreground/60 hover:text-red-600"
+                    >
+                      ×
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold tracking-tight text-foreground">
+                  {t("ingredients")}
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  data-testid="add-section-btn"
+                  onClick={addSection}
+                >
+                  + {t("addSection")}
+                </Button>
+              </div>
+
+              {sections.map((sec) => {
+                const secItems = ings.filter((x) => x.sectionId === sec.id);
+
+                return (
+                  <div
+                    key={sec.id}
+                    data-testid="recipe-form-section"
+                    className="rounded-2xl border border-border bg-muted/10 p-5 space-y-4"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 flex-1 max-w-xs sm:max-w-sm">
+                        <span className="size-2 rounded-full bg-primary shrink-0" />
+                        <Input
+                          data-testid="section-name-input"
+                          className="bg-background font-semibold text-sm h-8"
+                          placeholder={t("sectionPlaceholder")}
+                          value={sec.name}
+                          onChange={(e) => updateSectionName(sec.id, e.target.value)}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => addIng(sec.id)}
+                        >
+                          + {t("addIngredient")}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeSection(sec.id)}
+                          className="size-8 text-foreground/60 hover:text-red-600"
+                          title={t("removeSection")}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {secItems.map((ing) => (
+                        <div key={ing.id} className="flex items-center gap-2">
+                          <Input
+                            className="flex-1 bg-background"
+                            placeholder={t("ingredientName")}
+                            value={ing.name}
+                            onChange={(e) =>
+                              updateIng(ing.id, "name", e.target.value)
+                            }
+                          />
+                          <Input
+                            className="w-20 bg-background"
+                            type="number"
+                            placeholder={t("quantity")}
+                            value={ing.quantity}
+                            onChange={(e) =>
+                              updateIng(ing.id, "quantity", e.target.value)
+                            }
+                          />
+                          <Input
+                            className="w-20 bg-background"
+                            placeholder={t("unit")}
+                            value={ing.unit}
+                            onChange={(e) =>
+                              updateIng(ing.id, "unit", e.target.value)
+                            }
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeIng(ing.id)}
+                            className="shrink-0 text-foreground/60 hover:text-red-600"
+                          >
+                            ×
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div className="rounded-2xl border border-border bg-muted/10 p-5 space-y-4">
             <div className="flex items-center justify-between">

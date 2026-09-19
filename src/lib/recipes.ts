@@ -7,6 +7,7 @@ export const ingredientSchema = z.object({
   name: z.string().min(1),
   quantity: z.number().nullable().optional(),
   unit: z.string().nullable().optional(),
+  section: z.string().nullable().optional(),
 });
 
 export type RecipeInput = {
@@ -24,7 +25,7 @@ export type RecipeInput = {
   carbsG?: number | null;
   fatG?: number | null;
   fiberG?: number | null;
-  ingredients: { name: string; quantity?: number | null; unit?: string | null }[];
+  ingredients: { name: string; quantity?: number | null; unit?: string | null; section?: string | null }[];
   steps: string[];
   tags?: string[];
   visibility?: "private" | "shared";
@@ -389,6 +390,7 @@ export async function updateRecipe(
           name: ing.name,
           quantity: ing.quantity ?? null,
           unit: ing.unit ?? null,
+          section: ing.section?.trim() || null,
           order: i,
         })
         .run();
@@ -477,6 +479,7 @@ export async function forkRecipe(
         name: ing.name,
         quantity: ing.quantity,
         unit: ing.unit,
+        section: ing.section,
       })),
       steps: recipe.steps.map((s) => s.text),
       tags: recipe.tags,
@@ -532,6 +535,7 @@ export async function createRecipesBatch(
             name: ing.name,
             quantity: ing.quantity ?? null,
             unit: ing.unit ?? null,
+            section: ing.section?.trim() || null,
             order: i,
           })
           .run();

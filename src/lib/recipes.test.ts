@@ -282,6 +282,63 @@ describe("recipe database operations", () => {
     expect(recipe?.isCooked).toBe(true);
   });
 
+  it("creates, updates and forks a recipe with ingredient sections", async () => {
+    const id = await createRecipe(
+      {
+        sourceType: "manual",
+        language: "de",
+        title: "Streuselkuchen mit Sektionen",
+        servings: 8,
+        ingredients: [
+          { name: "Mehl", quantity: 300, unit: "g", section: "Teig" },
+          { name: "Zucker", quantity: 150, unit: "g", section: "Teig" },
+          { name: "Mehl", quantity: 150, unit: "g", section: "Streusel" },
+          { name: "Butter", quantity: 100, unit: "g", section: "Streusel" },
+        ],
+        steps: ["Teig anrühren.", "Streusel verkneten und backen."],
+      },
+      userId,
+    );
+
+    let recipe = await getRecipe(id, userId);
+    expect(recipe).not.toBeNull();
+    expect(recipe?.ingredients).toHaveLength(4);
+    expect(recipe?.ingredients[0].section).toBe("Teig");
+    expect(recipe?.ingredients[1].section).toBe("Teig");
+    expect(recipe?.ingredients[2].section).toBe("Streusel");
+    expect(recipe?.ingredients[3].section).toBe("Streusel");
+
+    // Update with modified sections
+    await updateRecipe(
+      id,
+      {
+        sourceType: "manual",
+        language: "de",
+        title: "Streuselkuchen mit Sektionen (Updated)",
+        servings: 8,
+        ingredients: [
+          { name: "Dinkelmehl", quantity: 300, unit: "g", section: "Boden" },
+          { name: "Zucker", quantity: 100, unit: "g", section: "Streusel" },
+        ],
+        steps: ["Alles backen."],
+      },
+      userId,
+    );
+
+    recipe = await getRecipe(id, userId);
+    expect(recipe?.ingredients).toHaveLength(2);
+    expect(recipe?.ingredients[0].section).toBe("Boden");
+    expect(recipe?.ingredients[1].section).toBe("Streusel");
+
+    // Fork and ensure sections are preserved
+    const forkedId = await forkRecipe(id, forkedUserId);
+    const forked = await getRecipe(forkedId, forkedUserId);
+    expect(forked?.ingredients).toHaveLength(2);
+    expect(forked?.ingredients[0].name).toBe("Dinkelmehl");
+    expect(forked?.ingredients[0].section).toBe("Boden");
+    expect(forked?.ingredients[1].section).toBe("Streusel");
+  });
+
   it("deletes a recipe and cascaded relations", async () => {
     const id = await createRecipe(
       {

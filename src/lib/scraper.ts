@@ -1,6 +1,13 @@
 import * as cheerio from "cheerio";
 import { validateExternalUrl } from "@/lib/ssrf";
 
+/** A single ingredient extracted from the DOM with optional section name. */
+export interface DomSectionedIngredient {
+  section: string | null;
+  /** Raw text like "250 g Mehl" */
+  raw: string;
+}
+
 export interface ScrapedRecipePage {
   url: string;
   title: string;
@@ -9,6 +16,8 @@ export interface ScrapedRecipePage {
   jsonLdRecipe: Record<string, unknown> | null;
   textContent: string;
   domIngredients: string[];
+  /** Structured DOM ingredients with section information (e.g. from Chefkoch). */
+  domSectionedIngredients: DomSectionedIngredient[];
 }
 
 function findRecipesInJsonLd(obj: unknown, results: Record<string, unknown>[]): void {
@@ -211,6 +220,7 @@ export async function scrapeRecipeUrl(url: string): Promise<ScrapedRecipePage> {
 
   // 5. Extract ingredients from DOM (before stripping script/styles/containers)
   const domIngredients = extractDomIngredients($);
+  const domSectionedIngredients = extractDomSectionedIngredients($);
 
   // 6. Clean DOM to extract readable text content
   $("script, style, noscript, svg, nav, footer, header, form, iframe, aside").remove();
@@ -253,6 +263,7 @@ export async function scrapeRecipeUrl(url: string): Promise<ScrapedRecipePage> {
     jsonLdRecipe,
     textContent,
     domIngredients,
+    domSectionedIngredients,
   };
 }
 
@@ -282,6 +293,71 @@ export function extractDomIngredients($: cheerio.CheerioAPI): string[] {
           if (text) ingredients.push(text);
         }
       });
+    if (ingredients.length > 0) return ingredients;
+  }
+
+  // 1.5. Chefkoch modern DS design (multiple tables, each with a thead headline)
+  const ckTables = $("table.ds-ingredients-table");
+  if (ckTables.length > 0) {
+    ckTables.each((_, tableEl) => {
+      const headline = $(tableEl)
+        .find("h3.ds-ingredients-table__headline, .ds-ingredients-table__headline")
+        .first()
+        .text()
+        .trim()
+        .replace(/\s+/g, " ");
+      if (headline) {
+        ingredients.push(headline.endsWith(":") ? headline : `${headline}:`);
+      }
+      $(tableEl)
+        .find("tr.ds-ingredients-table__tr")
+        .each((_, rowEl) => {
+          const tds = $(rowEl).find("td");
+          if (tds.length >= 2) {
+            const amountUnit = $(tds[0]).text().trim().replace(/\s+/g, " ");
+            const ingName = $(tds[1]).find(".ds-ingredients-table__ingredient-name").text().trim().replace(/\s+/g, " ")
+              || $(tds[1]).text().trim().replace(/\s+/g, " ");
+            if (amountUnit && ingName) {
+              ingredients.push(`${amountUnit} ${ingName}`);
+            } else if (ingName) {
+              ingredients.push(ingName);
+            }
+          }
+        });
+    });
+    if (ingredients.length > 0) return ingredients;
+  }
+
+  // 1.6. Chefkoch legacy ingredients table (older format)
+  const ckRows = $("table.ingredients tr, .recipe-ingredients table tr");
+  if (ckRows.length > 0) {
+    ckRows.each((_, el) => {
+      const isHeader =
+        $(el).find("th").length > 0 ||
+        $(el).find("td[colspan]").length > 0 ||
+        $(el).hasClass("ingredients__group") ||
+        $(el).hasClass("table-header");
+      if (isHeader) {
+        const headerText = $(el).text().trim().replace(/\s+/g, " ");
+        if (headerText) {
+          ingredients.push(headerText.endsWith(":") ? headerText : `${headerText}:`);
+        }
+      } else {
+        const tds = $(el).find("td");
+        if (tds.length >= 2) {
+          const amountUnit = $(tds[0]).text().trim().replace(/\s+/g, " ");
+          const ingName = $(tds[1]).text().trim().replace(/\s+/g, " ");
+          if (amountUnit && ingName) {
+            ingredients.push(`${amountUnit} ${ingName}`);
+          } else if (ingName) {
+            ingredients.push(ingName);
+          }
+        } else if (tds.length === 1) {
+          const text = $(tds[0]).text().trim().replace(/\s+/g, " ");
+          if (text) ingredients.push(text);
+        }
+      }
+    });
     if (ingredients.length > 0) return ingredients;
   }
 
@@ -324,3 +400,67 @@ export function extractDomIngredients($: cheerio.CheerioAPI): string[] {
 
   return ingredients;
 }
+
+/**
+ * Extracts structured ingredients with section names from site-specific DOM patterns.
+ * Currently handles Chefkoch's `table.ds-ingredients-table` multi-table layout.
+ * Returns an empty array for sites without a recognized multi-section DOM structure.
+ */
+export function extractDomSectionedIngredients(
+  $: cheerio.CheerioAPI,
+): DomSectionedIngredient[] {
+  const result: DomSectionedIngredient[] = [];
+
+  // Chefkoch modern DS design: multiple <table class="ds-ingredients-table">
+  // each with an optional <thead> containing the section name.
+  const ckTables = $("table.ds-ingredients-table");
+  if (ckTables.length === 0) return result;
+
+  ckTables.each((_, tableEl) => {
+    // Read the section headline from <thead>
+    const headlineEl = $(tableEl).find(
+      "h3.ds-ingredients-table__headline, .ds-ingredients-table__headline",
+    );
+    const rawHeadline = headlineEl.first().text().trim().replace(/\s+/g, " ");
+
+    // Normalize: "Zutaten für den Teig:" -> "Teig"
+    let sectionName: string | null = null;
+    if (rawHeadline) {
+      let cleaned = rawHeadline.replace(/:+$/, "").trim();
+      // Strip "Zutaten für den/die/das/…" prefix
+      cleaned = cleaned
+        .replace(/^zutaten\s+für\s+(?:den\s+|die\s+|das\s+)?/i, "")
+        .replace(/^für\s+(?:den\s+|die\s+|das\s+)?/i, "")
+        .replace(/^for\s+(?:the\s+)?/i, "")
+        .trim();
+      if (cleaned.length >= 2) {
+        sectionName =
+          cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+      }
+    }
+
+    $(tableEl)
+      .find("tr.ds-ingredients-table__tr")
+      .each((_, rowEl) => {
+        const tds = $(rowEl).find("td");
+        if (tds.length >= 2) {
+          const amountUnit = $(tds[0]).text().trim().replace(/\s+/g, " ");
+          const ingName =
+            $(tds[1])
+              .find(".ds-ingredients-table__ingredient-name")
+              .text()
+              .trim()
+              .replace(/\s+/g, " ") ||
+            $(tds[1]).text().trim().replace(/\s+/g, " ");
+
+          if (ingName) {
+            const raw = amountUnit ? `${amountUnit} ${ingName}` : ingName;
+            result.push({ section: sectionName, raw });
+          }
+        }
+      });
+  });
+
+  return result;
+}
+

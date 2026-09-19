@@ -293,6 +293,53 @@ export function parseIngredientLine(rawLine: string): {
 }
 
 /**
+ * Detects if a raw ingredient line represents a section header (e.g. "Für den Teig:", "Für die Streusel:", "[Streusel]", "-- Füllung --").
+ */
+export function isSectionHeader(rawLine: string): boolean {
+  const line = stripHtml(rawLine).trim();
+  if (!line || line.length > 80) return false;
+
+  // Must NOT start with digits (which indicates ingredient quantity)
+  if (/^\d/.test(line)) return false;
+
+  // 1. Bracketed or decorated e.g. [Streusel], (Teig), -- Teig --, == Füllung ==
+  if (/^(\[|\(|--+|==+).+(\]|\)|--+|==+)$/.test(line)) return true;
+
+  // 2. Ends with colon e.g. "Für den Teig:", "Streusel:", "Topping:"
+  if (line.endsWith(":")) return true;
+
+  // 3. Common section prefixes in German and English
+  if (
+    /^(für\s+(?:den|die|das|den\s+mürbeteig|den\s+teig|die\s+streusel|die\s+füllung|den\s+guss|die\s+glasur|die\s+sauce|das\s+frosting|die\s+marinade|die\s+deko|die\s+garnitur|den\s+belag|den\s+boden)|for\s+(?:the\s+)?(?:dough|crust|streusel|crumbs?|filling|sauce|frosting|topping|glaze|marinade|batter|dressing))/i.test(
+      line,
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Normalizes a section header into a clean, concise name (e.g. "Für den Teig:" -> "Teig", "Für die Streusel:" -> "Streusel").
+ */
+export function cleanSectionName(rawLine: string): string {
+  let cleaned = stripHtml(rawLine).trim();
+  // Remove wrapping brackets or decorations
+  cleaned = cleaned.replace(/^(\[|\(|--+|==+)\s*/, "").replace(/\s*(\]|\)|--+|==+)$/, "");
+  // Remove trailing colons
+  cleaned = cleaned.replace(/:+$/, "").trim();
+  // Strip "Für den / Für die / Für das / For the" prefix to get clean component name
+  const withoutPrefix = cleaned
+    .replace(/^(?:für\s+(?:den|die|das)\s+|for\s+(?:the\s+)?)/i, "")
+    .trim();
+  if (withoutPrefix.length >= 2) {
+    return withoutPrefix.charAt(0).toUpperCase() + withoutPrefix.slice(1);
+  }
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
+/**
  * Extracts clean step instructions from Schema.org recipeInstructions.
  */
 export function extractInstructions(instructions: unknown): string[] {
@@ -414,6 +461,7 @@ export function parseJsonLdRecipe(
   jsonLd: Record<string, unknown>,
   fallbackLocale: Locale = "de",
   domIngredients?: string[],
+  domSectionedIngredients?: import("./scraper").DomSectionedIngredient[],
 ): ExtractedRecipe | null {
   try {
     // 1. Title
@@ -429,10 +477,27 @@ export function parseJsonLdRecipe(
         ? jsonLd.ingredients
         : [];
 
-    let ingredients: { name: string; quantity: number | null; unit: string | null }[] = [];
+    let currentSection: string | null = null;
+    let ingredients: {
+      name: string;
+      quantity: number | null;
+      unit: string | null;
+      section?: string | null;
+    }[] = [];
+
     for (const raw of rawIngredients) {
       if (typeof raw === "string" && raw.trim()) {
-        ingredients.push(parseIngredientLine(raw));
+        if (isSectionHeader(raw)) {
+          currentSection = cleanSectionName(raw);
+        } else {
+          const parsed = parseIngredientLine(raw);
+          if (parsed.name) {
+            ingredients.push({
+              ...parsed,
+              section: currentSection,
+            });
+          }
+        }
       }
     }
 
@@ -441,16 +506,74 @@ export function parseJsonLdRecipe(
 
     // If JSON-LD ingredients are missing or have no quantities at all, try DOM ingredients
     if (!jsonLdHasQuantities && domIngredients && domIngredients.length > 0) {
-      const parsedDom = domIngredients
-        .map((raw) => parseIngredientLine(raw))
-        .filter((i) => Boolean(i.name));
+      let domSection: string | null = null;
+      const parsedDom: {
+        name: string;
+        quantity: number | null;
+        unit: string | null;
+        section?: string | null;
+      }[] = [];
+
+      for (const raw of domIngredients) {
+        if (typeof raw === "string" && raw.trim()) {
+          if (isSectionHeader(raw)) {
+            domSection = cleanSectionName(raw);
+          } else {
+            const parsed = parseIngredientLine(raw);
+            if (parsed.name) {
+              parsedDom.push({
+                ...parsed,
+                section: domSection,
+              });
+            }
+          }
+        }
+      }
+
       if (parsedDom.some((i) => i.quantity !== null)) {
         ingredients = parsedDom;
       }
     }
 
-    // If still no ingredients or not a single ingredient has a quantity, consider direct parse incomplete
-    // (return null to fall back to AI which can extract quantities from the page text)
+    // If JSON-LD has quantities but no section information, try to overlay sections from DOM
+    // (e.g. Chefkoch: JSON-LD has all ingredients in a flat list, DOM has per-section tables)
+    const jsonLdHasSections = ingredients.some((i) => i.section != null && i.section !== "");
+    if (
+      jsonLdHasQuantities &&
+      !jsonLdHasSections &&
+      domSectionedIngredients &&
+      domSectionedIngredients.length > 0 &&
+      // Only apply if DOM count matches JSON-LD count (sanity check)
+      domSectionedIngredients.length === ingredients.length
+    ) {
+      // Parse all DOM entries once for comparison
+      const parsedDomEntries = domSectionedIngredients.map((entry) => ({
+        ...parseIngredientLine(entry.raw),
+        section: entry.section,
+      }));
+
+      // Build a compound key lookup: "qty|name" -> [section, ...] (stack per key)
+      // We use a sequential cursor approach: walk through JSON-LD ingredients in order
+      // and match them against DOM entries in the same order (since both come from the
+      // same recipe, just split differently into sections).
+      let domIdx = 0;
+      ingredients = ingredients.map((ing) => {
+        if (domIdx < parsedDomEntries.length) {
+          const domEntry = parsedDomEntries[domIdx];
+          // Match if name is the same (case-insensitive) or one contains the other
+          const ingKey = ing.name.toLowerCase().trim();
+          const domKey = domEntry.name.toLowerCase().trim();
+          if (ingKey === domKey || ingKey.includes(domKey) || domKey.includes(ingKey)) {
+            domIdx++;
+            return { ...ing, section: domEntry.section };
+          }
+        }
+        return ing;
+      });
+    }
+
+    // If still no ingredients or not a single ingredient has a quantity, consider direct parse incomplete.
+    // Return null to fall back to AI which can extract quantities from the page text.
     if (ingredients.length === 0 || !ingredients.some((i) => i.quantity !== null)) {
       return null;
     }

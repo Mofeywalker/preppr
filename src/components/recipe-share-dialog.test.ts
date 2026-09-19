@@ -30,9 +30,9 @@ describe("RecipeShareDialog and formatRecipeText", () => {
     createdAt: Date.now(),
     updatedAt: Date.now(),
     ingredients: [
-      { id: "ing-1", recipeId: "rec-123", name: "Kichererbsen", quantity: 400, unit: "g", order: 0 },
-      { id: "ing-2", recipeId: "rec-123", name: "Kokosmilch", quantity: 400, unit: "ml", order: 1 },
-      { id: "ing-3", recipeId: "rec-123", name: "Salz", quantity: null, unit: null, order: 2 },
+      { id: "ing-1", recipeId: "rec-123", name: "Kichererbsen", quantity: 400, unit: "g", section: null, order: 0 },
+      { id: "ing-2", recipeId: "rec-123", name: "Kokosmilch", quantity: 400, unit: "ml", section: null, order: 1 },
+      { id: "ing-3", recipeId: "rec-123", name: "Salz", quantity: null, unit: null, section: null, order: 2 },
     ],
     steps: [
       { id: "step-1", recipeId: "rec-123", order: 0, text: "Zwiebeln anbraten" },

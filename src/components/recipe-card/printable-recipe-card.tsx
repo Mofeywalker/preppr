@@ -91,6 +91,27 @@ export function PrintableRecipeCard({
   const totalTime =
     (recipe.prepTimeMin ?? 0) + (recipe.cookTimeMin ?? 0);
 
+  const hasSections = React.useMemo(
+    () => recipe.ingredients.some((ing) => Boolean(ing.section?.trim())),
+    [recipe.ingredients],
+  );
+
+  const sectionGroups = React.useMemo(() => {
+    const groups: { section: string | null; title: string; ingredients: FullRecipe["ingredients"] }[] = [];
+    const map = new Map<string, (typeof groups)[number]>();
+    for (const ing of recipe.ingredients) {
+      const key = ing.section?.trim() || "";
+      let g = map.get(key);
+      if (!g) {
+        g = { section: ing.section?.trim() || null, title: ing.section?.trim() || t("ingredientsTitle"), ingredients: [] };
+        map.set(key, g);
+        groups.push(g);
+      }
+      g.ingredients.push(ing);
+    }
+    return groups;
+  }, [recipe.ingredients, t]);
+
   if (layoutMode === "compact") {
     return (
       <div
@@ -185,21 +206,50 @@ export function PrintableRecipeCard({
                   </span>
                 </div>
                 <div className="divide-y divide-neutral-100 p-1 text-xs">
-                  {recipe.ingredients.map((ing) => (
-                    <div
-                      key={ing.id}
-                      className="flex items-center justify-between gap-2 py-1.5 px-2 hover:bg-neutral-50"
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="size-3.5 rounded border border-neutral-400 inline-block shrink-0" />
-                        <span className="font-medium text-neutral-800 truncate">{ing.name}</span>
+                  {hasSections ? (
+                    sectionGroups.map((group, gIdx) => (
+                      <div key={group.section || gIdx} className="space-y-0.5">
+                        {group.section && (
+                          <div className="bg-neutral-100/90 px-2 py-0.5 text-[10px] font-bold text-neutral-700 uppercase tracking-wider rounded-xs mt-1 mb-0.5 first:mt-0">
+                            {group.title}
+                          </div>
+                        )}
+                        <div className="divide-y divide-neutral-100">
+                          {group.ingredients.map((ing) => (
+                            <div
+                              key={ing.id}
+                              className="flex items-center justify-between gap-2 py-1.5 px-2 hover:bg-neutral-50"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="size-3.5 rounded border border-neutral-400 inline-block shrink-0" />
+                                <span className="font-medium text-neutral-800 truncate">{ing.name}</span>
+                              </div>
+                              <span className="font-mono text-neutral-600 shrink-0 text-[11px]">
+                                {ing.quantity != null ? fmt(ing.quantity * scale) : ""}{" "}
+                                {ing.unit ?? ""}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <span className="font-mono text-neutral-600 shrink-0 text-[11px]">
-                        {ing.quantity != null ? fmt(ing.quantity * scale) : ""}{" "}
-                        {ing.unit ?? ""}
-                      </span>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    recipe.ingredients.map((ing) => (
+                      <div
+                        key={ing.id}
+                        className="flex items-center justify-between gap-2 py-1.5 px-2 hover:bg-neutral-50"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="size-3.5 rounded border border-neutral-400 inline-block shrink-0" />
+                          <span className="font-medium text-neutral-800 truncate">{ing.name}</span>
+                        </div>
+                        <span className="font-mono text-neutral-600 shrink-0 text-[11px]">
+                          {ing.quantity != null ? fmt(ing.quantity * scale) : ""}{" "}
+                          {ing.unit ?? ""}
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -419,23 +469,54 @@ export function PrintableRecipeCard({
               </div>
 
               <div className="divide-y divide-neutral-100 p-2 text-xs sm:text-sm">
-                {recipe.ingredients.map((ing) => (
-                  <div
-                    key={ing.id}
-                    className="flex items-baseline justify-between gap-3 py-2 px-2 hover:bg-neutral-50/80 transition"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="size-4 rounded border-2 border-neutral-400 inline-block shrink-0" />
-                      <span className="font-semibold text-neutral-800">
-                        {ing.name}
+                {hasSections ? (
+                  sectionGroups.map((group, gIdx) => (
+                    <div key={group.section || gIdx} className="space-y-0.5">
+                      {group.section && (
+                        <div className="bg-neutral-100/90 px-2 py-0.5 text-[10px] font-bold text-neutral-700 uppercase tracking-wider rounded-xs mt-1 mb-0.5 first:mt-0">
+                          {group.title}
+                        </div>
+                      )}
+                      <div className="divide-y divide-neutral-100">
+                        {group.ingredients.map((ing) => (
+                          <div
+                            key={ing.id}
+                            className="flex items-baseline justify-between gap-3 py-2 px-2 hover:bg-neutral-50/80 transition"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <span className="size-4 rounded border-2 border-neutral-400 inline-block shrink-0" />
+                              <span className="font-semibold text-neutral-800">
+                                {ing.name}
+                              </span>
+                            </div>
+                            <span className="font-mono text-neutral-600 shrink-0 font-medium">
+                              {ing.quantity != null ? fmt(ing.quantity * scale) : ""}{" "}
+                              {ing.unit ?? ""}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  recipe.ingredients.map((ing) => (
+                    <div
+                      key={ing.id}
+                      className="flex items-baseline justify-between gap-3 py-2 px-2 hover:bg-neutral-50/80 transition"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="size-4 rounded border-2 border-neutral-400 inline-block shrink-0" />
+                        <span className="font-semibold text-neutral-800">
+                          {ing.name}
+                        </span>
+                      </div>
+                      <span className="font-mono text-neutral-600 shrink-0 font-medium">
+                        {ing.quantity != null ? fmt(ing.quantity * scale) : ""}{" "}
+                        {ing.unit ?? ""}
                       </span>
                     </div>
-                    <span className="font-mono text-neutral-600 shrink-0 font-medium">
-                      {ing.quantity != null ? fmt(ing.quantity * scale) : ""}{" "}
-                      {ing.unit ?? ""}
-                    </span>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
 

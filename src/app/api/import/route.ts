@@ -152,7 +152,12 @@ export async function POST(req: NextRequest) {
 
     // 1. Try deterministic direct JSON-LD parsing first (no AI needed, instant & free)
     if (pageData.jsonLdRecipe) {
-      recipe = parseJsonLdRecipe(pageData.jsonLdRecipe, locale, pageData.domIngredients);
+      recipe = parseJsonLdRecipe(
+        pageData.jsonLdRecipe,
+        locale,
+        pageData.domIngredients,
+        pageData.domSectionedIngredients,
+      );
     }
 
     // 2. Fallback to Gemini AI if no JSON-LD was found or parsing was incomplete

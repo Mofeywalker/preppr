@@ -109,6 +109,7 @@ export async function exportRecipesToZip(recipes: FullRecipe[]): Promise<Buffer>
         name: ing.name,
         quantity: ing.quantity,
         unit: ing.unit,
+        section: ing.section,
       })),
       steps: recipe.steps.map((st) => st.text),
       tags: recipe.tags,
@@ -164,6 +165,7 @@ export interface RawRecipeItem {
         unit?: string | null;
         unit_name?: string | { name?: string } | null;
         food?: string | { name?: string } | null;
+        section?: string | null;
       }
     | string
   >;
@@ -239,10 +241,13 @@ function sanitizeRecipeInput(item: RawRecipeItem, fallbackLocale: Locale = getIn
         : "Zutat");
     if (typeof name !== "string") name = "Zutat";
 
+    const section = typeof ing.section === "string" ? ing.section.trim() || null : null;
+
     return {
       name: name.trim() || "Zutat",
       quantity,
       unit,
+      section,
     };
   });
 

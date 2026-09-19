@@ -24,8 +24,8 @@ describe("archive utilities", () => {
     createdAt: 1735732800,
     updatedAt: 1735732800,
     ingredients: [
-      { id: "ing-1", recipeId: "recipe-test-1", name: "Zartbitterschokolade", quantity: 200, unit: "g", order: 1 },
-      { id: "ing-2", recipeId: "recipe-test-1", name: "Butter", quantity: 150, unit: "g", order: 2 },
+      { id: "ing-1", recipeId: "recipe-test-1", name: "Zartbitterschokolade", quantity: 200, unit: "g", section: null, order: 1 },
+      { id: "ing-2", recipeId: "recipe-test-1", name: "Butter", quantity: 150, unit: "g", section: null, order: 2 },
     ],
     steps: [
       { id: "step-1", recipeId: "recipe-test-1", text: "Schokolade schmelzen.", order: 1 },
@@ -57,6 +57,7 @@ describe("archive utilities", () => {
       name: "Zartbitterschokolade",
       quantity: 200,
       unit: "g",
+      section: null,
     });
     expect(imported.steps).toEqual([
       "Schokolade schmelzen.",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useTransition, useEffect } from "react";
+import { useState, useRef, useTransition, useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/inputs";
 import { Spinner } from "@/components/ui/spinner";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { RecipeShareDialog } from "@/components/recipe-share-dialog";
+import { cn } from "@/lib/utils";
 import type { FullRecipe } from "@/lib/recipes";
 
 function fmt(n: number): string {
@@ -84,6 +85,116 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
   }
 
   const scale = servings / recipe.servings;
+
+  const hasSections = useMemo(
+    () => recipe.ingredients.some((ing) => Boolean(ing.section?.trim())),
+    [recipe.ingredients],
+  );
+
+  const [viewMode, setViewMode] = useState<"section" | "consolidated">("section");
+  const [checkedIngs, setCheckedIngs] = useState<Set<string>>(new Set());
+
+  const toggleChecked = (id: string) => {
+    setCheckedIngs((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // Group ingredients by section, preserving order of appearance
+  const sectionGroups = useMemo(() => {
+    const groups: {
+      section: string | null;
+      title: string;
+      ingredients: FullRecipe["ingredients"];
+    }[] = [];
+    const map = new Map<string, (typeof groups)[number]>();
+
+    for (const ing of recipe.ingredients) {
+      const secKey = ing.section?.trim() || "";
+      let group = map.get(secKey);
+      if (!group) {
+        group = {
+          section: ing.section?.trim() || null,
+          title: ing.section?.trim() || t("sectionDefault"),
+          ingredients: [],
+        };
+        map.set(secKey, group);
+        groups.push(group);
+      }
+      group.ingredients.push(ing);
+    }
+    return groups;
+  }, [recipe.ingredients, t]);
+
+  // Consolidated ingredients (sum quantities with matching units)
+  const consolidatedIngredients = useMemo(() => {
+    type ConsolidatedItem = {
+      id: string;
+      name: string;
+      totalQuantity: number | null;
+      unit: string | null;
+      hasMixedUnits: boolean;
+      entries: {
+        id: string;
+        quantity: number | null;
+        unit: string | null;
+        section: string | null;
+      }[];
+    };
+
+    const map = new Map<string, ConsolidatedItem>();
+    const list: ConsolidatedItem[] = [];
+
+    for (const ing of recipe.ingredients) {
+      const key = ing.name.trim().toLowerCase();
+      let item = map.get(key);
+      if (!item) {
+        item = {
+          id: ing.id,
+          name: ing.name.trim(),
+          totalQuantity: ing.quantity != null ? ing.quantity : null,
+          unit: ing.unit ?? null,
+          hasMixedUnits: false,
+          entries: [
+            {
+              id: ing.id,
+              quantity: ing.quantity,
+              unit: ing.unit,
+              section: ing.section,
+            },
+          ],
+        };
+        map.set(key, item);
+        list.push(item);
+      } else {
+        item.entries.push({
+          id: ing.id,
+          quantity: ing.quantity,
+          unit: ing.unit,
+          section: ing.section,
+        });
+
+        const normUnit1 = (item.unit || "").trim().toLowerCase();
+        const normUnit2 = (ing.unit || "").trim().toLowerCase();
+
+        if (normUnit1 === normUnit2) {
+          if (ing.quantity != null) {
+            item.totalQuantity = (item.totalQuantity ?? 0) + ing.quantity;
+          }
+        } else {
+          item.hasMixedUnits = true;
+          item.totalQuantity = null;
+        }
+      }
+    }
+    return list;
+  }, [recipe.ingredients]);
+
+  const hasDuplicateIngredients = consolidatedIngredients.some((c) => c.entries.length > 1);
+  const showViewToggle = hasSections || hasDuplicateIngredients;
 
   const onToggleCooked = async () => {
     const nextState = !isCooked;
@@ -691,22 +802,200 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
           </div>
 
           {/* Ingredients */}
-          <section className="space-y-3">
-            <h2 className="text-xl font-bold tracking-tight">{t("ingredients")}</h2>
-            <div className="rounded-xl border border-border divide-y divide-border overflow-hidden">
-              {recipe.ingredients.map((ing) => (
+          <section className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-xl font-bold tracking-tight">{t("ingredients")}</h2>
+              {showViewToggle && (
                 <div
-                  key={ing.id}
-                  className="flex items-baseline justify-between gap-4 px-4 py-2.5 text-sm hover:bg-muted/20 transition"
+                  data-testid="ingredient-view-toggle"
+                  role="tablist"
+                  aria-label={t("ingredients")}
+                  className="inline-flex items-center rounded-lg bg-muted/60 p-0.5 text-xs font-medium border border-border/50"
                 >
-                  <span className="text-foreground font-medium">{ing.name}</span>
-                  <span className="shrink-0 text-foreground/70 font-mono text-xs sm:text-sm">
-                    {ing.quantity == null ? "" : fmt(ing.quantity * scale)}{" "}
-                    {ing.unit ?? ""}
-                  </span>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={viewMode === "section"}
+                    onClick={() => setViewMode("section")}
+                    className={cn(
+                      "rounded-md px-2.5 py-1 transition-all cursor-pointer",
+                      viewMode === "section"
+                        ? "bg-background text-foreground shadow-xs font-semibold"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {t("viewBySection")}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={viewMode === "consolidated"}
+                    onClick={() => setViewMode("consolidated")}
+                    className={cn(
+                      "rounded-md px-2.5 py-1 transition-all cursor-pointer",
+                      viewMode === "consolidated"
+                        ? "bg-background text-foreground shadow-xs font-semibold"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {t("viewConsolidated")}
+                  </button>
                 </div>
-              ))}
+              )}
             </div>
+
+            {viewMode === "section" ? (
+              <div className="space-y-4">
+                {sectionGroups.map((group, groupIdx) => (
+                  <div
+                    key={group.section || `group-${groupIdx}`}
+                    className="rounded-xl border border-border overflow-hidden bg-card/40 shadow-2xs"
+                  >
+                    {hasSections && (
+                      <div className="sticky top-14 sm:top-16 z-10 px-4 py-2 bg-muted/80 backdrop-blur-md border-b border-border flex items-center justify-between">
+                        <h3
+                          data-testid="ingredient-section-header"
+                          className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-2"
+                        >
+                          <span className="size-2 rounded-full bg-primary" />
+                          <span>{group.title}</span>
+                        </h3>
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {group.ingredients.length}
+                        </span>
+                      </div>
+                    )}
+                    <div className="divide-y divide-border">
+                      {group.ingredients.map((ing) => {
+                        const isChecked = checkedIngs.has(ing.id);
+                        return (
+                          <div
+                            key={ing.id}
+                            data-testid="ingredient-row"
+                            onClick={() => toggleChecked(ing.id)}
+                            role="checkbox"
+                            aria-checked={isChecked}
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === " " || e.key === "Enter") {
+                                e.preventDefault();
+                                toggleChecked(ing.id);
+                              }
+                            }}
+                            className={cn(
+                              "flex items-baseline justify-between gap-4 px-4 py-2.5 text-sm hover:bg-muted/20 transition cursor-pointer select-none",
+                              isChecked && "opacity-50",
+                            )}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span
+                                className={cn(
+                                  "size-4 rounded border flex items-center justify-center text-[10px] shrink-0 transition",
+                                  isChecked
+                                    ? "bg-primary border-primary text-primary-foreground font-bold"
+                                    : "border-muted-foreground/40 bg-background",
+                                )}
+                              >
+                                {isChecked ? "✓" : ""}
+                              </span>
+                              <span
+                                className={cn(
+                                  "text-foreground font-medium truncate",
+                                  isChecked && "line-through text-muted-foreground",
+                                )}
+                              >
+                                {ing.name}
+                              </span>
+                            </div>
+                            <span className="shrink-0 text-foreground/70 font-mono text-xs sm:text-sm">
+                              {ing.quantity == null ? "" : fmt(ing.quantity * scale)}{" "}
+                              {ing.unit ?? ""}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border divide-y divide-border overflow-hidden bg-card/40 shadow-2xs">
+                {consolidatedIngredients.map((item) => {
+                  const isChecked = checkedIngs.has(item.id);
+                  return (
+                    <div
+                      key={item.id}
+                      data-testid="ingredient-row"
+                      onClick={() => toggleChecked(item.id)}
+                      role="checkbox"
+                      aria-checked={isChecked}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === " " || e.key === "Enter") {
+                          e.preventDefault();
+                          toggleChecked(item.id);
+                        }
+                      }}
+                      className={cn(
+                        "flex items-baseline justify-between gap-4 px-4 py-2.5 text-sm hover:bg-muted/20 transition cursor-pointer select-none",
+                        isChecked && "opacity-50",
+                      )}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span
+                          className={cn(
+                            "size-4 rounded border flex items-center justify-center text-[10px] shrink-0 transition",
+                            isChecked
+                              ? "bg-primary border-primary text-primary-foreground font-bold"
+                              : "border-muted-foreground/40 bg-background",
+                          )}
+                        >
+                          {isChecked ? "✓" : ""}
+                        </span>
+                        <div className="min-w-0">
+                          <span
+                            className={cn(
+                              "text-foreground font-medium block truncate",
+                              isChecked && "line-through text-muted-foreground",
+                            )}
+                          >
+                            {item.name}
+                          </span>
+                          {item.entries.length > 1 && (
+                            <span
+                              data-testid="consolidated-breakdown"
+                              className="text-[11px] text-muted-foreground block truncate"
+                            >
+                              {item.entries
+                                .map((e) => {
+                                  const sec = e.section ? `${e.section}: ` : "";
+                                  const qty = e.quantity != null ? fmt(e.quantity * scale) : "";
+                                  const u = e.unit ? ` ${e.unit}` : "";
+                                  return `${sec}${qty}${u}`.trim();
+                                })
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="shrink-0 text-foreground/70 font-mono text-xs sm:text-sm">
+                        {item.totalQuantity != null
+                          ? `${fmt(item.totalQuantity * scale)} ${item.unit ?? ""}`.trim()
+                          : item.entries
+                              .map((e) =>
+                                `${e.quantity != null ? fmt(e.quantity * scale) : ""} ${
+                                  e.unit ?? ""
+                                }`.trim(),
+                              )
+                              .filter(Boolean)
+                              .join(" + ")}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
           {/* Steps */}
