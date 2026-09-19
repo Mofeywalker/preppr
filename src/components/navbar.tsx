@@ -39,6 +39,8 @@ export function Navbar() {
 
   const handleSignOut = async () => {
     await authClient.signOut();
+    // Full page reload required to clear all client-side auth state and session cookies
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = "/login";
   };
 

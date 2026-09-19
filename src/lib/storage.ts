@@ -50,6 +50,12 @@ export function getMimeType(filenameOrExt: string): string {
     case ".avif":
     case "avif":
       return "image/avif";
+    case ".heic":
+    case "heic":
+      return "image/heic";
+    case ".heif":
+    case "heif":
+      return "image/heif";
     default:
       return "application/octet-stream";
   }

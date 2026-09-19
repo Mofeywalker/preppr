@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { extractFromPhotos, type ExtractedRecipe } from "@/lib/ai";
 import { saveUploadedImage, getMimeType } from "@/lib/storage";
+import { normalizeRecipeImage } from "@/lib/image-processing";
 import { getInstanceLocale, type Locale } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
@@ -74,8 +75,9 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const buffer = Buffer.from(await file.arrayBuffer());
-      images.push({ buffer, mimeType: mime, name: file.name });
+      const rawBuffer = Buffer.from(await file.arrayBuffer());
+      const normalized = await normalizeRecipeImage(rawBuffer, file.name);
+      images.push(normalized);
     }
 
     // Extract structured recipe using AI

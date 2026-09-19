@@ -62,6 +62,8 @@ export function RegisterClient({
         return;
       }
 
+      // Full page reload required to synchronize Better-Auth session cookies with server middleware
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = "/";
     } catch {
       setError(t("userExists"));

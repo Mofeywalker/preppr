@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useSyncExternalStore } from "react";
+import { useState, useTransition, useRef, useSyncExternalStore, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,12 @@ function getClipboardSnapshot() {
   return (
     typeof navigator !== "undefined" &&
     Boolean(navigator.clipboard && typeof navigator.clipboard.readText === "function")
+  );
+}
+function getClipboardImageSnapshot() {
+  return (
+    typeof navigator !== "undefined" &&
+    Boolean(navigator.clipboard && typeof navigator.clipboard.read === "function")
   );
 }
 function getClipboardServerSnapshot() {
@@ -54,6 +60,11 @@ export function ImportClient({
   const hasClipboard = useSyncExternalStore(
     emptySubscribe,
     getClipboardSnapshot,
+    getClipboardServerSnapshot,
+  );
+  const hasImageClipboard = useSyncExternalStore(
+    emptySubscribe,
+    getClipboardImageSnapshot,
     getClipboardServerSnapshot,
   );
 
@@ -150,27 +161,77 @@ export function ImportClient({
     setBatchSuccessCount(null);
   };
 
-  const handleFilesAdded = (incomingFiles: FileList | File[]) => {
-    setError(null);
-    const valid = Array.from(incomingFiles).filter(
-      (f) =>
-        f.type.startsWith("image/") ||
-        /\.(jpe?g|png|webp|heic|heif|gif)$/i.test(f.name),
-    );
-    if (valid.length === 0) {
-      setError(t("errorNoPhotos"));
-      return;
-    }
-    const combined = [...selectedPhotos, ...valid].slice(0, 10);
-    setSelectedPhotos(combined);
-    setPhotoPreviews(combined.map((f) => URL.createObjectURL(f)));
-  };
+  const handleFilesAdded = useCallback(
+    (incomingFiles: FileList | File[]) => {
+      setError(null);
+      const valid = Array.from(incomingFiles).filter(
+        (f) =>
+          f.type.startsWith("image/") ||
+          /\.(jpe?g|png|webp|heic|heif|gif)$/i.test(f.name),
+      );
+      if (valid.length === 0) {
+        setError(t("errorNoPhotos"));
+        return;
+      }
+      setSelectedPhotos((prev) => {
+        const combined = [...prev, ...valid].slice(0, 10);
+        setPhotoPreviews(combined.map((f) => URL.createObjectURL(f)));
+        return combined;
+      });
+    },
+    [t, setError],
+  );
 
   const removePhoto = (index: number) => {
-    const next = selectedPhotos.filter((_, i) => i !== index);
-    setSelectedPhotos(next);
-    setPhotoPreviews(next.map((f) => URL.createObjectURL(f)));
+    setSelectedPhotos((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      setPhotoPreviews(next.map((f) => URL.createObjectURL(f)));
+      return next;
+    });
   };
+
+  const handlePasteImageFromClipboard = async () => {
+    try {
+      if (!navigator.clipboard?.read) return;
+      const items = await navigator.clipboard.read();
+      const files: File[] = [];
+      for (const item of items) {
+        const imageType = item.types.find((t) => t.startsWith("image/"));
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          const ext = imageType.split("/")[1] || "png";
+          const file = new File([blob], `screenshot-${Date.now()}.${ext}`, {
+            type: imageType,
+          });
+          files.push(file);
+        }
+      }
+      if (files.length > 0) {
+        handleFilesAdded(files);
+      }
+    } catch {
+      // Clipboard image reading denied or unsupported
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== "photos") return;
+    const handleWindowPaste = (e: ClipboardEvent) => {
+      if (e.clipboardData?.files && e.clipboardData.files.length > 0) {
+        const imageFiles = Array.from(e.clipboardData.files).filter(
+          (f) =>
+            f.type.startsWith("image/") ||
+            /\.(jpe?g|png|webp|heic|heif|gif)$/i.test(f.name),
+        );
+        if (imageFiles.length > 0) {
+          e.preventDefault();
+          handleFilesAdded(imageFiles);
+        }
+      }
+    };
+    window.addEventListener("paste", handleWindowPaste);
+    return () => window.removeEventListener("paste", handleWindowPaste);
+  }, [activeTab, handleFilesAdded]);
 
   const onExtractPhotos = () => {
     if (selectedPhotos.length === 0) {
@@ -983,6 +1044,26 @@ export function ImportClient({
                   </svg>
                   {t("choosePhotos")}
                 </Button>
+                {hasImageClipboard && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePasteImageFromClipboard}
+                    className="gap-1.5 h-10 px-4 cursor-pointer"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="size-4"
+                    >
+                      <path d="M7 3.5A1.5 1.5 0 018.5 2h3.879a1.5 1.5 0 011.06.44l3.122 3.12A1.5 1.5 0 0117 6.622V16.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 017 16.5v-13z" />
+                      <path d="M4 6.5A1.5 1.5 0 015.5 5H6v9.5A2.5 2.5 0 008.5 17H14v.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 014 17.5v-11z" />
+                    </svg>
+                    {t("pasteScreenshot")}
+                  </Button>
+                )}
               </div>
             </div>
           ) : (
@@ -991,16 +1072,36 @@ export function ImportClient({
                 <span className="text-xs font-semibold text-foreground/80 uppercase tracking-wider">
                   {t("photosSelected", { count: selectedPhotos.length })}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedPhotos([]);
-                    setPhotoPreviews([]);
-                  }}
-                  className="text-xs text-foreground/60 hover:text-red-500 font-medium transition cursor-pointer"
-                >
-                  {t("deselectAll")}
-                </button>
+                <div className="flex items-center gap-3">
+                  {hasImageClipboard && selectedPhotos.length < 10 && (
+                    <button
+                      type="button"
+                      onClick={handlePasteImageFromClipboard}
+                      className="text-xs text-foreground/60 hover:text-foreground font-medium transition cursor-pointer flex items-center gap-1"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="size-3.5"
+                      >
+                        <path d="M7 3.5A1.5 1.5 0 018.5 2h3.879a1.5 1.5 0 011.06.44l3.122 3.12A1.5 1.5 0 0117 6.622V16.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 017 16.5v-13z" />
+                        <path d="M4 6.5A1.5 1.5 0 015.5 5H6v9.5A2.5 2.5 0 008.5 17H14v.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 014 17.5v-11z" />
+                      </svg>
+                      {t("pasteScreenshot")}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPhotos([]);
+                      setPhotoPreviews([]);
+                    }}
+                    className="text-xs text-foreground/60 hover:text-red-500 font-medium transition cursor-pointer"
+                  >
+                    {t("deselectAll")}
+                  </button>
+                </div>
               </div>
 
               {/* Photo preview grid */}
@@ -1084,6 +1185,24 @@ export function ImportClient({
                           />
                         </svg>
                       </button>
+                      {hasImageClipboard && (
+                        <button
+                          type="button"
+                          onClick={handlePasteImageFromClipboard}
+                          className="flex size-9 items-center justify-center rounded-lg bg-muted hover:bg-muted/80 text-foreground cursor-pointer transition shadow-xs"
+                          title={t("pasteScreenshot")}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            className="size-4"
+                          >
+                            <path d="M7 3.5A1.5 1.5 0 018.5 2h3.879a1.5 1.5 0 011.06.44l3.122 3.12A1.5 1.5 0 0117 6.622V16.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 017 16.5v-13z" />
+                            <path d="M4 6.5A1.5 1.5 0 015.5 5H6v9.5A2.5 2.5 0 008.5 17H14v.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 014 17.5v-11z" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}

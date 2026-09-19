@@ -11,7 +11,8 @@ function getModel() {
     throw new Error("OPENROUTER_API_KEY is not set");
   }
   const provider = createOpenRouter({ apiKey });
-  const modelId = process.env.OPENROUTER_MODEL || "gpt-5.6-luna";
+  const rawModel = process.env.OPENROUTER_MODEL || "openai/gpt-5.6-luna";
+  const modelId = rawModel.includes("/") ? rawModel : `openai/${rawModel}`;
   return provider(modelId);
 }
 
@@ -106,25 +107,41 @@ Extract ingredients with quantities, units, and logical component sections if pr
 Return ONLY the structured recipe.`;
 }
 
-function getHandwrittenExtractionSystemPrompt(preferredLocale: Locale) {
+function getImageRecipeExtractionSystemPrompt(preferredLocale: Locale) {
   const langName = preferredLocale === "de" ? "German (Deutsch)" : "English";
-  return `You are an expert culinary AI specialized in transcribing and structuring recipes from photos of handwritten notes, recipe index cards, family notebooks, and cookbook clippings.
-Extract and translate the recipe into ${langName}. All textual fields including title, description, ingredient names, units, and step instructions MUST be written in ${langName}, regardless of the original language of the handwritten text.
+  return `You are an expert culinary AI specialized in reading, transcribing, and structuring recipes from images.
+Sources include screenshots from mobile apps (Instagram, TikTok, Chefkoch, Pinterest, blogs, websites), photos of cookbook pages, food packaging, printed recipe cards, and handwritten notes.
+Extract and translate the recipe into ${langName}. All textual fields including title, description, ingredient names, units, and step instructions MUST be written in ${langName}, regardless of the original language of the source image.
 Set the "language" field in the output schema to "${preferredLocale}".
 
-HANDWRITING TRANSCRIPTION & MULTI-PHOTO GUIDELINES:
-1. Multi-photo consolidation: The user may provide multiple photos representing multiple pages, the front and back of recipe cards, or different sections of the same recipe. Combine them logically and chronologically into a single, complete recipe.
-2. Deciphering handwriting & culinary context: Carefully decipher cursive, abbreviations, or informal shorthand (e.g. "TL", "EL", "tbsp", "tsp", "pkg", "Pck.", "Prise", "pinch", "etwas"). If words or numbers are slightly faded or smudged, use culinary knowledge to infer the correct ingredients, measurements, or cooking instructions.
-3. Reasonable defaults: If servings, prep time, or cook time are not explicitly noted, infer a sensible default (e.g. 4 servings) or set to null if completely indeterminable.
+CRITICAL MULTI-IMAGE, SCREENSHOT OVERLAP & DEDUPLICATION RULES:
+1. Scrolling Screenshots & Overlapping Text:
+   - When users capture long recipes on smartphones, they scroll down and take consecutive screenshots. As a result, consecutive screenshots frequently share OVERLAPPING text (e.g., the bottom 2-5 ingredients or first steps of image 1 are repeated at the top of image 2).
+   - You MUST detect this overlapping/repeated content across consecutive images and DEDUPLICATE it.
+   - NEVER create duplicate ingredients or duplicate preparation steps due to screenshot overlap. Each ingredient and each step must be listed exactly once in logical, chronological order.
+2. Seam Stitching:
+   - If an ingredient line or instruction sentence is cut off horizontally at the edge of one screenshot and continues at the top of the next screenshot, seamlessly stitch the split text together into a single, complete sentence/item.
+3. Mobile & Web UI Chrome Filtering:
+   - Completely ignore and filter out non-recipe digital artifacts: smartphone status bars (clock, battery, Wi-Fi, dynamic island), app navigation bars, bottom tab bars, social media buttons (like, share, save, bookmark), comments, advertisements, cookie banners, watermark logos, or "Jump to Recipe" floating buttons.
+4. Handwriting & Cookbooks:
+   - If the images are handwritten notes, index cards, or printed cookbooks, carefully transcribe cursive or shorthand abbreviations (e.g. "TL", "EL", "tbsp", "tsp", "pkg", "Pck.", "Prise", "pinch", "etwas"). Infer sensible values for smudged text using culinary context.
+5. Component Sections:
+   - If ingredients are grouped into logical components (e.g. 'Teig', 'Streusel', 'Füllung', 'Sauce', 'Topping', 'Dressing'), set 'section' accordingly (or null for general ingredients).
 
 CRITICAL METRIC UNIT REQUIREMENT:
 You MUST ensure that the output recipe strictly uses METRIC units (e.g. g, kg, ml, l, cm, °C) and NEVER Imperial / US Customary units (cups, oz, ounces, lbs, pounds, fl oz, fluid ounces, Fahrenheit).
-If the handwritten note uses Imperial units or older customary units (cups, sticks of butter, etc.), convert them into metric cooking equivalents (e.g. 1 cup flour ≈ 120-125 g, 1 stick butter ≈ 115 g, 1 cup liquid ≈ 240-250 ml, convert °F to °C).
+Convert any Imperial or older customary units into standard metric cooking equivalents:
+- 1 cup all-purpose flour ≈ 120-125 g
+- 1 cup granulated sugar ≈ 200 g
+- 1 cup butter ≈ 225 g (1 stick ≈ 115 g)
+- 1 cup liquids ≈ 240-250 ml
+- 1 oz ≈ 28 g (fluid oz ≈ 30 ml)
+- 1 lb ≈ 450-500 g
+- Convert °F to °C in step instructions (e.g. 350°F ≈ 175-180°C).
 
 MANDATORY NUTRITION ESTIMATION:
-Handwritten recipes virtually never contain nutritional data. You MUST calculate or realistically estimate the macro nutritional values per serving (calories, proteinG, carbsG, fatG, and fiberG in grams) based on the ingredients, quantities, and servings. Never return 0 or null for calories, protein, carbs, fat, or fiber unless the dish genuinely contains none. Always provide a realistic estimate for fiberG (0 or higher in grams) based on plant ingredients, grains, vegetables, legumes, or fruits.
+If nutritional values are not explicitly stated in the image, you MUST calculate or realistically estimate the macro nutritional values per serving (calories, proteinG, carbsG, fatG, and fiberG in grams) based on the ingredients, quantities, and servings. Never return 0 or null for calories, protein, carbs, fat, or fiber unless the dish genuinely contains none (e.g. pure water). Always provide a realistic estimate for fiberG (0 or higher in grams) based on plant ingredients, grains, vegetables, legumes, or fruits.
 
-Extract ingredients with quantities and units. If a quantity can't be determined, leave it null but keep the unit if applicable.
 Return ONLY the structured recipe.`;
 }
 
@@ -218,7 +235,9 @@ export async function extractFromPhotos(
   > = [
     {
       type: "text",
-      text: `Transcribe this handwritten recipe from the provided ${images.length} photo(s) and extract a structured recipe. Output all recipe content in ${targetLanguage} with language: "${preferredLocale}". Ensure metric units are used and nutrition is estimated.`,
+      text: `Extract and structure the recipe from the provided ${images.length} image(s)/screenshot(s).
+Carefully merge multi-image sequences: deduplicate any overlapping text between consecutive screenshots, stitch split lines across image seams, ignore app/system UI chrome, and ensure all ingredients and steps are completely captured.
+Output all recipe content in ${targetLanguage} with language: "${preferredLocale}". Ensure metric units are strictly used and nutrition is estimated.`,
     },
     ...images.map((img) => ({
       type: "file" as const,
@@ -231,7 +250,7 @@ export async function extractFromPhotos(
     model: getModel(),
     schema: extractSchema,
     schemaName: "Recipe",
-    system: getHandwrittenExtractionSystemPrompt(preferredLocale),
+    system: getImageRecipeExtractionSystemPrompt(preferredLocale),
     messages: [
       {
         role: "user",
