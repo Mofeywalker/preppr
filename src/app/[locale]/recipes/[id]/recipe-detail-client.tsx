@@ -274,9 +274,18 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
             </Button>
           </a>
 
-          {!recipe.isOwner ? (
+          {recipe.canEdit && (
+            <Link href={`/recipes/${recipe.id}/edit`}>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <PencilIcon className="size-4" />
+                <span>{t("edit")}</span>
+              </Button>
+            </Link>
+          )}
+
+          {!recipe.isOwner && (
             <Button
-              variant="default"
+              variant={recipe.canEdit ? "outline" : "default"}
               size="sm"
               onClick={onFork}
               disabled={forking}
@@ -285,25 +294,19 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
               <CopyIcon className="size-4" />
               <span>{forking ? tSharing("forking") : tSharing("fork")}</span>
             </Button>
-          ) : (
-            <>
-              <Link href={`/recipes/${recipe.id}/edit`}>
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <PencilIcon className="size-4" />
-                  <span>{t("edit")}</span>
-                </Button>
-              </Link>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setDeleteDialogOpen(true)}
-                disabled={isDeleting}
-                className="gap-1.5 cursor-pointer"
-              >
-                {isDeleting ? <Spinner /> : <TrashIcon className="size-4" />}
-                <span>{t("delete")}</span>
-              </Button>
-            </>
+          )}
+
+          {recipe.isOwner && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setDeleteDialogOpen(true)}
+              disabled={isDeleting}
+              className="gap-1.5 cursor-pointer"
+            >
+              {isDeleting ? <Spinner /> : <TrashIcon className="size-4" />}
+              <span>{t("delete")}</span>
+            </Button>
           )}
         </div>
 
@@ -342,7 +345,14 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
             <ShareIcon className="size-4 text-[#16a34a]" />
           </Button>
 
-          {!recipe.isOwner ? (
+          {recipe.canEdit ? (
+            <Link href={`/recipes/${recipe.id}/edit`}>
+              <Button variant="outline" size="sm" className="gap-1.5 h-9">
+                <PencilIcon className="size-3.5" />
+                <span>{t("edit")}</span>
+              </Button>
+            </Link>
+          ) : (
             <Button
               variant="default"
               size="sm"
@@ -353,13 +363,6 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
               <CopyIcon className="size-3.5" />
               <span>{forking ? tSharing("forking") : tSharing("fork")}</span>
             </Button>
-          ) : (
-            <Link href={`/recipes/${recipe.id}/edit`}>
-              <Button variant="outline" size="sm" className="gap-1.5 h-9">
-                <PencilIcon className="size-3.5" />
-                <span>{t("edit")}</span>
-              </Button>
-            </Link>
           )}
 
           {/* Overflow Menu */}
@@ -430,6 +433,22 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                   <span>{t("export")}</span>
                 </a>
 
+                {!recipe.isOwner && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onFork();
+                    }}
+                    disabled={forking}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition cursor-pointer text-left"
+                  >
+                    <CopyIcon className="size-4 shrink-0 text-foreground/70" />
+                    <span>{forking ? tSharing("forking") : tSharing("fork")}</span>
+                  </button>
+                )}
+
                 {recipe.isOwner && (
                   <button
                     type="button"
@@ -464,7 +483,7 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                   onError={() => setImgError(true)}
                   className="aspect-video w-full object-cover"
                 />
-                {recipe.isOwner && (
+                {recipe.canEdit && (
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
@@ -495,7 +514,7 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
               </>
             ) : (
               <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 p-6 text-center">
-                {recipe.isOwner ? (
+                {recipe.canEdit ? (
                   <div className="flex flex-wrap items-center justify-center gap-2">
                     <Button
                       type="button"
@@ -542,7 +561,7 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                 )}
               </div>
             )}
-            {recipe.isOwner && (
+            {recipe.canEdit && (
               <input
                 ref={fileInputRef}
                 type="file"

@@ -57,6 +57,7 @@ export type Recipe = schema.Recipe;
 export type RecipeWithTags = schema.Recipe & {
   tags: string[];
   isOwner: boolean;
+  canEdit: boolean;
   authorName?: string | null;
   authorImage?: string | null;
 };
@@ -65,6 +66,7 @@ export type FullRecipe = schema.Recipe & {
   steps: schema.Step[];
   tags: string[];
   isOwner: boolean;
+  canEdit: boolean;
   authorName?: string | null;
   authorImage?: string | null;
 };
@@ -114,13 +116,18 @@ export async function listRecipes(
     tagsByRecipe.set(link.recipeId, list);
   }
 
-  return recipeRows.map(({ recipe, authorName, authorImage }) => ({
-    ...recipe,
-    tags: tagsByRecipe.get(recipe.id) || [],
-    isOwner: !recipe.userId || (!!userId && recipe.userId === userId),
-    authorName: authorName ?? null,
-    authorImage: authorImage ?? null,
-  }));
+  return recipeRows.map(({ recipe, authorName, authorImage }) => {
+    const isOwner = !recipe.userId || (!!userId && recipe.userId === userId);
+    const canEdit = isOwner || (!!userId && recipe.visibility === "shared");
+    return {
+      ...recipe,
+      tags: tagsByRecipe.get(recipe.id) || [],
+      isOwner,
+      canEdit,
+      authorName: authorName ?? null,
+      authorImage: authorImage ?? null,
+    };
+  });
 }
 
 export async function getRecipe(
@@ -145,6 +152,7 @@ export async function getRecipe(
   if (!isOwner && recipe.visibility !== "shared") {
     return null;
   }
+  const canEdit = isOwner || (!!userId && recipe.visibility === "shared");
 
   const [ingredientRows, stepRows, tagRows] = await Promise.all([
     db
@@ -171,6 +179,7 @@ export async function getRecipe(
     steps: stepRows,
     tags: tagRows.map((t) => t.name),
     isOwner,
+    canEdit,
     authorName: authorName ?? null,
     authorImage: authorImage ?? null,
   };
@@ -251,15 +260,20 @@ export async function getFullRecipes(
     tagsByRecipe.set(link.recipeId, list);
   }
 
-  return recipeRows.map(({ recipe, authorName, authorImage }) => ({
-    ...recipe,
-    ingredients: ingredientsByRecipe.get(recipe.id) || [],
-    steps: stepsByRecipe.get(recipe.id) || [],
-    tags: tagsByRecipe.get(recipe.id) || [],
-    isOwner: !recipe.userId || (!!userId && recipe.userId === userId),
-    authorName: authorName ?? null,
-    authorImage: authorImage ?? null,
-  }));
+  return recipeRows.map(({ recipe, authorName, authorImage }) => {
+    const isOwner = !recipe.userId || (!!userId && recipe.userId === userId);
+    const canEdit = isOwner || (!!userId && recipe.visibility === "shared");
+    return {
+      ...recipe,
+      ingredients: ingredientsByRecipe.get(recipe.id) || [],
+      steps: stepsByRecipe.get(recipe.id) || [],
+      tags: tagsByRecipe.get(recipe.id) || [],
+      isOwner,
+      canEdit,
+      authorName: authorName ?? null,
+      authorImage: authorImage ?? null,
+    };
+  });
 }
 
 function syncRecipeTags(
@@ -331,9 +345,14 @@ export async function updateRecipe(
   if (!userId) {
     throw new Error("Unauthorized: User ID required");
   }
-  if (existing.userId && existing.userId !== userId) {
-    throw new Error("Unauthorized: Only the recipe owner can edit this recipe");
+  const isOwner = !existing.userId || existing.userId === userId;
+  const canEdit = isOwner || existing.visibility === "shared";
+  if (!canEdit) {
+    throw new Error("Unauthorized: You do not have permission to edit this recipe");
   }
+
+  // Only the recipe owner can change visibility (prevent non-owners from privatizing someone else's recipe)
+  const visibility = isOwner ? (input.visibility ?? existing.visibility) : existing.visibility;
 
   const now = Math.floor(Date.now() / 1000);
 
@@ -351,7 +370,7 @@ export async function updateRecipe(
         carbsG: input.carbsG ?? null,
         fatG: input.fatG ?? null,
         fiberG: input.fiberG ?? null,
-        visibility: input.visibility ?? existing.visibility,
+        visibility,
         isCooked: input.isCooked ?? existing.isCooked,
         updatedAt: now,
       })
@@ -418,8 +437,10 @@ export async function updateImage(
   if (!userId) {
     throw new Error("Unauthorized: User ID required");
   }
-  if (existing.userId && existing.userId !== userId) {
-    throw new Error("Unauthorized: Only the recipe owner can update the image");
+  const isOwner = !existing.userId || existing.userId === userId;
+  const canEdit = isOwner || existing.visibility === "shared";
+  if (!canEdit) {
+    throw new Error("Unauthorized: You do not have permission to update the image");
   }
 
   const now = Math.floor(Date.now() / 1000);

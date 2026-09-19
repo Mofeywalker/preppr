@@ -23,8 +23,8 @@ export async function POST(
   const { id } = await ctx.params;
   const recipe = await getRecipe(id, session.user.id);
   if (!recipe) return Response.json({ error: "not found" }, { status: 404 });
-  if (!recipe.isOwner) {
-    return Response.json({ error: "Forbidden: Only owner can modify images" }, { status: 403 });
+  if (!recipe.canEdit) {
+    return Response.json({ error: "Forbidden: You cannot modify images for this recipe" }, { status: 403 });
   }
 
   const contentType = req.headers.get("content-type") ?? "";

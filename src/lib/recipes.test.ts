@@ -125,14 +125,52 @@ describe("recipe database operations", () => {
     expect(updated?.tags).toEqual(["Italienisch", "Pilze"]);
   });
 
-  it("fails to update if caller is not the owner", async () => {
+  it("allows another user to update a shared recipe", async () => {
     const id = await createRecipe(
       {
         sourceType: "manual",
         language: "de",
-        title: "Privates Rezept",
-        servings: 1,
+        title: "Geteiltes Rezept",
+        visibility: "shared",
+        servings: 2,
         ingredients: [{ name: "Zutat", quantity: 1, unit: "g" }],
+        steps: ["Schritt 1"],
+      },
+      userId,
+    );
+
+    await updateRecipe(
+      id,
+      {
+        sourceType: "manual",
+        language: "de",
+        title: "Gemeinsam bearbeitetes Rezept",
+        servings: 4,
+        ingredients: [{ name: "Zutat 2", quantity: 2, unit: "g" }],
+        steps: ["Neuer Schritt"],
+        // Non-owner tries to privatize
+        visibility: "private",
+      },
+      forkedUserId,
+    );
+
+    const updated = await getRecipe(id, userId);
+    expect(updated?.title).toBe("Gemeinsam bearbeitetes Rezept");
+    expect(updated?.servings).toBe(4);
+    // Visibility should remain shared since only owner can privatize
+    expect(updated?.visibility).toBe("shared");
+    expect(updated?.canEdit).toBe(true);
+  });
+
+  it("fails to update if recipe is private and caller is not the owner", async () => {
+    const id = await createRecipe(
+      {
+        sourceType: "manual",
+        language: "de",
+        title: "Privates Geheimrezept",
+        visibility: "private",
+        servings: 1,
+        ingredients: [{ name: "Geheimzutat", quantity: 1, unit: "g" }],
         steps: ["Schritt 1"],
       },
       userId,
@@ -151,7 +189,26 @@ describe("recipe database operations", () => {
         },
         "different-user",
       ),
-    ).rejects.toThrow("Unauthorized: Only the recipe owner can edit this recipe");
+    ).rejects.toThrow("Unauthorized: You do not have permission to edit this recipe");
+  });
+
+  it("fails to delete if caller is not the owner even if recipe is shared", async () => {
+    const id = await createRecipe(
+      {
+        sourceType: "manual",
+        language: "de",
+        title: "Geteiltes Rezept nicht loeschbar",
+        visibility: "shared",
+        servings: 1,
+        ingredients: [{ name: "Zutat", quantity: 1, unit: "g" }],
+        steps: ["Schritt 1"],
+      },
+      userId,
+    );
+
+    await expect(
+      deleteRecipe(id, forkedUserId),
+    ).rejects.toThrow("Unauthorized: Only the recipe owner can delete this recipe");
   });
 
   it("forks a recipe for another user", async () => {

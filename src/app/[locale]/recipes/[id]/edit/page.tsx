@@ -19,7 +19,7 @@ export default async function EditRecipePage({
     listAllTags(),
     getTranslations("RecipeDetail"),
   ]);
-  if (!recipe || !recipe.isOwner) notFound();
+  if (!recipe || !recipe.canEdit) notFound();
 
   return (
     <div className="space-y-6">

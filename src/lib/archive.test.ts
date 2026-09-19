@@ -33,6 +33,7 @@ describe("archive utilities", () => {
     ],
     tags: ["Dessert", "Kuchen"],
     isOwner: true,
+    canEdit: true,
     isCooked: true,
   };
 

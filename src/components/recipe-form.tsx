@@ -483,6 +483,7 @@ export function RecipeForm({
                   id="visibility"
                   value={visibility}
                   onChange={(e) => setVisibility(e.target.value as "private" | "shared")}
+                  disabled={mode === "edit" && recipe != null && !recipe.isOwner}
                   className="bg-background"
                 >
                   <option value="shared">{tSharing("visibilityShared")}</option>

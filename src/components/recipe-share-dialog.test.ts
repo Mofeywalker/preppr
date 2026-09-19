@@ -40,6 +40,7 @@ describe("RecipeShareDialog and formatRecipeText", () => {
     ],
     tags: ["curry", "vegan"],
     isOwner: true,
+    canEdit: true,
     authorName: "Chef",
     authorImage: null,
   };
