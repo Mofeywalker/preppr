@@ -8,41 +8,10 @@ import { Input } from "@/components/ui/inputs";
 import { Spinner } from "@/components/ui/spinner";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { RecipeShareDialog } from "@/components/recipe-share-dialog";
-import { cn } from "@/lib/utils";
 import type { FullRecipe } from "@/lib/recipes";
 
 function fmt(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, "");
-}
-
-function useDropdownMenu() {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-
-    function handleClickOutside(event: MouseEvent) {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
-
-  return { open, setOpen, ref };
 }
 
 export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
@@ -64,12 +33,49 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
   const [imageUrl, setImageUrl] = useState(recipe.imageUrl);
   const [prevRecipeImageUrl, setPrevRecipeImageUrl] = useState(recipe.imageUrl);
   const [forking, setForking] = useState(false);
-  const desktopMenu = useDropdownMenu();
-  const mobileMenu = useDropdownMenu();
+  const [desktopMenuOpen, setDesktopMenuOpen] = useState(false);
+  const desktopMenuRef = useRef<HTMLDivElement>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!desktopMenuOpen && !mobileMenuOpen) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        desktopMenuOpen &&
+        desktopMenuRef.current &&
+        !desktopMenuRef.current.contains(event.target as Node)
+      ) {
+        setDesktopMenuOpen(false);
+      }
+      if (
+        mobileMenuOpen &&
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(event.target as Node)
+      ) {
+        setMobileMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setDesktopMenuOpen(false);
+        setMobileMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [desktopMenuOpen, mobileMenuOpen]);
 
   if (recipe.imageUrl !== prevRecipeImageUrl) {
     setPrevRecipeImageUrl(recipe.imageUrl);
@@ -280,20 +286,20 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
           )}
 
           {/* Desktop Overflow Menu (...) */}
-          <div ref={desktopMenu.ref} className="relative inline-block">
+          <div ref={desktopMenuRef} className="relative inline-block">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => desktopMenu.setOpen((prev) => !prev)}
+              onClick={() => setDesktopMenuOpen((prev) => !prev)}
               aria-label={t("moreActions")}
               aria-haspopup="menu"
-              aria-expanded={desktopMenu.open}
+              aria-expanded={desktopMenuOpen}
               className="size-9 p-0 cursor-pointer text-muted-foreground hover:text-foreground"
             >
               <MoreHorizontalIcon className="size-4" />
             </Button>
 
-            {desktopMenu.open && (
+            {desktopMenuOpen && (
               <div
                 role="menu"
                 aria-orientation="vertical"
@@ -303,7 +309,7 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                   href={`/api/recipes/${recipe.id}/export`}
                   download
                   role="menuitem"
-                  onClick={() => desktopMenu.setOpen(false)}
+                  onClick={() => setDesktopMenuOpen(false)}
                   className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition cursor-pointer"
                 >
                   <DownloadIcon className="size-4 shrink-0 text-muted-foreground" />
@@ -317,7 +323,7 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                       type="button"
                       role="menuitem"
                       onClick={() => {
-                        desktopMenu.setOpen(false);
+                        setDesktopMenuOpen(false);
                         setDeleteDialogOpen(true);
                       }}
                       disabled={isDeleting}
@@ -368,20 +374,20 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
           )}
 
           {/* Mobile Overflow Menu */}
-          <div ref={mobileMenu.ref} className="relative inline-block">
+          <div ref={mobileMenuRef} className="relative inline-block">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => mobileMenu.setOpen((prev) => !prev)}
+              onClick={() => setMobileMenuOpen((prev) => !prev)}
               aria-label={t("moreActions")}
               aria-haspopup="menu"
-              aria-expanded={mobileMenu.open}
+              aria-expanded={mobileMenuOpen}
               className="size-9 p-0 cursor-pointer text-muted-foreground hover:text-foreground"
             >
               <MoreHorizontalIcon className="size-4" />
             </Button>
 
-            {mobileMenu.open && (
+            {mobileMenuOpen && (
               <div
                 role="menu"
                 aria-orientation="vertical"
@@ -390,7 +396,7 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                 <Link
                   href={`/recipes/${recipe.id}/print?servings=${servings}`}
                   role="menuitem"
-                  onClick={() => mobileMenu.setOpen(false)}
+                  onClick={() => setMobileMenuOpen(false)}
                   className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition cursor-pointer"
                 >
                   <PrinterIcon className="size-4 shrink-0 text-muted-foreground" />
@@ -401,7 +407,7 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                   href={`/api/recipes/${recipe.id}/export`}
                   download
                   role="menuitem"
-                  onClick={() => mobileMenu.setOpen(false)}
+                  onClick={() => setMobileMenuOpen(false)}
                   className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition cursor-pointer"
                 >
                   <DownloadIcon className="size-4 shrink-0 text-muted-foreground" />
@@ -415,7 +421,7 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                       type="button"
                       role="menuitem"
                       onClick={() => {
-                        mobileMenu.setOpen(false);
+                        setMobileMenuOpen(false);
                         setDeleteDialogOpen(true);
                       }}
                       disabled={isDeleting}
