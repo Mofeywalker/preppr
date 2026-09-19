@@ -40,8 +40,7 @@ export function Navbar() {
 
   const handleSignOut = async () => {
     await authClient.signOut();
-    router.push("/login");
-    router.refresh();
+    window.location.href = "/login";
   };
 
   const userInitials = session?.user?.name

@@ -63,8 +63,7 @@ export function RegisterClient({
         return;
       }
 
-      router.push("/");
-      router.refresh();
+      window.location.href = "/";
     } catch {
       setError(t("userExists"));
       setLoading(false);
@@ -124,7 +123,7 @@ export function RegisterClient({
             )}
           </div>
         ) : (
-          <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+          <form className="mt-8 space-y-5" onSubmit={handleSubmit} action="#">
             <div>
               <label
                 htmlFor="name"

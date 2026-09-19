@@ -74,6 +74,9 @@ export const auth = betterAuth({
     provider: "sqlite",
     schema,
   }),
+  rateLimit: {
+    enabled: process.env.NODE_ENV !== "test" && process.env.DISABLE_RATE_LIMIT !== "true",
+  },
   baseURL:
     process.env.BETTER_AUTH_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||

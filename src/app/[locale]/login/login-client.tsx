@@ -43,8 +43,7 @@ export function LoginClient({
         return;
       }
 
-      router.push("/");
-      router.refresh();
+      window.location.href = "/";
     } catch {
       setError(t("invalidCredentials"));
       setLoading(false);
@@ -156,7 +155,7 @@ export function LoginClient({
               </div>
             )}
 
-            <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+            <form className="mt-8 space-y-5" onSubmit={handleSubmit} action="#">
               <div>
                 <label
                   htmlFor="email"
