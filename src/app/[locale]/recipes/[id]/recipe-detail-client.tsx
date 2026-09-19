@@ -321,9 +321,9 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                         setDeleteDialogOpen(true);
                       }}
                       disabled={isDeleting}
-                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-500/10 transition cursor-pointer text-left"
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-500/10 dark:hover:bg-red-500/20 transition cursor-pointer text-left"
                     >
-                      <TrashIcon className="size-4 shrink-0 text-red-600" />
+                      <TrashIcon className="size-4 shrink-0 text-red-600 dark:text-red-400" />
                       <span>{t("delete")}</span>
                     </button>
                   </>
@@ -419,9 +419,9 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                         setDeleteDialogOpen(true);
                       }}
                       disabled={isDeleting}
-                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-500/10 transition cursor-pointer text-left"
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-500/10 dark:hover:bg-red-500/20 transition cursor-pointer text-left"
                     >
-                      <TrashIcon className="size-4 shrink-0 text-red-600" />
+                      <TrashIcon className="size-4 shrink-0 text-red-600 dark:text-red-400" />
                       <span>{t("delete")}</span>
                     </button>
                   </>
