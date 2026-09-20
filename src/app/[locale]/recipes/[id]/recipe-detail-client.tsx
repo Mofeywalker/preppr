@@ -322,13 +322,27 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
 
           {/* Visibility / Author status badge */}
           {recipe.isOwner ? (
-            <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground/70 truncate">
+            <span
+              className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground/70 truncate"
+              title={
+                recipe.visibility === "shared"
+                  ? tSharing("visibilityShared")
+                  : tSharing("visibilityPrivate")
+              }
+            >
               {recipe.visibility === "shared"
-                ? tSharing("visibilityShared")
-                : tSharing("visibilityPrivate")}
+                ? tSharing("visibilitySharedShort")
+                : tSharing("visibilityPrivateShort")}
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary truncate">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary truncate"
+              title={
+                recipe.authorName
+                  ? tSharing("sharedBy", { name: recipe.authorName })
+                  : tSharing("sharedBadge")
+              }
+            >
               {recipe.authorImage && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -339,9 +353,14 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                 />
               )}
               <span className="truncate">
-                {recipe.authorName
-                  ? tSharing("sharedBy", { name: recipe.authorName })
-                  : tSharing("sharedBadge")}
+                <span className="hidden sm:inline">
+                  {recipe.authorName
+                    ? tSharing("sharedBy", { name: recipe.authorName })
+                    : tSharing("sharedBadge")}
+                </span>
+                <span className="sm:hidden">
+                  {recipe.authorName || tSharing("sharedBadge")}
+                </span>
               </span>
             </span>
           )}
@@ -466,9 +485,14 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
           {/* Mobile Edit / Fork */}
           {recipe.canEdit ? (
             <Link href={`/recipes/${recipe.id}/edit`}>
-              <Button variant="outline" size="sm" className="gap-1.5 h-9 cursor-pointer">
-                <PencilIcon className="size-3.5 text-muted-foreground" />
-                <span>{t("edit")}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                aria-label={t("edit")}
+                title={t("edit")}
+                className="size-9 p-0 flex items-center justify-center cursor-pointer shrink-0"
+              >
+                <PencilIcon className="size-4 text-muted-foreground" />
               </Button>
             </Link>
           ) : (
@@ -477,10 +501,11 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
               size="sm"
               onClick={onFork}
               disabled={forking}
-              className="gap-1.5 h-9 cursor-pointer"
+              aria-label={forking ? tSharing("forking") : tSharing("fork")}
+              title={forking ? tSharing("forking") : tSharing("fork")}
+              className="size-9 p-0 flex items-center justify-center cursor-pointer shrink-0"
             >
-              <CopyIcon className="size-3.5" />
-              <span>{forking ? tSharing("forking") : tSharing("fork")}</span>
+              {forking ? <Spinner /> : <CopyIcon className="size-4" />}
             </Button>
           )}
 
@@ -493,7 +518,7 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
               aria-label={t("moreActions")}
               aria-haspopup="menu"
               aria-expanded={mobileMenuOpen}
-              className="size-9 p-0 cursor-pointer text-muted-foreground hover:text-foreground"
+              className="size-9 p-0 flex items-center justify-center cursor-pointer text-muted-foreground hover:text-foreground"
             >
               <MoreHorizontalIcon className="size-4" />
             </Button>
