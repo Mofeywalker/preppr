@@ -3,6 +3,10 @@ const CACHE_VERSION = "preppr-v3";
 const STATIC_CACHE = `preppr-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `preppr-pages-${CACHE_VERSION}`;
 
+
+// Never activate/caches on localhost: a prod build on the same origin/port would
+// otherwise poison the dev server's HMR chunks (they live under /_next/static/).
+const IS_LOCALHOST = ["localhost", "127.0.0.1", "[::1]", "0.0.0.0"].includes(self.location.hostname);
 const PRECACHE_ASSETS = [
   "/offline.html",
   "/icons/icon-192.png",
@@ -15,8 +19,9 @@ const PRECACHE_ASSETS = [
   "/manifest.webmanifest",
 ];
 
-// Install Event
+// Install Event (skipped on localhost — see IS_LOCALHOST note above)
 self.addEventListener("install", (event) => {
+  if (IS_LOCALHOST) return;
   event.waitUntil(
     caches
       .open(STATIC_CACHE)
@@ -47,6 +52,11 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
+
+  // On localhost do nothing: never serve or store anything (protects dev HMR)
+  if (IS_LOCALHOST) {
+    return;
+  }
 
   // Only handle HTTP/HTTPS GET requests from the same origin
   if (request.method !== "GET" || url.origin !== self.location.origin) {

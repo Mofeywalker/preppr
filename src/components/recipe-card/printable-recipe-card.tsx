@@ -19,64 +19,6 @@ function fmt(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, "");
 }
 
-export function parseStepText(
-  rawText: string,
-  stepIndex: number,
-): { title: string; body: string } {
-  let text = rawText.trim();
-  // Strip leading numbering like "1.", "1)", "Schritt 1:", "Step 1:"
-  const prefixRegex = new RegExp(
-    `^(?:Schritt\\s*|Step\\s*)?0*${stepIndex + 1}[.):\\s-]*`,
-    "i",
-  );
-  text = text.replace(prefixRegex, "").trim();
-
-  // Check for colon separator (e.g. "Tofu vorbereiten: Den Tofu...")
-  const colonIdx = text.indexOf(":");
-  if (
-    colonIdx > 0 &&
-    colonIdx <= 45 &&
-    !text.slice(0, colonIdx).includes("http")
-  ) {
-    return {
-      title: text.slice(0, colonIdx).trim(),
-      body: text.slice(colonIdx + 1).trim(),
-    };
-  }
-
-  // Check for dash separator (e.g. "Tofu anbraten – Den Tofu in die Pfanne geben...")
-  const dashIdx =
-    text.indexOf(" – ") !== -1
-      ? text.indexOf(" – ")
-      : text.indexOf(" - ") !== -1
-      ? text.indexOf(" - ")
-      : -1;
-  if (dashIdx > 0 && dashIdx <= 45) {
-    return {
-      title: text.slice(0, dashIdx).trim(),
-      body: text.slice(dashIdx + 3).trim(),
-    };
-  }
-
-  // Check for newline separator if first line is a concise headline
-  const newlineIdx = text.indexOf("\n");
-  if (newlineIdx > 0 && newlineIdx <= 45) {
-    const firstLine = text.slice(0, newlineIdx).trim();
-    const remaining = text.slice(newlineIdx + 1).trim();
-    if (firstLine && remaining && !firstLine.endsWith(".")) {
-      return {
-        title: firstLine,
-        body: remaining,
-      };
-    }
-  }
-
-  return {
-    title: "",
-    body: text,
-  };
-}
-
 export function PrintableRecipeCard({
   recipe,
   servings,
@@ -309,27 +251,19 @@ export function PrintableRecipeCard({
               </div>
 
               <div className="space-y-2">
-                {recipe.steps.map((step, idx) => {
-                  const { title, body } = parseStepText(step.text, idx);
-                  return (
-                    <div
-                      key={step.id}
-                      className="flex gap-2.5 p-2.5 rounded-xl border border-neutral-200 bg-neutral-50/40 break-inside-avoid text-xs"
-                    >
-                      <span className="size-5.5 rounded-full bg-[#16a34a] text-white font-bold flex items-center justify-center shrink-0 text-[11px] leading-none mt-0.5 shadow-2xs">
-                        {idx + 1}
-                      </span>
-                      <div className="flex-1 leading-snug">
-                        {title && (
-                          <strong className="block font-bold text-neutral-900 mb-0.5">
-                            {title}
-                          </strong>
-                        )}
-                        <span className="text-neutral-700 whitespace-pre-line">{body}</span>
-                      </div>
-                    </div>
-                  );
-                })}
+                {recipe.steps.map((step, idx) => (
+                  <div
+                    key={step.id}
+                    className="flex gap-2.5 p-2.5 rounded-xl border border-neutral-200 bg-neutral-50/40 break-inside-avoid text-xs"
+                  >
+                    <span className="size-5.5 rounded-full bg-[#16a34a] text-white font-bold flex items-center justify-center shrink-0 text-[11px] leading-none mt-0.5 shadow-2xs">
+                      {idx + 1}
+                    </span>
+                    <span className="flex-1 leading-snug text-neutral-700 whitespace-pre-line">
+                      {step.text}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -652,34 +586,25 @@ export function PrintableRecipeCard({
 
           {/* Steps Grid: 2 Columns */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-stretch">
-            {recipe.steps.map((step, idx) => {
-              const { title, body } = parseStepText(step.text, idx);
-              return (
-                <div
-                  key={step.id}
-                  className="rounded-2xl border-2 border-neutral-200/90 bg-neutral-50/40 p-4 sm:p-5 flex flex-col justify-start break-inside-avoid shadow-xs hover:border-[#16a34a]/50 transition"
-                >
-                  <div className="flex items-center gap-3 mb-2.5">
-                    <span className="size-8 rounded-full bg-[#16a34a] text-white font-black text-sm flex items-center justify-center shrink-0 shadow-sm">
-                      {idx + 1}
-                    </span>
-                    {title ? (
-                      <h3 className="font-extrabold text-neutral-900 text-sm sm:text-base leading-snug">
-                        {title}
-                      </h3>
-                    ) : (
-                      <h3 className="font-extrabold text-neutral-900 text-sm sm:text-base leading-snug">
-                        {t("step", { number: idx + 1 })}
-                      </h3>
-                    )}
-                  </div>
-
-                  <p className="text-xs sm:text-sm text-neutral-700 leading-relaxed flex-1 whitespace-pre-line">
-                    {body}
-                  </p>
+            {recipe.steps.map((step, idx) => (
+              <div
+                key={step.id}
+                className="rounded-2xl border-2 border-neutral-200/90 bg-neutral-50/40 p-4 sm:p-5 flex flex-col justify-start break-inside-avoid shadow-xs hover:border-[#16a34a]/50 transition"
+              >
+                <div className="flex items-center gap-3 mb-2.5">
+                  <span className="size-8 rounded-full bg-[#16a34a] text-white font-black text-sm flex items-center justify-center shrink-0 shadow-sm">
+                    {idx + 1}
+                  </span>
+                  <h3 className="font-extrabold text-neutral-900 text-sm sm:text-base leading-snug">
+                    {t("step", { number: idx + 1 })}
+                  </h3>
                 </div>
-              );
-            })}
+
+                <p className="text-xs sm:text-sm text-neutral-700 leading-relaxed flex-1 whitespace-pre-line">
+                  {step.text}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
 
