@@ -45,8 +45,12 @@ export default async function middleware(req: NextRequest) {
   const sessionToken =
     req.cookies.get("better-auth.session_token")?.value ||
     req.cookies.get("__Secure-better-auth.session_token")?.value;
+  const pathWithoutLocale = pathname.replace(/^\/(?:de|en)(?=\/|$)/, "");
+  const isRecipeDetailPath =
+    /^\/recipes\/[^/]+$/.test(pathWithoutLocale) &&
+    pathWithoutLocale !== "/recipes/new";
 
-  if (!sessionToken && !isAuthPage) {
+  if (!sessionToken && !isAuthPage && !isRecipeDetailPath) {
     const loginUrl = new URL(`/${instanceLocale}/login`, req.url);
     return NextResponse.redirect(loginUrl);
   }

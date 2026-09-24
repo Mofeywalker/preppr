@@ -20,7 +20,7 @@ A modern, mobile-first recipe & meal-prep application with AI-powered YouTube an
 - 🥗 **Nutritional Macro Tracking** — Per-serving calories, protein, carbs, fats, and fiber with on-demand AI macro estimation.
 - 🖨️ **DIN A4 Printable Recipe Cards** — Formatted printable recipe cards with customizable classic or compact layouts, optimized for kitchen binders and clean PDF export.
 - 🎨 **Light & Dark Themes** — Modern dark and light modes with system preference auto-detection and seamless manual toggle.
-- 👥 **Multi-User & Recipe Sharing** — Built-in authentication with email/password and optional OpenID Connect (OIDC) SSO. Control public/private recipe visibility and fork shared recipes.
+- 👥 **Multi-User & Recipe Sharing** — Built-in authentication with email/password and optional OpenID Connect (OIDC) SSO. Shared recipes are readable without signing in; signed-in viewers can leave optional comments without changing the recipe’s default ingredients or steps. Control shared/private visibility and fork shared recipes.
 - 🌍 **Internationalization** — Configurable instance language (`de` or `en`) with native localized routing.
 - ⚡ **Zero-Config Database** — Embedded SQLite via Drizzle ORM (single file, automatic schema migrations on boot).
 

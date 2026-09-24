@@ -10,12 +10,24 @@ import { ConfirmDialog } from "@/components/ui/dialog";
 import { RecipeShareDialog } from "@/components/recipe-share-dialog";
 import { cn } from "@/lib/utils";
 import type { FullRecipe } from "@/lib/recipes";
+import { RecipeComments } from "@/components/recipe-comments";
+import type { RecipeComment } from "@/lib/recipe-comments";
 
 function fmt(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, "");
 }
 
-export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
+export function RecipeDetailClient({
+  recipe,
+  comments,
+  viewerId,
+  canShowComments,
+}: {
+  recipe: FullRecipe;
+  comments: RecipeComment[];
+  viewerId: string | null;
+  canShowComments: boolean;
+}) {
   const t = useTranslations("RecipeDetail");
   const tForm = useTranslations("Recipes");
   const tSharing = useTranslations("Sharing");
@@ -402,7 +414,7 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
           )}
 
           {/* Fork / Save button (Primary CTA for non-owners) */}
-          {!recipe.isOwner && (
+          {viewerId && !recipe.isOwner && (
             <Button
               variant="default"
               size="sm"
@@ -495,7 +507,7 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                 <PencilIcon className="size-4 text-muted-foreground" />
               </Button>
             </Link>
-          ) : (
+          ) : viewerId ? (
             <Button
               variant="default"
               size="sm"
@@ -507,7 +519,7 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
             >
               {forking ? <Spinner /> : <CopyIcon className="size-4" />}
             </Button>
-          )}
+          ) : null}
 
           {/* Mobile Overflow Menu */}
           <div ref={mobileMenuRef} className="relative inline-block">
@@ -763,16 +775,18 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                     </p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={onToggleCooked}
-                  disabled={toggleCookedLoading}
-                  className="text-xs font-medium text-emerald-700 dark:text-emerald-400 underline hover:opacity-80 transition cursor-pointer shrink-0 ml-2"
-                >
-                  {t("unmarkCooked")}
-                </button>
+                {viewerId && (
+                  <button
+                    type="button"
+                    onClick={onToggleCooked}
+                    disabled={toggleCookedLoading}
+                    className="text-xs font-medium text-emerald-700 dark:text-emerald-400 underline hover:opacity-80 transition cursor-pointer shrink-0 ml-2"
+                  >
+                    {t("unmarkCooked")}
+                  </button>
+                )}
               </div>
-            ) : (
+            ) : viewerId ? (
               <div className="mb-3.5">
                 <button
                   type="button"
@@ -785,7 +799,7 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
                   <span className="text-[11px] text-foreground/40 hidden sm:inline">• {t("cookedHint")}</span>
                 </button>
               </div>
-            )}
+            ) : null}
 
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">
               {recipe.title}
@@ -1040,6 +1054,16 @@ export function RecipeDetailClient({ recipe }: { recipe: FullRecipe }) {
               ))}
             </ol>
           </section>
+
+          {canShowComments && (
+            <RecipeComments
+              key={recipe.id}
+              recipeId={recipe.id}
+              comments={comments}
+              viewerId={viewerId}
+              recipeOwnerId={recipe.userId}
+            />
+          )}
         </div>
       </div>
 

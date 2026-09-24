@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, primaryKey } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, primaryKey, index } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const user = sqliteTable("user", {
@@ -95,6 +95,25 @@ export const steps = sqliteTable("steps", {
   order: integer("order").notNull(),
   text: text("text").notNull(),
 });
+
+export const recipeComments = sqliteTable(
+  "recipe_comments",
+  {
+    id: text("id").primaryKey(),
+    recipeId: text("recipe_id")
+      .notNull()
+      .references(() => recipes.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [index("recipe_comments_recipe_created_idx").on(t.recipeId, t.createdAt, t.id)],
+);
+
+export type RecipeCommentRow = typeof recipeComments.$inferSelect;
 
 export type User = typeof user.$inferSelect;
 export type Session = typeof session.$inferSelect;
