@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractUrlFromShareData } from "./urls";
+import { extractUrlFromShareData, parseYouTubeId, isYouTubeUrl } from "./urls";
 
 describe("extractUrlFromShareData", () => {
   it("returns empty string when url and text are empty or missing", () => {
@@ -35,5 +35,14 @@ describe("extractUrlFromShareData", () => {
   it("returns empty string if neither url nor text contain a valid http/https link", () => {
     expect(extractUrlFromShareData("just plain text", "more text")).toBe("");
     expect(extractUrlFromShareData("ftp://example.com/file")).toBe("");
+  });
+});
+
+describe("parseYouTubeId & isYouTubeUrl", () => {
+  it("identifies valid YouTube URLs", () => {
+    expect(isYouTubeUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ")).toBe(true);
+    expect(isYouTubeUrl("https://youtu.be/dQw4w9WgXcQ")).toBe(true);
+    expect(parseYouTubeId("https://youtu.be/dQw4w9WgXcQ")).toBe("dQw4w9WgXcQ");
+    expect(isYouTubeUrl("https://example.com/recipe")).toBe(false);
   });
 });

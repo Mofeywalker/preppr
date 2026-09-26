@@ -13,6 +13,59 @@ const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB per image
 const MAX_TOTAL_SIZE = 60 * 1024 * 1024; // 60 MB total
 const MAX_PHOTOS = 10;
 
+class PhotoImportError extends Error {
+  constructor(
+    public code: string,
+    public status: number = 502,
+    detail?: string,
+  ) {
+    super(detail || code);
+    this.name = "PhotoImportError";
+  }
+}
+
+async function executePhotoImport(
+  imageFiles: File[],
+  locale: Locale,
+  onProgress?: (step: string) => void,
+) {
+  onProgress?.("optimizing_photos");
+  const images: Array<{ buffer: Buffer; mimeType: string; name: string }> = [];
+
+  for (const file of imageFiles) {
+    const rawBuffer = Buffer.from(await file.arrayBuffer());
+    const normalized = await normalizeRecipeImage(rawBuffer, file.name);
+    images.push(normalized);
+  }
+
+  onProgress?.("extracting_recipe");
+  let recipe: ExtractedRecipe;
+  try {
+    recipe = await extractFromPhotos(images, locale);
+  } catch (extractErr) {
+    console.error("AI photo recipe extraction failed:", extractErr);
+    throw new PhotoImportError(
+      "extraction-failed",
+      502,
+      (extractErr as Error).message ?? "Failed to extract recipe from photos",
+    );
+  }
+
+  onProgress?.("saving_photo");
+  let thumbnail: string | null = null;
+  try {
+    thumbnail = await saveUploadedImage(images[0].buffer, images[0].name);
+  } catch (saveErr) {
+    console.warn("Failed to save cover image from imported photo:", saveErr);
+  }
+
+  return {
+    recipe,
+    thumbnail,
+    sourceType: "manual" as const,
+  };
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: req.headers });
   if (!session) {
@@ -50,8 +103,6 @@ export async function POST(req: NextRequest) {
     }
 
     let totalSize = 0;
-    const images: Array<{ buffer: Buffer; mimeType: string; name: string }> = [];
-
     for (const file of imageFiles) {
       if (file.size > MAX_FILE_SIZE) {
         return Response.json(
@@ -74,41 +125,53 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         );
       }
-
-      const rawBuffer = Buffer.from(await file.arrayBuffer());
-      const normalized = await normalizeRecipeImage(rawBuffer, file.name);
-      images.push(normalized);
     }
 
-    // Extract structured recipe using AI
-    let recipe: ExtractedRecipe;
-    try {
-      recipe = await extractFromPhotos(images, locale);
-    } catch (extractErr) {
-      console.error("AI photo recipe extraction failed:", extractErr);
-      return Response.json(
-        {
-          error: "extraction-failed",
-          detail: (extractErr as Error).message ?? "Failed to extract recipe from photos",
+    const wantsStream = req.headers.get("accept")?.includes("application/x-ndjson");
+
+    if (wantsStream) {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          const send = (data: unknown) => {
+            controller.enqueue(encoder.encode(JSON.stringify(data) + "\n"));
+          };
+          try {
+            const result = await executePhotoImport(imageFiles, locale, (step) => {
+              send({ type: "status", step });
+            });
+            send({ type: "result", data: result });
+          } catch (err) {
+            if (err instanceof PhotoImportError) {
+              send({ type: "error", error: err.code, detail: err.message });
+            } else {
+              send({
+                type: "error",
+                error: "extraction-failed",
+                detail: (err as Error).message,
+              });
+            }
+          } finally {
+            controller.close();
+          }
         },
-        { status: 502 },
-      );
+      });
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "application/x-ndjson; charset=utf-8",
+          "Cache-Control": "no-cache, no-transform",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
     }
 
-    // Save the first photo to local storage to serve as the recipe's initial cover image
-    let thumbnail: string | null = null;
-    try {
-      thumbnail = await saveUploadedImage(images[0].buffer, images[0].name);
-    } catch (saveErr) {
-      console.warn("Failed to save cover image from imported photo:", saveErr);
-    }
-
-    return Response.json({
-      recipe,
-      thumbnail,
-      sourceType: "manual",
-    });
+    const result = await executePhotoImport(imageFiles, locale);
+    return Response.json(result);
   } catch (err) {
+    if (err instanceof PhotoImportError) {
+      return Response.json({ error: err.code, detail: err.message }, { status: err.status });
+    }
     console.error("Error processing photo import:", err);
     return Response.json(
       { error: "server-error", detail: (err as Error).message },

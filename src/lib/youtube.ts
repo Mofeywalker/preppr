@@ -9,31 +9,7 @@ import { randomUUID } from "node:crypto";
 const exec = promisify(execFile);
 const YT_DLP = process.env.YT_DLP_PATH || "yt-dlp";
 
-export function parseYouTubeId(url: string): string | null {
-  try {
-    const u = new URL(url);
-    if (u.hostname === "youtu.be") {
-      const id = u.pathname.slice(1);
-      return id ? id : null;
-    }
-    if (
-      u.hostname === "www.youtube.com" ||
-      u.hostname === "youtube.com" ||
-      u.hostname === "m.youtube.com"
-    ) {
-      if (u.pathname === "/watch") return u.searchParams.get("v");
-      const m = u.pathname.match(/\/(shorts|embed|live)\/([\w-]{6,})/);
-      if (m) return m[2];
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
-
-export function isYouTubeUrl(url: string): boolean {
-  return parseYouTubeId(url) !== null;
-}
+export { parseYouTubeId, isYouTubeUrl } from "./urls";
 
 export async function getTranscript(videoId: string): Promise<string | null> {
   try {

@@ -10,7 +10,7 @@ import { RecipeForm, type RecipeFormInitial } from "@/components/recipe-form";
 import type { Locale } from "@/i18n/routing";
 import type { RecipeInput } from "@/lib/recipes";
 import type { ExtractedRecipe } from "@/lib/ai";
-import { extractUrlFromShareData } from "@/lib/urls";
+import { extractUrlFromShareData, isYouTubeUrl } from "@/lib/urls";
 import { cn } from "@/lib/utils";
 
 const emptySubscribe = () => () => {};
@@ -35,6 +35,56 @@ type SingleImport = {
   sourceType: "manual" | "youtube" | "tandoor" | "website";
   sourceUrl?: string | null;
 };
+
+class StreamError extends Error {
+  error: string;
+  detail?: string;
+  constructor(error: string, detail?: string) {
+    super(detail || error);
+    this.name = "StreamError";
+    this.error = error;
+    this.detail = detail;
+  }
+}
+
+async function readImportStream<T>(
+  response: Response,
+  onStatus: (step: string) => void,
+): Promise<T> {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/x-ndjson")) {
+    return response.json();
+  }
+  const reader = response.body?.getReader();
+  if (!reader) return response.json();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result: T | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const msg = JSON.parse(trimmed);
+      if (msg.type === "status") {
+        onStatus(msg.step);
+      } else if (msg.type === "result") {
+        result = msg.data as T;
+      } else if (msg.type === "error") {
+        throw new StreamError(msg.error, msg.detail);
+      }
+    }
+  }
+  if (!result) {
+    throw new Error("No data returned from import stream");
+  }
+  return result;
+}
 
 export function ImportClient({
   locale,
@@ -74,6 +124,24 @@ export function ImportClient({
   const [isPhotoDragging, setIsPhotoDragging] = useState(false);
   const photoGalleryInputRef = useRef<HTMLInputElement>(null);
   const photoCameraInputRef = useRef<HTMLInputElement>(null);
+  const [importStep, setImportStep] = useState<string | null>(null);
+  const [photoStep, setPhotoStep] = useState<string | null>(null);
+
+  const getImportButtonLabel = () => {
+    if (importStep === "youtube_meta") return t("statusLoadingYoutube");
+    if (importStep === "scraping_web") return t("statusLoadingWebpage");
+    if (importStep === "extracting_recipe") return t("statusExtractingRecipe");
+    if (importStep === "generating_photo") return t("statusGeneratingPhoto");
+    if (importStep === "loading_photo") return t("statusLoadingPhoto");
+    return t("extracting");
+  };
+
+  const getPhotoButtonLabel = () => {
+    if (photoStep === "optimizing_photos") return t("statusOptimizingPhotos");
+    if (photoStep === "extracting_recipe") return t("statusExtractingRecipe");
+    if (photoStep === "saving_photo") return t("statusSavingPhoto");
+    return t("extractingPhotos");
+  };
 
   // Synchronize when initialUrl prop updates
   const [prevInitialUrl, setPrevInitialUrl] = useState(initialUrl);
@@ -240,6 +308,7 @@ export function ImportClient({
     }
     setError(null);
     setSingleResult(null);
+    setPhotoStep("optimizing_photos");
 
     const formData = new FormData();
     formData.append("locale", locale);
@@ -251,6 +320,7 @@ export function ImportClient({
       try {
         const res = await fetch("/api/import/photos", {
           method: "POST",
+          headers: { Accept: "application/x-ndjson, application/json" },
           body: formData,
         });
         if (!res.ok) {
@@ -267,11 +337,11 @@ export function ImportClient({
           return;
         }
 
-        const data: {
+        const data = await readImportStream<{
           recipe: ExtractedRecipe;
           thumbnail: string | null;
           sourceType?: "manual";
-        } = await res.json();
+        }>(res, (step) => setPhotoStep(step));
 
         const recipeInput: RecipeInput = {
           sourceType: "manual",
@@ -297,8 +367,19 @@ export function ImportClient({
           sourceType: "manual",
           sourceUrl: null,
         });
-      } catch {
-        setError(t("error"));
+      } catch (err: unknown) {
+        const errCode = err instanceof StreamError ? err.error : (err as { error?: string })?.error || "generic";
+        const key =
+          errCode === "ai-config"
+            ? "errorAiConfig"
+            : errCode === "no-photos"
+              ? "errorNoPhotos"
+              : errCode === "extraction-failed"
+                ? "errorPhotoExtraction"
+                : "error";
+        setError(t(key));
+      } finally {
+        setPhotoStep(null);
       }
     });
   };
@@ -308,11 +389,15 @@ export function ImportClient({
     e.preventDefault();
     setError(null);
     setSingleResult(null);
+    setImportStep(isYouTubeUrl(ytUrl) ? "youtube_meta" : "scraping_web");
     startTransition(async () => {
       try {
         const res = await fetch("/api/import", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/x-ndjson, application/json",
+          },
           body: JSON.stringify({ url: ytUrl, locale }),
         });
         if (!res.ok) {
@@ -332,12 +417,13 @@ export function ImportClient({
           setError(t(key));
           return;
         }
-        const data: {
+        const data = await readImportStream<{
           recipe: ExtractedRecipe;
           thumbnail: string | null;
           sourceUrl: string;
           sourceType?: "youtube" | "website";
-        } = await res.json();
+        }>(res, (step) => setImportStep(step));
+
         const effectiveSourceType = data.sourceType || "website";
         const recipeInput: RecipeInput = {
           sourceType: effectiveSourceType,
@@ -362,8 +448,23 @@ export function ImportClient({
           sourceType: effectiveSourceType,
           sourceUrl: data.sourceUrl,
         });
-      } catch {
-        setError(t("error"));
+      } catch (err: unknown) {
+        const errCode = err instanceof StreamError ? err.error : (err as { error?: string })?.error || "generic";
+        const key =
+          errCode === "invalid-url"
+            ? "errorInvalidUrl"
+            : errCode === "fetch-failed"
+              ? "errorFetchFailed"
+              : errCode === "extraction-failed"
+                ? "errorExtractionFailed"
+                : errCode === "ai-config"
+                  ? "errorAiConfig"
+                  : errCode === "no-transcript"
+                    ? "errorNoTranscript"
+                    : "error";
+        setError(t(key));
+      } finally {
+        setImportStep(null);
       }
     });
   };
@@ -897,8 +998,19 @@ export function ImportClient({
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 
-          <Button type="submit" className="w-full h-11 font-medium" disabled={pending || !ytUrl.trim()}>
-            {pending ? <Spinner /> : t("extract")}
+          <Button
+            type="submit"
+            className="w-full h-11 font-medium gap-2"
+            disabled={pending || !ytUrl.trim()}
+          >
+            {pending ? (
+              <>
+                <Spinner />
+                <span>{getImportButtonLabel()}</span>
+              </>
+            ) : (
+              t("extract")
+            )}
           </Button>
         </form>
       )}
@@ -1218,7 +1330,7 @@ export function ImportClient({
                 {pending ? (
                   <>
                     <Spinner />
-                    <span>{t("extractingPhotos")}</span>
+                    <span>{getPhotoButtonLabel()}</span>
                   </>
                 ) : (
                   <>

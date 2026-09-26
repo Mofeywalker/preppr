@@ -34,37 +34,30 @@ const bodySchema = z.object({
   locale: z.enum(["de", "en"]).optional(),
 });
 
-export async function POST(req: NextRequest) {
-  const session = await auth.api.getSession({ headers: req.headers });
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+class ImportError extends Error {
+  constructor(
+    public code: string,
+    public status: number = 502,
+    detail?: string,
+  ) {
+    super(detail || code);
+    this.name = "ImportError";
   }
+}
 
-  // Rate limit: 10 imports per minute per user
-  const rl = rateLimit(`import:${session.user.id}`, 10, 60_000);
-  if (!rl.ok) return rateLimitResponse(rl.retryAfterMs);
-
-  const parsed = bodySchema.safeParse(await req.json());
-  if (!parsed.success) {
-    return Response.json({ error: "invalid-url" }, { status: 400 });
-  }
-  const { url } = parsed.data;
-  const locale: Locale = parsed.data.locale || getInstanceLocale();
-
-  // Validate URL protocol and SSRF safety
-  try {
-    await validateExternalUrl(url);
-  } catch {
-    return Response.json({ error: "invalid-url" }, { status: 400 });
-  }
-
+async function executeImport(
+  url: string,
+  locale: Locale,
+  onProgress?: (step: string) => void,
+) {
   // --- FLOW 1: YOUTUBE VIDEO IMPORT ---
   if (isYouTubeUrl(url)) {
     if (!process.env.OPENROUTER_API_KEY) {
-      return Response.json({ error: "ai-config" }, { status: 503 });
+      throw new ImportError("ai-config", 503);
     }
     const videoId = parseYouTubeId(url)!;
 
+    onProgress?.("youtube_meta");
     let meta;
     try {
       meta = await getMetadata(url);
@@ -74,6 +67,7 @@ export async function POST(req: NextRequest) {
 
     const transcript = await getTranscript(videoId);
 
+    onProgress?.("extracting_recipe");
     let recipe: ExtractedRecipe;
     try {
       if (transcript && transcript.length > 0) {
@@ -85,15 +79,9 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       const message = (err as Error).message ?? "";
       if (transcript === null) {
-        return Response.json(
-          { error: "no-transcript", detail: message },
-          { status: 502 },
-        );
+        throw new ImportError("no-transcript", 502, message);
       }
-      return Response.json(
-        { error: "extraction-failed", detail: message },
-        { status: 502 },
-      );
+      throw new ImportError("extraction-failed", 502, message);
     }
 
     let thumbnail: string | null = null;
@@ -104,6 +92,7 @@ export async function POST(req: NextRequest) {
       let ext = "jpg";
 
       if (process.env.OPENROUTER_API_KEY) {
+        onProgress?.("generating_photo");
         try {
           const processedBase64 = await processYouTubeThumbnail(
             thumbBuf,
@@ -136,20 +125,22 @@ export async function POST(req: NextRequest) {
       thumbnail = meta.thumbnail;
     }
 
-    return Response.json({
+    return {
       recipe,
       thumbnail,
       sourceUrl: url,
-      sourceType: "youtube",
-    });
+      sourceType: "youtube" as const,
+    };
   }
 
   // --- FLOW 2: GENERIC RECIPE WEBSITE IMPORT ---
   try {
+    onProgress?.("scraping_web");
     const pageData = await scrapeRecipeUrl(url);
 
     let recipe: ExtractedRecipe | null = null;
 
+    onProgress?.("extracting_recipe");
     // 1. Try deterministic direct JSON-LD parsing first (no AI needed, instant & free)
     if (pageData.jsonLdRecipe) {
       recipe = parseJsonLdRecipe(
@@ -163,7 +154,7 @@ export async function POST(req: NextRequest) {
     // 2. Fallback to Gemini AI if no JSON-LD was found or parsing was incomplete
     if (!recipe) {
       if (!process.env.OPENROUTER_API_KEY) {
-        return Response.json({ error: "ai-config" }, { status: 503 });
+        throw new ImportError("ai-config", 503);
       }
       recipe = await extractFromWebpage(pageData, locale);
     } else if (process.env.OPENROUTER_API_KEY && recipe.ingredients.length > 0) {
@@ -201,6 +192,7 @@ export async function POST(req: NextRequest) {
 
     let thumbnail: string | null = pageData.imageUrl;
     if (thumbnail) {
+      onProgress?.("loading_photo");
       try {
         const res = await fetch(thumbnail, {
           headers: {
@@ -225,17 +217,95 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return Response.json({
+    return {
       recipe,
       thumbnail,
       sourceUrl: url,
-      sourceType: "website",
-    });
+      sourceType: "website" as const,
+    };
   } catch (err) {
+    if (err instanceof ImportError) throw err;
     const message = (err as Error).message ?? "";
     if (message.includes("fetch-failed")) {
-      return Response.json({ error: "fetch-failed", detail: message }, { status: 502 });
+      throw new ImportError("fetch-failed", 502, message);
     }
-    return Response.json({ error: "extraction-failed", detail: message }, { status: 502 });
+    throw new ImportError("extraction-failed", 502, message);
+  }
+}
+
+export async function POST(req: NextRequest) {
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Rate limit: 10 imports per minute per user
+  const rl = rateLimit(`import:${session.user.id}`, 10, 60_000);
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterMs);
+
+  const parsed = bodySchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return Response.json({ error: "invalid-url" }, { status: 400 });
+  }
+  const { url } = parsed.data;
+  const locale: Locale = parsed.data.locale || getInstanceLocale();
+
+  // Validate URL protocol and SSRF safety
+  try {
+    await validateExternalUrl(url);
+  } catch {
+    return Response.json({ error: "invalid-url" }, { status: 400 });
+  }
+
+  const wantsStream = req.headers.get("accept")?.includes("application/x-ndjson");
+
+  if (wantsStream) {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        const send = (data: unknown) => {
+          controller.enqueue(encoder.encode(JSON.stringify(data) + "\n"));
+        };
+        try {
+          const result = await executeImport(url, locale, (step) => {
+            send({ type: "status", step });
+          });
+          send({ type: "result", data: result });
+        } catch (err) {
+          if (err instanceof ImportError) {
+            send({ type: "error", error: err.code, detail: err.message });
+          } else {
+            send({
+              type: "error",
+              error: "extraction-failed",
+              detail: (err as Error).message,
+            });
+          }
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "application/x-ndjson; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  }
+
+  try {
+    const result = await executeImport(url, locale);
+    return Response.json(result);
+  } catch (err) {
+    if (err instanceof ImportError) {
+      return Response.json({ error: err.code, detail: err.message }, { status: err.status });
+    }
+    return Response.json(
+      { error: "extraction-failed", detail: (err as Error).message },
+      { status: 502 },
+    );
   }
 }
