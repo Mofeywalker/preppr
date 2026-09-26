@@ -43,6 +43,13 @@
       "when": 1790255423408,
       "tag": "0005_careful_yellowjacket",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790434967212,
+      "tag": "0006_tan_blob",
+      "breakpoints": true
     }
   ]
 }

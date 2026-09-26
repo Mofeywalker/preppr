@@ -52,28 +52,35 @@ export const verification = sqliteTable("verification", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }),
 });
 
-export const recipes = sqliteTable("recipes", {
-  id: text("id").primaryKey(),
-  userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
-  visibility: text("visibility", { enum: ["private", "shared"] }).notNull().default("shared"),
-  sourceType: text("source_type", { enum: ["manual", "youtube", "tandoor", "website"] }).notNull(),
-  sourceUrl: text("source_url"),
-  language: text("language", { enum: ["de", "en"] }).notNull(),
-  title: text("title").notNull(),
-  description: text("description"),
-  servings: integer("servings").notNull().default(4),
-  prepTimeMin: integer("prep_time_min"),
-  cookTimeMin: integer("cook_time_min"),
-  imageUrl: text("image_url"),
-  calories: integer("calories"),
-  proteinG: real("protein_g"),
-  carbsG: real("carbs_g"),
-  fatG: real("fat_g"),
-  fiberG: real("fiber_g"),
-  isCooked: integer("is_cooked", { mode: "boolean" }).notNull().default(false),
-  createdAt: integer("created_at").notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at").notNull().default(sql`(unixepoch())`),
-});
+export const recipes = sqliteTable(
+  "recipes",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    visibility: text("visibility", { enum: ["private", "shared"] }).notNull().default("shared"),
+    sourceType: text("source_type", { enum: ["manual", "youtube", "tandoor", "website"] }).notNull(),
+    sourceUrl: text("source_url"),
+    language: text("language", { enum: ["de", "en"] }).notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    servings: integer("servings").notNull().default(4),
+    prepTimeMin: integer("prep_time_min"),
+    cookTimeMin: integer("cook_time_min"),
+    imageUrl: text("image_url"),
+    calories: integer("calories"),
+    proteinG: real("protein_g"),
+    carbsG: real("carbs_g"),
+    fatG: real("fat_g"),
+    fiberG: real("fiber_g"),
+    isCooked: integer("is_cooked", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch())`),
+  },
+  (t) => [
+    index("recipes_user_created_idx").on(t.userId, t.createdAt),
+    index("recipes_visibility_created_idx").on(t.visibility, t.createdAt),
+  ],
+);
 
 export const ingredients = sqliteTable("ingredients", {
   id: text("id").primaryKey(),

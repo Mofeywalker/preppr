@@ -6,8 +6,12 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/inputs";
 import { Spinner } from "@/components/ui/spinner";
+import dynamic from "next/dynamic";
 import { ConfirmDialog } from "@/components/ui/dialog";
-import { RecipeShareDialog } from "@/components/recipe-share-dialog";
+const RecipeShareDialog = dynamic(
+  () => import("@/components/recipe-share-dialog").then((m) => m.RecipeShareDialog),
+  { ssr: false },
+);
 import { cn } from "@/lib/utils";
 import type { FullRecipe } from "@/lib/recipes";
 import { RecipeComments } from "@/components/recipe-comments";

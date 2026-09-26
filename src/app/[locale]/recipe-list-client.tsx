@@ -44,7 +44,18 @@ export function RecipeListClient({
   const [sortOpen, setSortOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const sortRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
+  // Progressive rendering: start with initial chunk and increase as user scrolls
+  const INITIAL_BATCH = 24;
+  const BATCH_SIZE = 24;
+  const [visibleCount, setVisibleCount] = useState(INITIAL_BATCH);
+  const filterKey = `${q}|${selectedTags.join(",")}|${sortBy}|${filter}|${onlyCooked}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
+    setVisibleCount(INITIAL_BATCH);
+  }
   // Close sort menu on outside click or Escape
   useEffect(() => {
     if (!sortOpen) return;
@@ -68,6 +79,7 @@ export function RecipeListClient({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [sortOpen]);
+
 
   // Extract all unique tags with count
   const allTagsWithCount = useMemo(() => {
@@ -178,7 +190,24 @@ export function RecipeListClient({
     setOnlyCooked(false);
   };
 
+  // Build search index only when recipes array changes, not on every keystroke
+  const fuse = useMemo(() => {
+    return new Fuse(recipes, {
+      keys: [
+        { name: "title", weight: 0.7 },
+        { name: "description", weight: 0.3 },
+        { name: "tags", weight: 0.4 },
+      ],
+      threshold: 0.35,
+      ignoreLocation: true,
+      minMatchCharLength: 1,
+    });
+  }, [recipes]);
+
   const filteredAndSorted = useMemo(() => {
+    const trimmed = q.trim();
+    const searchMatches = trimmed ? new Set(fuse.search(trimmed).map((res) => res.item.id)) : null;
+
     let result = recipes;
 
     // Filter by ownership/sharing scope
@@ -202,22 +231,10 @@ export function RecipeListClient({
       );
     }
 
-    // Filter by text search
-    const trimmed = q.trim();
-    if (trimmed) {
-      const fuse = new Fuse(result, {
-        keys: [
-          { name: "title", weight: 0.7 },
-          { name: "description", weight: 0.3 },
-          { name: "tags", weight: 0.4 },
-        ],
-        threshold: 0.35,
-        ignoreLocation: true,
-        minMatchCharLength: 1,
-      });
-      result = fuse.search(trimmed).map((res) => res.item);
+    // Filter by text search match
+    if (searchMatches) {
+      result = result.filter((r) => searchMatches.has(r.id));
     }
-
     // Apply sorting
     const sorted = [...result];
     switch (sortBy) {
@@ -252,7 +269,25 @@ export function RecipeListClient({
     }
 
     return sorted;
-  }, [q, recipes, selectedTags, sortBy, filter, onlyCooked]);
+  }, [fuse, q, recipes, selectedTags, sortBy, filter, onlyCooked]);
+
+  // Lazy-render subsequent batches when the bottom sentinel comes into view
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleCount((prev) => prev + BATCH_SIZE);
+        }
+      },
+      { rootMargin: "600px" },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [filteredAndSorted.length]);
 
   const sortOptions: Array<{ value: SortOption; label: string }> = [
     { value: "newest", label: t("sortNewest") },
@@ -745,7 +780,7 @@ export function RecipeListClient({
       ) : viewMode === "grid" ? (
         /* Accessible Card Grid */
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-          {filteredAndSorted.map((r, idx) => {
+          {filteredAndSorted.slice(0, visibleCount).map((r, idx) => {
             const totalTime = (r.prepTimeMin ?? 0) + (r.cookTimeMin ?? 0);
             const hasImage = Boolean(r.imageUrl && !failedImages.has(r.imageUrl));
             // First two cards are above the fold (LCP candidates)
@@ -763,8 +798,12 @@ export function RecipeListClient({
                     <img
                       src={r.imageUrl!}
                       alt={r.title}
+                      width={640}
+                      height={360}
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                       fetchPriority={isPriority ? "high" : undefined}
                       loading={isPriority ? "eager" : "lazy"}
+                      decoding="async"
                       onError={() =>
                         r.imageUrl &&
                         setFailedImages((prev) => new Set(prev).add(r.imageUrl!))
@@ -907,7 +946,7 @@ export function RecipeListClient({
       ) : (
         /* Compact List View */
         <div className="flex flex-col divide-y divide-border/60 rounded-2xl border border-border bg-background overflow-hidden">
-          {filteredAndSorted.map((r, idx) => {
+          {filteredAndSorted.slice(0, visibleCount).map((r, idx) => {
             const totalTime = (r.prepTimeMin ?? 0) + (r.cookTimeMin ?? 0);
             const hasImage = Boolean(r.imageUrl && !failedImages.has(r.imageUrl));
             const isPriority = idx < 4;
@@ -924,8 +963,11 @@ export function RecipeListClient({
                     <img
                       src={r.imageUrl!}
                       alt={r.title}
+                      width={80}
+                      height={80}
                       fetchPriority={isPriority ? "high" : undefined}
                       loading={isPriority ? "eager" : "lazy"}
+                      decoding="async"
                       onError={() =>
                         r.imageUrl &&
                         setFailedImages((prev) => new Set(prev).add(r.imageUrl!))
@@ -1052,6 +1094,11 @@ export function RecipeListClient({
             );
           })}
         </div>
+      )}
+
+      {/* Infinite scroll sentinel for lazy-rendering subsequent chunks */}
+      {visibleCount < filteredAndSorted.length && (
+        <div ref={loadMoreRef} className="h-10 w-full" aria-hidden="true" />
       )}
     </div>
   );

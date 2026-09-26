@@ -4,8 +4,12 @@ import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
+import dynamic from "next/dynamic";
 import { PrintableRecipeCard } from "@/components/recipe-card/printable-recipe-card";
-import { RecipeShareDialog } from "@/components/recipe-share-dialog";
+const RecipeShareDialog = dynamic(
+  () => import("@/components/recipe-share-dialog").then((m) => m.RecipeShareDialog),
+  { ssr: false },
+);
 import type { FullRecipe } from "@/lib/recipes";
 
 export function RecipePrintClient({
