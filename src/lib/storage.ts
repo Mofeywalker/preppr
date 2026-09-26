@@ -24,41 +24,24 @@ export function getUploadDir(): string {
   return join(process.cwd(), "public", "uploads");
 }
 
-export function getMimeType(filenameOrExt: string): string {
-  const ext = filenameOrExt.includes(".")
-    ? extname(filenameOrExt).toLowerCase()
-    : filenameOrExt.toLowerCase();
+const MIME_BY_EXT: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+  svg: "image/svg+xml",
+  avif: "image/avif",
+  heic: "image/heic",
+  heif: "image/heif",
+};
 
-  switch (ext) {
-    case ".jpg":
-    case ".jpeg":
-    case "jpg":
-    case "jpeg":
-      return "image/jpeg";
-    case ".png":
-    case "png":
-      return "image/png";
-    case ".webp":
-    case "webp":
-      return "image/webp";
-    case ".gif":
-    case "gif":
-      return "image/gif";
-    case ".svg":
-    case "svg":
-      return "image/svg+xml";
-    case ".avif":
-    case "avif":
-      return "image/avif";
-    case ".heic":
-    case "heic":
-      return "image/heic";
-    case ".heif":
-    case "heif":
-      return "image/heif";
-    default:
-      return "application/octet-stream";
-  }
+export function getMimeType(filenameOrExt: string): string {
+  const ext = (filenameOrExt.includes(".")
+    ? extname(filenameOrExt)
+    : filenameOrExt
+  ).replace(/^\./, "").toLowerCase();
+  return MIME_BY_EXT[ext] || "application/octet-stream";
 }
 
 /**

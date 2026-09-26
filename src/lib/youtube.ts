@@ -9,8 +9,6 @@ import { randomUUID } from "node:crypto";
 const exec = promisify(execFile);
 const YT_DLP = process.env.YT_DLP_PATH || "yt-dlp";
 
-export { parseYouTubeId, isYouTubeUrl } from "./urls";
-
 export async function getTranscript(videoId: string): Promise<string | null> {
   try {
     const lines = await YoutubeTranscript.fetchTranscript(videoId);

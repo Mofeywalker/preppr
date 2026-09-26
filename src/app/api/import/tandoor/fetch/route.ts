@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { tandoorToRecipeInput, saveUploadedImage, type TandoorRecipe } from "@/lib/tandoor";
+import { tandoorToRecipeInput, type TandoorRecipe } from "@/lib/tandoor";
+import { saveUploadedImage } from "@/lib/storage";
 import { populateMissingNutrition } from "@/lib/ai";
 import { getInstanceLocale, type Locale } from "@/i18n/routing";
 import { auth } from "@/lib/auth";

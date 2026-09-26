@@ -1,9 +1,6 @@
 import JSZip from "jszip";
-import { saveUploadedImage } from "@/lib/storage";
 import type { RecipeInput } from "@/lib/recipes";
 import { getInstanceLocale, type Locale } from "@/i18n/routing";
-
-export { saveUploadedImage };
 
 export interface TandoorIngredient {
   food?: { name?: string | null; plural_name?: string | null } | string | null;

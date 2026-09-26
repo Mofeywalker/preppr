@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseYouTubeId, isYouTubeUrl } from "./youtube";
+import { parseYouTubeId, isYouTubeUrl } from "./urls";
 
 describe("youtube utilities", () => {
   describe("parseYouTubeId", () => {

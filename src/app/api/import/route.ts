@@ -1,9 +1,8 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
+import { isYouTubeUrl, parseYouTubeId } from "@/lib/urls";
 import {
-  isYouTubeUrl,
-  parseYouTubeId,
   getTranscript,
   getMetadata,
   downloadAudio,
