@@ -51,7 +51,7 @@ test.describe("Recipe Lifecycle (CRUD)", () => {
     await ingUnitInputs.nth(2).fill("Dose");
 
     // Steps
-    const stepInputs = page.locator('input[placeholder*="Schritt"]');
+    const stepInputs = page.locator('textarea[placeholder*="Schritt"]');
     await stepInputs.nth(0).fill("Zwiebeln und Hackfleisch scharf anbraten.");
 
     await page.click('button:has-text("+ Schritt hinzufügen")');

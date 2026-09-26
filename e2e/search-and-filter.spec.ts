@@ -17,7 +17,7 @@ test.describe("Search, Filter & Tag Discovery", () => {
     await page.click('button:has-text("+ Hinzufügen")');
     await page.click('button:has-text("+ Zutat hinzufügen")');
     await page.locator('input[placeholder="Name"]').first().fill("Penne");
-    await page.locator('input[placeholder*="Schritt"]').first().fill("Pasta kochen");
+    await page.locator('textarea[placeholder*="Schritt"]').first().fill("Pasta kochen");
     await page.click('button[type="submit"]:has-text("Speichern")');
     await page.waitForURL(/\/recipes\/[a-zA-Z0-9_-]+/);
 
@@ -28,7 +28,7 @@ test.describe("Search, Filter & Tag Discovery", () => {
     await page.click('button:has-text("+ Hinzufügen")');
     await page.click('button:has-text("+ Zutat hinzufügen")');
     await page.locator('input[placeholder="Name"]').first().fill("Schokolade");
-    await page.locator('input[placeholder*="Schritt"]').first().fill("Kuchen backen");
+    await page.locator('textarea[placeholder*="Schritt"]').first().fill("Kuchen backen");
     await page.click('button[type="submit"]:has-text("Speichern")');
     await page.waitForURL(/\/recipes\/[a-zA-Z0-9_-]+/);
 

@@ -1217,12 +1217,12 @@ export function RecipeForm({
             </div>
             <div className="space-y-2">
               {stepList.map((s, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground/80">
+                <div key={i} className="flex items-start gap-2">
+                  <span className="flex size-6 shrink-0 mt-2 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground/80">
                     {i + 1}
                   </span>
-                  <Input
-                    className="flex-1 bg-background"
+                  <Textarea
+                    className="flex-1 bg-background field-sizing-content min-h-11 max-h-64 resize-y py-2 leading-relaxed"
                     placeholder={`${t("stepText")} ${i + 1}`}
                     value={s}
                     onChange={(e) =>

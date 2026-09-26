@@ -22,7 +22,7 @@ test.describe("Interactive Recipe Features", () => {
     await page.locator('input[placeholder="Einheit"]').first().fill("g");
 
     // Add step
-    await page.locator('input[placeholder*="Schritt"]').first().fill("Teig anrühren und goldbraun ausbacken.");
+    await page.locator('textarea[placeholder*="Schritt"]').first().fill("Teig anrühren und goldbraun ausbacken.");
 
     // Save
     await page.click('button[type="submit"]:has-text("Speichern")');

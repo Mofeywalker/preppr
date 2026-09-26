@@ -73,7 +73,7 @@ test.describe("Recipe Ingredient Sections & Dual-View Flow", () => {
 
     // Add Step
     await page
-      .locator('input[placeholder*="Schritt"]')
+      .locator('textarea[placeholder*="Schritt"]')
       .first()
       .fill("Teig anrühren, Streusel verkneten und 25 Minuten backen.");
 
