@@ -33,7 +33,7 @@ A modern, mobile-first recipe & meal-prep application with AI-powered YouTube an
 | **Framework** | [Next.js 16](https://nextjs.org/) (App Router) + TypeScript |
 | **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) |
 | **Database** | SQLite via [Drizzle ORM](https://orm.drizzle.team/) + `better-sqlite3` |
-| **AI / LLM** | [Vercel AI SDK](https://sdk.vercel.ai/) + OpenRouter (`gpt-5.6-luna`, `google/gemini-3.1-flash-image`) |
+| **AI / LLM** | [Vercel AI SDK](https://sdk.vercel.ai/) + OpenRouter (`~openai/gpt-luna-latest`, `google/gemini-3.1-flash-image`) |
 | **Media Processing** | `yt-dlp` + `ffmpeg` (automatic video transcript & audio fallback) |
 | **Recipe Scraping** | [Cheerio](https://cheerio.js.org/) + Schema.org/Recipe JSON-LD parser |
 | **PWA & Mobile** | Service Worker, Web App Manifest, Web Share Target API, Android TWA Digital Asset Links |
@@ -86,6 +86,8 @@ To enable AI recipe extraction, nutrition estimation, and AI image generation/re
    OPENROUTER_API_KEY=sk-or-v1-...
    # Optional: customize the image generation model (default: "google/gemini-3.1-flash-image")
    # OPENROUTER_IMAGE_MODEL=google/gemini-3.1-flash-image
+   # Optional: audio-capable model for YouTube fallback when no transcript exists (default: "google/gemini-3.5-flash")
+   # OPENROUTER_AUDIO_MODEL=google/gemini-3.5-flash
    ```
 
 > [!NOTE]
@@ -98,7 +100,7 @@ To enable AI recipe extraction, nutrition estimation, and AI image generation/re
 | Variable | Required | Default | Purpose |
 | :--- | :---: | :--- | :--- |
 | `OPENROUTER_API_KEY` | For AI | — | OpenRouter API key |
-| `OPENROUTER_IMAGE_MODEL` | No | `google/gemini-3.1-flash-image` | Model used for AI photo generation and thumbnail enhancement |
+| `OPENROUTER_AUDIO_MODEL` | No | `google/gemini-3.5-flash` | Audio-capable model for YouTube import fallback when no transcript exists |
 | `DATABASE_PATH` | No | `./dev.db` | SQLite database file location |
 | `UPLOAD_DIR` | No | `./public/uploads` | Directory for uploaded/generated images |
 | `YT_DLP_PATH` | No | `yt-dlp` | Custom path to the `yt-dlp` binary |

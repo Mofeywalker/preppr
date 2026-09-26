@@ -11,8 +11,19 @@ function getModel() {
     throw new Error("OPENROUTER_API_KEY is not set");
   }
   const provider = createOpenRouter({ apiKey });
-  const rawModel = process.env.OPENROUTER_MODEL || "openai/gpt-5.6-luna";
+  const rawModel = process.env.OPENROUTER_MODEL || "~openai/gpt-luna-latest";
   const modelId = rawModel.includes("/") ? rawModel : `openai/${rawModel}`;
+  return provider(modelId);
+}
+
+function getAudioModel() {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENROUTER_API_KEY is not set");
+  }
+  const provider = createOpenRouter({ apiKey });
+  const modelId =
+    process.env.OPENROUTER_AUDIO_MODEL || "google/gemini-3.5-flash";
   return provider(modelId);
 }
 
@@ -199,7 +210,7 @@ export async function extractFromAudio(
 ): Promise<ExtractedRecipe> {
   const targetLanguage = preferredLocale === "de" ? "German (Deutsch)" : "English";
   const { object } = await generateObject({
-    model: getModel(),
+    model: getAudioModel(),
     schema: extractSchema,
     schemaName: "Recipe",
     system: getExtractionSystemPrompt(preferredLocale),
