@@ -83,6 +83,32 @@ function resolveUrl(relativeOrAbsolute: string, baseUrl: string): string | null 
   }
 }
 
+const READER_BASE = "https://r.jina.ai/";
+const BOT_CHALLENGE_RE = /just a moment|cf-chl|attention required|enable javascript and cookies/i;
+
+/** Fetch through the r.jina.ai reader, which renders the page in a real browser. */
+async function fetchViaReader(url: string): Promise<string> {
+  const response = await fetch(READER_BASE + url, {
+    headers: {
+      Accept: "text/html",
+      "x-return-format": "html",
+      "x-timeout": "30",
+    },
+    signal: AbortSignal.timeout(30000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`reader-failed: ${response.status} ${response.statusText}`);
+  }
+
+  const html = await response.text();
+  if (!html.trim() || BOT_CHALLENGE_RE.test(html)) {
+    throw new Error("reader-failed: still challenged");
+  }
+
+  return html;
+}
+
 export async function fetchWebpage(url: string): Promise<string> {
   await validateExternalUrl(url);
 
@@ -99,11 +125,22 @@ export async function fetchWebpage(url: string): Promise<string> {
     signal: AbortSignal.timeout(20000),
   });
 
-  if (!response.ok) {
-    throw new Error(`fetch-failed: ${response.status} ${response.statusText}`);
+  const html = await response.text();
+  const challenged = !response.ok || (html.length < 5000 && BOT_CHALLENGE_RE.test(html));
+
+  if (!challenged) {
+    return html;
   }
 
-  return await response.text();
+  // Cloudflare (and similar) block datacenter IPs and require JS; render remotely instead.
+  try {
+    return await fetchViaReader(url);
+  } catch (readerErr) {
+    if (!response.ok) {
+      throw new Error(`fetch-failed: ${response.status} ${response.statusText}`);
+    }
+    throw new Error(`fetch-failed: bot-challenge (reader: ${(readerErr as Error).message})`);
+  }
 }
 
 export async function scrapeRecipeUrl(url: string): Promise<ScrapedRecipePage> {
